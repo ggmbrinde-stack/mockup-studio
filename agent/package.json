@@ -1,0 +1,10 @@
+{
+  "name": "vectorizer-bridge-agent",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Headless driver for the Vectorizer Bridge Illustrator panel",
+  "main": "run.js",
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}

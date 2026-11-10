@@ -1,0 +1,107 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vectorizer Bridge</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="title" data-i18n="appTitle">Vectorizer Bridge</div>
+    <div class="spacer"></div>
+    <button id="langBtn" class="btn small">EN</button>
+  </header>
+
+  <div class="status" id="statusBar">Ready</div>
+  <div id="statusDetail" class="statusDetail"></div>
+
+  <button id="vectorizeBtn" class="btn primary" data-i18n="vectorizeBtn">Vectorize selection</button>
+  <div class="hint" data-i18n="vectorizeHint">Everything happens inside Illustrator. The selection is exported, vectorized on vectorizer.ai in the background, and placed on the Vectorizer layer.</div>
+
+  <div class="actions">
+    <button id="signInBtn" class="btn small" data-i18n="signInBtn">Sign in to vectorizer.ai</button>
+    <button id="openSvgsBtn" class="btn small" data-i18n="openSvgsFolder">Open SVG folder</button>
+    <button id="openLogBtn" class="btn small" data-i18n="openLog">Open log folder</button>
+    <button id="cancelBtn" class="btn small" data-i18n="cancel">Cancel</button>
+  </div>
+
+  <div id="lastExport" class="hint"></div>
+
+  <details class="settings" id="settingsBox" open>
+    <summary class="settingsSummary" data-i18n="settings">Settings</summary>
+    <div class="settingsGrid">
+      <div class="field">
+        <label data-i18n="pngLongSide">PNG long side (px)</label>
+        <select id="settingsPngPreset">
+          <option value="1200" data-i18n="pngPresetFast">Fast (1200 px)</option>
+          <option value="1700" data-i18n="pngPresetBalanced">Balanced (1700 px)</option>
+          <option value="2400" data-i18n="pngPresetQuality">Quality (2400 px)</option>
+          <option value="0" data-i18n="pngPresetOriginal">Original (1 px/pt)</option>
+          <option value="custom" data-i18n="pngPresetCustom">Custom</option>
+        </select>
+        <input id="settingsPngSize" type="number" min="100" max="5000" value="1700">
+      </div>
+      <div class="field full">
+        <label class="checkbox">
+          <input id="settingsHideOriginal" type="checkbox">
+          <span data-i18n="hideOriginal">Hide original after placing</span>
+        </label>
+      </div>
+      <div class="field full">
+        <label class="checkbox">
+          <input id="settingsWarmDaemon" type="checkbox">
+          <span data-i18n="warmDaemon">Warm Chrome (faster runs)</span>
+        </label>
+        <div id="warmDaemonStatus" class="hint"></div>
+      </div>
+      <div class="field full">
+        <label for="settingsBatchWorkers" data-i18n="batchWorkers">Parallel batch workers</label>
+        <select id="settingsBatchWorkers">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+        <div class="hint" data-i18n="batchWorkersHint">1 = safest (sequential). 2+ uses warm Chrome pages in parallel for faster batches.</div>
+      </div>
+      <div class="field full">
+        <label for="settingsVectorizeShortcut" data-i18n="vectorizeShortcut">Vectorize shortcut</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input id="settingsVectorizeShortcut" type="text" readonly value="Ctrl+Shift+Ç" style="flex:1;">
+          <button id="setVectorizeShortcutBtn" class="btn small" type="button" data-i18n="setShortcut">Set</button>
+          <button id="resetVectorizeShortcutBtn" class="btn small" type="button" data-i18n="resetShortcut">Reset</button>
+        </div>
+        <div class="hint" data-i18n="vectorizeShortcutHint">Click Set and press keys (panel must have focus). Default: Ctrl+Shift+Ç.</div>
+      </div>
+    </div>
+  </details>
+
+  <div class="panel" id="historyBox">
+    <div class="panelTitleRow"><div class="panelTitle" data-i18n="history">History</div><button id="refreshSvgsBtn" class="btn small" data-i18n="refreshSvgs">Refresh</button></div>
+    <div class="hint" data-i18n="svgHistoryHint">SVG files are saved in Documents/VectorizerBridge/agent-downloads.</div>
+    <div id="svgHistoryList" class="list"></div>
+    <div class="panelSubTitle">Recent activity</div>
+    <div class="panelTitle" style="display:none" data-i18n="history">History</div>
+    <div id="historyList" class="list"></div>
+  </div>
+
+  <div class="panel" id="logBox">
+    <div class="panelTitle" data-i18n="log">Log</div>
+    <div id="panelLog" class="log"></div>
+  </div>
+
+  <div class="version" id="versionText"></div>
+  <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
+  <div id="jsError" class="error-box" style="display:none;padding:8px;background:#ffebee;border:1px solid #b71c1c;color:#b71c1c;font-size:11px;margin-top:8px;overflow:auto;max-height:150px;"></div>
+</div>
+<script src="js/csinterface.js"></script>
+<script src="js/locales/en.js"></script>
+<script src="js/locales/pt.js"></script>
+<script src="js/core/app.js"></script>
+<script src="js/bridge/host.js"></script>
+<script src="js/queue/batch.js"></script>
+<script src="modules/vectorizer/vectorizer.js"></script>
+<script src="js/panel.js"></script>
+</body>
+</html>

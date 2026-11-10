@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="2.2.0" ExtensionBundleName="Vectorizer Bridge">
+  <ExtensionList>
+    <Extension Id="com.bestofgifts.vectorizerbridge.panel" Version="2.2.0"/>
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <!-- Illustrator 2025 = 29.x, Illustrator 2026 = 30.x, and later.
+           The range is inclusive, so one panel build serves both. -->
+      <Host Name="ILST" Version="[29.0,99.9]"/>
+    </HostList>
+    <LocaleList>
+      <Locale Code="All"/>
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="9.0"/>
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.bestofgifts.vectorizerbridge.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Vectorizer Bridge</Menu>
+          <Geometry>
+            <Size>
+              <Width>420</Width>
+              <Height>640</Height>
+            </Size>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>
+
