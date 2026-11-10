@@ -9,7 +9,7 @@
   - `js/bridge/host.js`: host bridge — `CSInterface`/`evalScript`, result parsing + friendly errors, host script loading, folder/history host actions.
   - `js/queue/batch.js`: bounded parallel batch queue/scheduler (prepare/export/agent/place per item, retry/stale-start handling, progress/finish) — emits `batch:finished`.
   - `modules/vectorizer/vectorizer.js`: vectorizer module — UI bind/init, vectorize/sign-in/cancel, single-run poll/place fallback, SVG history UI/place, warm daemon control; subscribes to `core.events`.
-  - `js/panel.js`: bootstrap (`VBPanel.vectorizer.init`).
+  - `js/panel.js`: bootstrap (`VBPanel.vectorizer.init`); registers `CSInterface.registerKeyEventsInterest` for the configured vectorize shortcut and the panel flyout menu.
 - **Host (Illustrator ExtendScript, cached; requires Illustrator restart/full reload on change)** — loaded via `$.evalFile`:
   - `host/json.jsx` (JSON polyfill), `host/core.jsx` (shared helpers: paths/log/bounds/doc checks, SVG listing/open/reveal), `host/batch.jsx` (prepareBatch/exportBatchItem/resolve), `host/export.jsx` (single `exportSelection`), `host/place.jsx` (`placeSVG`, `allowAnyDoc` history place), `host/agent.jsx` (agent/daemon launch/status/stop). `host/common.jsx`/`host/import.jsx` remain as compatibility copies.
 - **Agent (Node, outside Illustrator)** — `agent/`:
@@ -22,6 +22,7 @@
 - Queue↔vectorizer decoupled via `core.events` (`poll:tick`, `batch:finished`); keep this boundary for UI/UX changes.
 - Keep per-item export/place semantics and source-document guards for auto/batch placement; history/manual place may target any open document (`allowAnyDoc`) and fit to active artboard.
 - Default `batchWorkers=1` (safer on Windows); warm daemon is single browser/profile with reusable pages (clamped 1–4).
+- **Keyboard shortcut:** configurable vectorize shortcut in `state.settings.vectorizeShortcut` (`{ctrl,shift,alt,key,code,label}`), default `Ctrl+Shift+Ç`. Panel focus required. Registered via `CSInterface.registerKeyEventsInterest`; emits `shortcut:changed` when user sets/resets in Settings.
 - **Sync:** keep source and `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\` in sync on changes.
 
 ## Packaging / distribution (housekeeping)

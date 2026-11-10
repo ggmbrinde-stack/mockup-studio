@@ -7,6 +7,7 @@ CEP panel for **Illustrator 2025/2026+ on Windows** (`com.bestofgifts.vectorizer
 - **Per-item batch:** each selected object becomes its own SVG (bounded parallel queue, default 1 worker, up to 4). Whole-selection-as-one is deferred.
 - **SVG history:** saved SVGs can be opened/revealed and placed into any open document (artboard-fit), independent of the export source document.
 - **Warm Chrome daemon (optional):** keeps a headless browser/profile warm for faster runs.
+- **Keyboard shortcut:** customizable shortcut for Vectorize selection (default `Ctrl+Shift+Ç`). Works only when the panel has focus. Set/Reset in Settings → “Vectorize shortcut”.
 
 vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden Chrome/Edge session on a persistent profile. No API key.
 
@@ -22,14 +23,14 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 3. Start Illustrator → **Window > Extensions > Vectorizer Bridge**.
 4. **Sign in to vectorizer.ai** once (profile stored in `Documents\VectorizerBridge\vectorizer-profile`).
 
-**Apply changes:** panel JS/HTML on panel reload; **`host/*.jsx` requires full Illustrator quit/reopen or full extension reload** (ExtendScript cache); `agent/*` changes require stopping/restarting the warm daemon if running.
+**Apply changes:** panel JS/HTML on panel reload; **`host/*.jsx` requires full Illustrator quit/reopen or full extension reload** (ExtendScript cache); `agent/*` changes require stopping/restarting the warm daemon if running. Shortcut changes take effect on panel reload.
 
 ## Usage
-1. Select artwork (one or many items) and click **Vectorize selection**.
+2. Select artwork (one or many items) and click **Vectorize selection** (or use the configured keyboard shortcut, default `Ctrl+Shift+Ç`, panel must have focus).
 2. Progress: exporting → uploading → vectorizing → downloading → placing. Cancel stops active runs/daemon-served work.
 3. Results: editable SVG(s) on `Vectorizer` layer, selected/fitted; originals optionally hidden per setting (batch/auto). History → Place works in any open document.
 
-**Settings:** PNG long side (preset/custom/original), hide original after placing, warm Chrome, parallel batch workers (1 safest).
+**Settings:** PNG long side (preset/custom/original), hide original after placing, warm Chrome, parallel batch workers (1 safest), vectorize shortcut (default `Ctrl+Shift+Ç`, panel focus only).
 
 ## Runtime data (user Documents, not in repo/dist)
 `%USERPROFILE%\Documents\VectorizerBridge\`: `agent-downloads\vectorizer_export_*.svg`, `agent-status*.json`, `agent-daemon.json`, `agent-log.txt`, `log.txt`, `agent-debug\`, `vectorizer-profile\`.

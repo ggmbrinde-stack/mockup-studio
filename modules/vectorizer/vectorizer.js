@@ -391,7 +391,65 @@
     }, true);
   }
 
-  function init() {
+  function renderUpdateUI() { if (core.renderUpdateUI) core.renderUpdateUI(); }
+  function initUpdateUI() {
+    var verEl = core.$("updateVersionText");
+    if (verEl) verEl.textContent = (core.t('updateCurrentVersion') || 'Versão: {version}').replace('{version}', core.state.appVersion || '2.2.0');
+    var checkBtn = core.$("checkUpdateBtn");
+    var dlBtn = core.$("downloadUpdateBtn");
+    core.on(checkBtn, "click", function () {
+      if (core.checkForUpdate) core.checkForUpdate();
+    });
+    core.on(dlBtn, "click", function () {
+      if (!core.state.update || core.state.update.downloading || core.state.update.staged) return;
+      var ver = core.state.update.remoteVersion || '';
+      core.state.update.downloading = true;
+      if (core.setUpdateStatus) core.setUpdateStatus('updateDownloading', 'Baixando e preparando atualização...');
+      renderUpdateUI();
+      bridge.stageUpdate(ver, function (r) {
+        core.state.update.downloading = false;
+        if (r && r.ok) {
+          core.state.update.staged = true;
+          core.state.update.available = false;
+          if (core.setUpdateStatus) core.setUpdateStatus('updateStaged', 'Atualização preparada ({version}). Feche o Illustrator para completar a atualização.', ver || r.version || '');
+          core.log('Update staged ' + (ver || r.version || '') + '. Close Illustrator to complete.');
+        } else {
+          var msg = (core.t && core.t('updateStageFailed')) || 'Falha ao baixar/preparar atualização.';
+          if (r && r.error) msg += ' (' + r.error + ')';
+          var el = core.$('updateStatusText'); if (el) el.textContent = msg;
+          core.log('Update stage failed: ' + (r && r.error ? r.error : 'unknown'));
+        }
+        renderUpdateUI();
+      });
+    });
+    renderUpdateUI();
+  }
+
+  function applyPendingUpdateOnStart(callback) {
+    if (!bridge.getPendingUpdate) { if (callback) callback(); return; }
+    bridge.getPendingUpdate(function (info) {
+      if (info && info.ok && info.pending) {
+        var ver = info.version || '';
+        core.log('Pending update found (' + ver + '), applying...');
+        bridge.applyPendingUpdate(function (res) {
+          if (res && res.ok && res.applied) {
+            core.state.update.staged = false;
+            core.state.update.available = false;
+            if (ver) core.state.appVersion = ver;
+            var el = core.$('updateStatusText');
+            if (el) el.textContent = (core.t('updateApplied') || 'Atualizado para {version}.').replace('{version}', ver || core.state.appVersion);
+            core.log('Update applied: ' + (ver || core.state.appVersion));
+            renderUpdateUI();
+          } else if (res && !res.ok) {
+            core.log('Pending update apply failed: ' + (res.error || 'unknown'));
+          }
+          if (callback) callback();
+        });
+      } else {
+        if (callback) callback();
+      }
+    });
+  }
     core.loadSettings();
     // queue↔vectorizer interface/events
     core.events.on('poll:tick', pollOnce);

@@ -280,6 +280,20 @@ VB.fitArtboard = function (doc, rect) {
   }
 };
 
+/* Read extension version from CSXS/manifest.xml */
+VB.getExtensionVersion = function () {
+  try {
+    var ext = VB.extensionPath || "";
+    if (!ext) return "";
+    var path = ext.replace(/\\/g, "/") + "/CSXS/manifest.xml";
+    var txt = VB.readTextFile(path);
+    if (!txt) return "";
+    var m = txt.match(/ExtensionBundleVersion=\"([^\"]+)\"/);
+    if (m && m[1]) return String(m[1]);
+  } catch (e) { VB.log("getExtensionVersion error: " + e); }
+  return "";
+};
+
 /* List recent SVG files in agent-downloads (for panel history). */
 VB.listVectorizedSvgs = function (limit) {
   try {
@@ -325,3 +339,143 @@ VB.revealFile = function (path) {
   } catch (e) { return 'error: ' + e; }
 };
 
+
+/* --------- update helpers (staging in Documents\VectorizerBridge\update-staging) --------- */
+VB._updateStagingDir = function () {
+  try { return VB.getBridgeFolderPath() + "/update-staging"; } catch (e) { return ""; }
+};
+VB.getPendingUpdateInfo = function () {
+  try {
+    var dir = VB._updateStagingDir();
+    if (!dir) return VB.toJSON({ ok: false, error: "noBridge" });
+    var f = new File(dir + "/pending.json");
+    if (!f.exists) return VB.toJSON({ ok: true, pending: false });
+    var txt = VB.readTextFile(f.fsName);
+    var ver = "";
+    if (txt) {
+      try {
+        var m = String(txt).match(/"version"\s*:\s*"([^"]+)"/);
+        if (m && m[1]) ver = m[1];
+      } catch (e) {}
+    }
+    return VB.toJSON({ ok: true, pending: true, version: ver, staging: dir });
+  } catch (e) { return VB.toJSON({ ok: false, error: String(e) }); }
+};
+VB._execPsFileHidden = function (ps1Path) {
+  try {
+    var work = VB.getBridgeFolderPath();
+    VB.ensureBridgeFolder();
+    var cmdPath = work + "/vb-update-run.cmd";
+    var vbsPath = work + "/vb-update-run.vbs";
+    var cmd = new File(cmdPath); cmd.encoding = "ASCII";
+    if (!cmd.open("w")) return "error: cannot write cmd";
+    cmd.writeln("@echo off");
+    cmd.writeln('powershell -NoProfile -ExecutionPolicy Bypass -File "' + String(ps1Path).replace(/\//g, "\\") + '"');
+    cmd.close();
+    var vbs = new File(vbsPath); vbs.encoding = "ASCII";
+    if (!vbs.open("w")) return "error: cannot write vbs";
+    var runLine = 'cmd /c ""' + String(cmdPath).replace(/\//g, "\\") + '""';
+    vbs.writeln('Dim sh'); vbs.writeln('Set sh = CreateObject("WScript.Shell")');
+    vbs.writeln('sh.Run "' + runLine.replace(/"/g, '""') + '", 0, True');
+    vbs.close(); vbs.execute();
+    return "ok";
+  } catch (e) { return "error: " + e; }
+};
+VB.stageUpdate = function (zipUrl, version) {
+  try {
+    zipUrl = String(zipUrl || "");
+    version = String(version || "");
+    if (!zipUrl) return VB.toJSON({ ok: false, error: "noUrl" });
+    var dir = VB._updateStagingDir();
+    if (!dir) return VB.toJSON({ ok: false, error: "noBridge" });
+    var folder = new Folder(dir);
+    if (!folder.exists) folder.create();
+    var ps1 = new File(dir + "/stage-update.ps1");
+    var zipPath = dir + "/update.zip";
+    var extractDir = dir + "/mockup-studio-main";
+    var pendingPath = dir + "/pending.json";
+    var resultPath = dir + "/stage-result.json";
+    ps1.encoding = "UTF-8";
+    if (!ps1.open("w")) return VB.toJSON({ ok: false, error: "cannotWriteScript" });
+    ps1.writeln("$ErrorActionPreference = 'Stop'");
+    ps1.writeln("try {");
+    ps1.writeln("  $dir = '" + dir.replace(/'/g, "''") + "'");
+    ps1.writeln("  $zip = Join-Path $dir 'update.zip'");
+    ps1.writeln("  $extract = Join-Path $dir 'mockup-studio-main'");
+    ps1.writeln("  $pending = Join-Path $dir 'pending.json'");
+    ps1.writeln("  $result = Join-Path $dir 'stage-result.json'");
+    ps1.writeln("  if (Test-Path $zip) { Remove-Item -LiteralPath $zip -Force }");
+    ps1.writeln("  if (Test-Path $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }");
+    ps1.writeln("  Invoke-WebRequest -Uri '" + zipUrl.replace(/'/g, "''") + "' -OutFile $zip -UseBasicParsing");
+    ps1.writeln("  Expand-Archive -LiteralPath $zip -DestinationPath $dir -Force");
+    ps1.writeln("  if (-not (Test-Path $extract)) { throw 'extract folder missing' }");
+    ps1.writeln("  @{ version = '" + version.replace(/'/g, "''") + "' } | ConvertTo-Json -Compress | Set-Content -LiteralPath $pending -Encoding UTF8");
+    ps1.writeln("  @{ ok = $true; version = '" + version.replace(/'/g, "''") + "' } | ConvertTo-Json -Compress | Set-Content -LiteralPath $result -Encoding UTF8");
+    ps1.writeln("} catch {");
+    ps1.writeln("  @{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress | Set-Content -LiteralPath '" + resultPath.replace(/'/g, "''") + "' -Encoding UTF8");
+    ps1.writeln("}");
+    ps1.close();
+    var ex = VB._execPsFileHidden(ps1.fsName);
+    if (ex !== "ok") return VB.toJSON({ ok: false, error: ex });
+    var rtxt = VB.readTextFile(resultPath);
+    if (rtxt && rtxt.indexOf('"ok":true') >= 0) return VB.toJSON({ ok: true, version: version });
+    if (rtxt && rtxt.indexOf('"ok":false') >= 0) {
+      var em = rtxt.match(/"error"\s*:\s*"([^"]*)"/);
+      return VB.toJSON({ ok: false, error: em && em[1] ? em[1] : "stage failed" });
+    }
+    // if pending exists assume ok
+    var pf = new File(pendingPath);
+    if (pf.exists) return VB.toJSON({ ok: true, version: version });
+    return VB.toJSON({ ok: false, error: "stage incomplete" });
+  } catch (e) { return VB.toJSON({ ok: false, error: String(e) }); }
+};
+VB.applyPendingUpdate = function () {
+  try {
+    var dir = VB._updateStagingDir();
+    if (!dir) return VB.toJSON({ ok: false, error: "noBridge" });
+    var pending = new File(dir + "/pending.json");
+    if (!pending.exists) return VB.toJSON({ ok: true, applied: false });
+    var src = dir + "/mockup-studio-main";
+    var srcFolder = new Folder(src);
+    if (!srcFolder.exists) return VB.toJSON({ ok: false, error: "stagedSourceMissing" });
+    var dest = String(VB.extensionPath || "").replace(/\\/g, "/");
+    if (!dest) return VB.toJSON({ ok: false, error: "noExtensionPath" });
+    // Safety: never touch Documents\VectorizerBridge runtime except staging dir itself
+    var ps1 = new File(dir + "/apply-update.ps1");
+    var resultPath = dir + "/apply-result.json";
+    ps1.encoding = "UTF-8";
+    if (!ps1.open("w")) return VB.toJSON({ ok: false, error: "cannotWriteScript" });
+    ps1.writeln("$ErrorActionPreference = 'Stop'");
+    ps1.writeln("try {");
+    ps1.writeln("  $src = '" + src.replace(/'/g, "''") + "'");
+    ps1.writeln("  $dst = '" + dest.replace(/'/g, "''") + "'");
+    ps1.writeln("  $staging = '" + dir.replace(/'/g, "''") + "'");
+    ps1.writeln("  $excludeDirs = @('agent\\node_modules','node_modules','.git','agent-downloads','agent-debug','vectorizer-profile')");
+    ps1.writeln("  $excludeFiles = @('agent-status*.json','agent-daemon.json','agent-log.txt','log.txt','*.zip','.DS_Store','Thumbs.db','desktop.ini')");
+    ps1.writeln("  $rcArgs = @($src,$dst,'/E','/R:2','/W:1','/NFL','/NDL','/NP')");
+    ps1.writeln("  $rcArgs += @('/XD') + $excludeDirs");
+    ps1.writeln("  $rcArgs += @('/XF') + $excludeFiles");
+    ps1.writeln("  & robocopy @rcArgs | Out-Null");
+    ps1.writeln("  $rc = $LASTEXITCODE");
+    ps1.writeln("  if ($rc -ge 8) { throw ('robocopy failed: ' + $rc) }");
+    ps1.writeln("  try { Remove-Item -LiteralPath $staging -Recurse -Force } catch {}");
+    ps1.writeln("  @{ ok = $true; applied = $true } | ConvertTo-Json -Compress | Set-Content -LiteralPath '" + resultPath.replace(/'/g, "''") + "' -Encoding UTF8");
+    ps1.writeln("} catch {");
+    ps1.writeln("  @{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress | Set-Content -LiteralPath '" + resultPath.replace(/'/g, "''") + "' -Encoding UTF8");
+    ps1.writeln("}");
+    ps1.close();
+    var ex = VB._execPsFileHidden(ps1.fsName);
+    if (ex !== "ok") return VB.toJSON({ ok: false, error: ex });
+    var rtxt = VB.readTextFile(resultPath);
+    // staging may be deleted by script including result; if gone and pending gone, treat as applied
+    if (rtxt && rtxt.indexOf('"ok":true') >= 0) return VB.toJSON({ ok: true, applied: true });
+    if (rtxt && rtxt.indexOf('"ok":false') >= 0) {
+      var em = rtxt.match(/"error"\s*:\s*"([^"]*)"/);
+      return VB.toJSON({ ok: false, error: em && em[1] ? em[1] : "apply failed" });
+    }
+    var pendingAfter = new File(dir + "/pending.json");
+    var stagingAfter = new Folder(dir);
+    if (!pendingAfter.exists && !stagingAfter.exists) return VB.toJSON({ ok: true, applied: true });
+    return VB.toJSON({ ok: false, error: "apply incomplete" });
+  } catch (e) { return VB.toJSON({ ok: false, error: String(e) }); }
+};

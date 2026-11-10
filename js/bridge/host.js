@@ -98,7 +98,34 @@
     evalJsx('VB.openFolder(VB.getBridgeFolderPath() + "/agent-downloads")');
   }
 
+  function getLocalVersion(callback) {
+    evalJsx('VB.getExtensionVersion()', function (res) {
+      var v = String(res || '').replace(/^"|"$/g, '');
+      if (callback) callback(v || (core.APP_VERSION_FALLBACK || '2.2.0'));
+    });
+  }
+  function getPendingUpdate(callback) {
+    evalJsx('VB.getPendingUpdateInfo()', function (res) {
+      var r = parseResult(res);
+      if (callback) callback(r);
+    });
+  }
+  function stageUpdate(version, callback) {
+    var url = 'https://github.com/ggmbrinde-stack/mockup-studio/archive/refs/heads/main.zip';
+    evalJsx('VB.stageUpdate(' + core.jsxString(url) + ',' + core.jsxString(version || '') + ')', function (res) {
+      var r = parseResult(res);
+      if (callback) callback(r);
+    });
+  }
+  function applyPendingUpdate(callback) {
+    evalJsx('VB.applyPendingUpdate()', function (res) {
+      var r = parseResult(res);
+      if (callback) callback(r);
+    });
+  }
+
   bridge.getCS = getCS; bridge.setCS = setCS;
   bridge.logToHost = logToHost; bridge.evalJsx = evalJsx; bridge.parseResult = parseResult; bridge.friendlyError = friendlyError;
   bridge.loadHost = loadHost; bridge.openLogFolder = openLogFolder; bridge.openSvgsFolder = openSvgsFolder;
+  bridge.getLocalVersion = getLocalVersion; bridge.getPendingUpdate = getPendingUpdate; bridge.stageUpdate = stageUpdate; bridge.applyPendingUpdate = applyPendingUpdate;
 })();

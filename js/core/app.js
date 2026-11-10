@@ -44,6 +44,8 @@
     runToken: 0,
     bridgeFolder: "",
     batch: null,
+    appVersion: "2.2.0",
+    update: { status: "idle", remoteVersion: "", available: false, staged: false, checking: false, downloading: false },
     settings: {
       pngLongSide: 1700,
       hideOriginal: false,
@@ -243,6 +245,74 @@
     if (c) c.disabled = !(state.waiting || state.login || state.busy);
   }
 
+  function parseVersionParts(v) {
+    var m = String(v || '').match(/(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+    if (!m) return [0,0,0];
+    return [parseInt(m[1],10)||0, parseInt(m[2],10)||0, parseInt(m[3],10)||0];
+  }
+  function compareVersions(a,b) {
+    var pa = parseVersionParts(a), pb = parseVersionParts(b);
+    for (var i=0;i<3;i++){ if (pa[i]>pb[i]) return 1; if (pa[i]<pb[i]) return -1; }
+    return 0;
+  }
+  function parseManifestVersion(xmlText) {
+    var m = String(xmlText || '').match(/ExtensionBundleVersion="([^"]+)"/);
+    return m && m[1] ? String(m[1]) : '';
+  }
+  function setUpdateStatus(msgKey, fallback, extra) {
+    var el = $("updateStatusText");
+    var text = fallback || '';
+    if (msgKey) { try { text = t(msgKey) || fallback || msgKey; } catch(e){} }
+    if (extra) text = text.replace('{version}', String(extra));
+    if (el) el.textContent = text;
+  }
+  function renderUpdateUI() {
+    var verEl = $("updateVersionText");
+    if (verEl) verEl.textContent = (t('updateCurrentVersion') || 'Versão: {version}').replace('{version}', state.appVersion || '2.2.0');
+    var dl = $("downloadUpdateBtn");
+    var check = $("checkUpdateBtn");
+    if (dl) dl.style.display = state.update.available && !state.update.staged ? '' : 'none';
+    if (check) check.disabled = !!state.update.checking || !!state.update.downloading;
+    if (dl) dl.disabled = !!state.update.downloading || !!state.update.staged;
+  }
+  function checkForUpdate() {
+    if (state.update.checking || state.update.downloading) return;
+    state.update.checking = true; state.update.available = false; state.update.remoteVersion = '';
+    setUpdateStatus('updateChecking', 'Verificando atualizações...');
+    renderUpdateUI();
+    var url = 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/CSXS/manifest.xml';
+    try {
+      if (typeof fetch !== 'function') throw new Error('fetch unavailable');
+      fetch(url, { cache: 'no-store' }).then(function(res){
+        if (!res || !res.ok) throw new Error('http ' + (res ? res.status : '')); 
+        return res.text();
+      }).then(function(text){
+        var remote = parseManifestVersion(text);
+        state.update.checking = false;
+        if (!remote) { setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.'); renderUpdateUI(); return; }
+        state.update.remoteVersion = remote;
+        if (compareVersions(remote, state.appVersion) > 0) {
+          state.update.available = true;
+          setUpdateStatus('updateAvailable', 'Nova versão disponível: {version}', remote);
+        } else {
+          state.update.available = false;
+          setUpdateStatus('updateUpToDate', 'Está atualizado.');
+        }
+        renderUpdateUI();
+      }).catch(function(err){
+        state.update.checking = false;
+        log('Update check failed: ' + (err && err.message ? err.message : err));
+        setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.');
+        renderUpdateUI();
+      });
+    } catch (e) {
+      state.update.checking = false;
+      log('Update check error: ' + e);
+      setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.');
+      renderUpdateUI();
+    }
+  }
+
   core.state = state;
   core.$ = $; core.on = on; core.jsxString = jsxString; core.t = t; core.fmtElapsed = fmtElapsed;
   core.runElapsedMs = runElapsedMs; core.setStatus = setStatus; core.setDetail = setDetail; core.setRunTimerDetail = setRunTimerDetail;
@@ -253,4 +323,10 @@
   core.schedulePoll = schedulePoll; core.currentPollMs = currentPollMs;
   core.events = { on: busOn, off: busOff, emit: busEmit };
   core.shortcutLabel = shortcutLabel;
+  core.checkForUpdate = checkForUpdate;
+  core.compareVersions = compareVersions;
+  core.parseManifestVersion = parseManifestVersion;
+  core.renderUpdateUI = renderUpdateUI;
+  core.setUpdateStatus = setUpdateStatus;
+  core.APP_VERSION_FALLBACK = "2.2.0";
 })();
