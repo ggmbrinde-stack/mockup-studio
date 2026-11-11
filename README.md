@@ -18,8 +18,21 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 - `agent/node_modules` dependencies installed (`npm install` in `agent/` if missing; not shipped in source packages)
 
 ## Install
-1. Close Illustrator. Copy/sync this folder to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\` so `CSXS/manifest.xml` exists there.
-2. Enable unsigned CEP: run `install.ps1` from the repo, which copies only the runtime files, installs agent deps, sets `PlayerDebugMode` for CSXS 9-16 and verifies the install. It refuses to run while Illustrator is open unless you pass `-Force`.
+One line, PowerShell or cmd.exe, no git and no admin:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1 | iex"
+```
+
+It downloads the latest GitHub release, verifies its SHA-256 digest, validates the archive before touching anything, backs up the installed copy, stops the warm daemon, copies the files, installs missing agent dependencies, sets `PlayerDebugMode` for CSXS 9-16 and verifies the result. A failure after the copy restores the backup automatically.
+
+- Writes only to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge`, `%LOCALAPPDATA%\VectorizerBridge\install-backups` and `HKCU\Software\Adobe\CSXS.9-16`.
+- Never touches `%USERPROFILE%\Documents\VectorizerBridge` (the folder is never deleted either).
+- Aborts before changing anything if Node.js/npm is missing, or if the download, digest or archive check fails.
+- Requires Node.js LTS on PATH (https://nodejs.org/en/download); Chrome or Edge for the agent.
+
+Manual/offline alternative from a clone: `powershell -ExecutionPolicy Bypass -File .\install.ps1` (refuses to run while Illustrator is open unless you pass `-Force`).
+
 3. Start Illustrator → **Window > Extensions > Vectorizer Bridge**.
 4. **Sign in to vectorizer.ai** once (profile stored in `Documents\VectorizerBridge\vectorizer-profile`).
 
