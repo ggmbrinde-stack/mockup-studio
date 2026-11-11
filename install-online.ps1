@@ -376,7 +376,8 @@ $exitCode = & {
 
     $fileCount = @(Get-ChildItem -LiteralPath $Dest -Recurse -File -ErrorAction SilentlyContinue |
       Where-Object { $_.FullName -notlike '*\node_modules\*' }).Count
-    $depCount = @(Get-ChildItem -LiteralPath (Join-Path $destAgent 'node_modules') -Directory -ErrorAction SilentlyContinue).Count
+    $depCount = @(Get-ChildItem -LiteralPath (Join-Path $destAgent 'node_modules') -Directory -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -notlike '.*' }).Count
 
     # ---------------------------------------------------------------- done
     Write-Host ''
