@@ -42,6 +42,8 @@ const ALLOWED_HOSTS = new Set([
   'api.github.com',
   'github.com',
   'objects.githubusercontent.com',
+  // GitHub redirects release assets here; without it every download is refused.
+  'release-assets.githubusercontent.com',
   'codeload.github.com',
   'raw.githubusercontent.com'
 ]);

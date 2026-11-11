@@ -1,5 +1,10 @@
 # Changelog — Mockup Studio
 
+## 2.3.2 — 2026-11-11
+
+### Fixes
+- **Updater download host:** GitHub now serves release assets from `release-assets.githubusercontent.com` after a redirect. That host was missing from the updater's allowlist, so "Check for updates" reported an available version but "Update now" always refused with `Refusing an unexpected update host`. Added it to the allowlist; the digest check, staging, backup and rollback are unchanged.
+
 ## 2.3.1 — 2026-11-11
 
 ### UI
