@@ -14,27 +14,32 @@ O `-join [Environment]::NewLine` é necessário: jogar o `irm` direto no `iex` q
 comentário de cabeçalho falha no Windows PowerShell 5.1.
 
 O instalador baixa o release mais recente do GitHub, confere o **SHA-256**, valida o conteúdo do
-arquivo **antes** de mexer na instalação, faz backup da versão instalada, para o daemon, copia os
-arquivos, instala as dependências do agente quando faltam, ativa o `PlayerDebugMode` para
-CSXS 9-16 e verifica o resultado. Se algo falhar depois da cópia, ele **restaura o backup
-sozinho**.
+arquivo **antes** de mexer na instalação, garante o Node.js, faz backup da versão instalada, para
+o daemon, copia os arquivos, instala as dependências do agente quando faltam, ativa o
+`PlayerDebugMode` para CSXS 9-16 e verifica o resultado. Se algo falhar depois da cópia, ele
+**restaura o backup sozinho**.
 
 O que ele escreve (e nada além disso):
 
 - `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge` — a extensão
 - `%LOCALAPPDATA%\VectorizerBridge\install-backups` — cópias para rollback (mantém 2)
+- `%LOCALAPPDATA%\Programs\nodejs` — Node.js LTS, **só** quando o computador não tem Node
 - `HKCU\Software\Adobe\CSXS.9-16` → `PlayerDebugMode = 1`
 
 Ele **nunca** escreve, move ou apaga nada em `%USERPROFILE%\Documents\VectorizerBridge`, nunca
 apaga a pasta da extensão, não pede administrador, não altera PATH e não toca em outras chaves do
 registro.
 
-Ele **aborta sem alterar nada** quando: o Node.js/npm não existe e as dependências do agente
-estão faltando; o download falha; o SHA-256 não bate; o zip não tem `CSXS/manifest.xml`; ou o
-destino não é a pasta de extensões do CEP.
+Se o computador não tem Node.js, ele baixa o build oficial LTS para Windows, confere o hash no
+`SHASUMS256.txt` do nodejs.org e descompacta em `%LOCALAPPDATA%\Programs\nodejs` — sem
+administrador e sem mexer no PATH. Um Node.js já instalado é usado e **nunca** alterado.
 
-Pré-requisitos: Windows 10/11, Illustrator 2025/2026+, **Node.js LTS**
-(https://nodejs.org/en/download) e Chrome ou Edge.
+Ele **aborta sem alterar nada** quando: o download do release falha; o SHA-256 não bate; o zip
+não tem `CSXS/manifest.xml`; o download do Node.js não pode ser verificado; ou o destino não é a
+pasta de extensões do CEP.
+
+Pré-requisitos: Windows 10/11, Illustrator 2025/2026+ e Chrome ou Edge. O Node.js LTS é
+instalado automaticamente quando falta.
 
 ### Manual, a partir do repositório
 
@@ -68,4 +73,6 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 Ela para o daemon antes de apagar; acrescente `-RemoveDebugMode` para também limpar o
 `PlayerDebugMode` de CSXS 9-16. Os dados do usuário em
-`%USERPROFILE%\Documents\VectorizerBridge` nunca são tocados.
+`%USERPROFILE%\Documents\VectorizerBridge` nunca são tocados. O Node.js privado em
+`%LOCALAPPDATA%\Programs\nodejs` também fica, porque pode estar a ser usado por outras
+ferramentas; apague essa pasta à mão se não precisar dele.

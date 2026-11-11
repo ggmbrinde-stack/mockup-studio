@@ -13,7 +13,7 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 
 ## Requirements
 - Windows 10/11, Illustrator 2025 (29.x) or 2026 (30.x)+
-- Node.js 18+ and Chrome or Edge
+- Node.js 22.12+ and Chrome or Edge (setup installs Node.js LTS for you if it is missing)
 - vectorizer.ai account with downloads enabled (sign in once in-panel)
 - `agent/node_modules` dependencies installed (`npm install` in `agent/` if missing; not shipped in source packages)
 
@@ -26,12 +26,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((irm 'https://raw.g
 
 (`-join` matters: piping `irm` straight into `iex` splits the script into lines and breaks its header comment on Windows PowerShell 5.1.)
 
-It downloads the latest GitHub release, verifies its SHA-256 digest, validates the archive before touching anything, backs up the installed copy, stops the warm daemon, copies the files, installs missing agent dependencies, sets `PlayerDebugMode` for CSXS 9-16 and verifies the result. A failure after the copy restores the backup automatically.
+It downloads the latest GitHub release, verifies its SHA-256 digest, validates the archive before touching anything, makes sure Node.js is available, backs up the installed copy, stops the warm daemon, copies the files, installs missing agent dependencies, sets `PlayerDebugMode` for CSXS 9-16 and verifies the result. A failure after the copy restores the backup automatically.
 
-- Writes only to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge`, `%LOCALAPPDATA%\VectorizerBridge\install-backups` and `HKCU\Software\Adobe\CSXS.9-16`.
+- Writes only to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge`, `%LOCALAPPDATA%\VectorizerBridge\install-backups`, `%LOCALAPPDATA%\Programs\nodejs` (only when Node.js is missing) and `HKCU\Software\Adobe\CSXS.9-16`.
 - Never touches `%USERPROFILE%\Documents\VectorizerBridge` (the folder is never deleted either).
-- Aborts before changing anything if Node.js/npm is missing, or if the download, digest or archive check fails.
-- Requires Node.js LTS on PATH (https://nodejs.org/en/download); Chrome or Edge for the agent.
+- If Node.js is missing, installs the official Node.js LTS Windows build into `%LOCALAPPDATA%\Programs\nodejs`, verified against nodejs.org's `SHASUMS256.txt`. No admin rights, no PATH change; an existing Node.js is preferred and never touched.
+- Aborts before changing anything if the release download, its SHA-256 or the archive check fails, or if the Node.js download cannot be verified.
+- Chrome or Edge is needed for the agent.
 
 Manual/offline alternative from a clone: `powershell -ExecutionPolicy Bypass -File .\install.ps1` (refuses to run while Illustrator is open unless you pass `-Force`).
 
