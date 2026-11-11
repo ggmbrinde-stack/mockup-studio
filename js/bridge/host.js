@@ -84,6 +84,7 @@
       "$.evalFile(new File(" + core.jsxString(ext + "/host/export.jsx") + "));" +
       "$.evalFile(new File(" + core.jsxString(ext + "/host/place.jsx") + "));" +
       "$.evalFile(new File(" + core.jsxString(ext + "/host/agent.jsx") + "));" +
+      "$.evalFile(new File(" + core.jsxString(ext + "/host/vectorize-shortcut.jsx") + "));" +
       "$.global.VB.extensionPath = " + core.jsxString(ext) + ";" +
       "$.global.VB.ping();";
     evalJsx(loader, callback);

@@ -159,14 +159,14 @@
         break;
       }
       case 'loginRequired':
-        core.state.waiting = false; core.updateButtons();
+        core.state.waiting = false; core.state.shortcutStatusPath = ''; core.updateButtons();
         core.setStatus(core.t('statusLoginRequired'));
         core.setDetail((s.message || core.t('statusSignInHint')) + (core.state.runStartedAt ? ' · ⏱ ' + core.fmtElapsed(core.runElapsedMs()) : ''));
         core.addHistory('loginRequired', '', false, core.fmtElapsed(core.runElapsedMs()));
         core.state.runStartedAt = 0;
         break;
       case 'error': {
-        core.state.waiting = false; var elapsed = core.runElapsedMs(); core.state.runStartedAt = 0; core.updateButtons();
+        core.state.waiting = false; var elapsed = core.runElapsedMs(); core.state.runStartedAt = 0; core.state.shortcutStatusPath = ''; core.updateButtons();
         core.setStatus(core.t('statusAgentError') + ' ' + (s.message || ''));
         var detail = s.message || '';
         if (elapsed) detail = (detail ? detail + ' · ' : '') + '⏱ ' + core.fmtElapsed(elapsed);
@@ -175,7 +175,7 @@
         break;
       }
       case 'done':
-        core.state.waiting = false; core.updateButtons();
+        core.state.waiting = false; core.state.shortcutStatusPath = ''; core.updateButtons();
         if (s.svgPath) { if (s.elapsedMs) core.setRunTimerDetail('agent ' + core.fmtElapsed(Number(s.elapsedMs))); placeSvg(s.svgPath); }
         else { var e2 = core.runElapsedMs(); core.state.runStartedAt = 0; core.setStatus(core.t('statusAgentError') + ' (no SVG)'); core.setDetail(e2 ? '⏱ ' + core.fmtElapsed(e2) : ''); }
         break;
@@ -187,12 +187,13 @@
     // Parallel batch v2: jobs poll their own per-job status files.
     if (core.state.batch) return;
     if (!core.state.waiting && !core.state.login) return;
-    bridge.evalJsx('VB.agentStatus()', function (text) {
+    var spArg = core.state.shortcutStatusPath ? ('(' + core.jsxString(core.state.shortcutStatusPath) + ')') : '()';
+    bridge.evalJsx('VB.agentStatus' + spArg, function (text) {
       var s = {};
       try { s = JSON.parse(String(text || '{}')); } catch (e) { return; }
       if (!s || !s.state) {
         if (core.state.lastStatusAt === 0 && core.state.waitStartedAt && Date.now() - core.state.waitStartedAt > 60000) {
-          core.state.waiting = false; core.state.login = false; core.state.waitStartedAt = 0; core.updateButtons();
+          core.state.waiting = false; core.state.login = false; core.state.waitStartedAt = 0; core.state.shortcutStatusPath = ''; core.updateButtons();
           core.setStatus(core.t('statusAgentError') + ' ' + core.t('errorAgentStart'));
           core.addHistory(core.state.login ? 'signedIn' : 'vectorizeFailed', '', false, 'no status');
         }
@@ -202,7 +203,7 @@
       if (core.state.waiting && core.state.waitStartedAt && Date.now() - core.state.waitStartedAt > 90000 &&
           (s.state === 'starting' || s.state === 'launching') &&
           Number(s.time || 0) > 0 && (Date.now() - Number(s.time || 0)) > 90000) {
-        core.state.waiting = false; core.state.waitStartedAt = 0; core.updateButtons();
+        core.state.waiting = false; core.state.waitStartedAt = 0; core.state.shortcutStatusPath = ''; core.updateButtons();
         core.setStatus(core.t('statusAgentError') + ' ' + core.t('errorAgentStart'));
         core.addHistory('vectorizeFailed', '', false, 'stuck: ' + s.state);
         return;
@@ -505,6 +506,44 @@
     scheduleDaemonPoll();
   }
 
+  function vectorizeShortcut() {
+    if (core.state.busy || core.state.waiting || core.state.login) return;
+    if (!bridge.hostOk) { core.showError(core.t('errorHost')); return; }
+    core.state.runToken = (core.state.runToken || 0) + 1;
+    core.state.lastStatusAt = 0;
+    core.state.waitStartedAt = Date.now();
+    core.setStatus(core.t('statusExporting'));
+    var size = parseInt(core.state.settings.pngLongSide, 10);
+    if (!isFinite(size)) size = 1700;
+    bridge.evalJsx('VB.vectorizeShortcut(' + core.jsxString(String(size)) + ')', function (result) {
+      var r = bridge.parseResult(result);
+      if (!r.ok) {
+        core.state.waiting = false; core.state.busy = false; core.state.shortcutStatusPath = ''; core.updateButtons();
+        var err = r.error || 'unknown';
+        core.setStatus(core.t('statusExportFailed') + ' ' + bridge.friendlyError(err));
+        core.setDetail(String(err));
+        core.addHistory('exportFailed', '', false, String(err));
+        return;
+      }
+      core.state.busy = false;
+      core.state.waiting = true;
+      core.state.login = false;
+      core.state.pngPath = r.pngPath || '';
+      core.state.union = r.union || null;
+      core.state.docFullName = r.docFullName || '';
+      core.state.docName = r.docName || '';
+      core.state.shortcutStatusPath = r.statusPath || '';
+      core.state.runStartedAt = Date.now();
+      core.state.exportMs = 0;
+      core.state.lastStatusAt = 0;
+      core.updateButtons();
+      core.setStatus(core.t('statusAgentLaunch'));
+      core.setDetail(core.t('statusAgentLoading'));
+      core.addHistory('sent', (core.state.pngPath || '').replace(/^.*[\\/]/, ''), true, 'shortcut');
+    });
+  }
+
   vectorizer.init = init; vectorizer.pollOnce = pollOnce; vectorizer.refreshSvgHistory = refreshSvgHistory;
-  vectorizer.renderDaemonStatus = renderDaemonStatus; vectorizer.ensureDaemonRunning = ensureDaemonRunning; vectorizer.signIn = signIn; vectorizer.cancel = cancel;
+  vectorizer.renderDaemonStatus = renderDaemonStatus; vectorizer.ensureDaemonRunning = ensureDaemonRunning; vectorizer.signIn = signIn; vectorizer.cancel = cancel; vectorizer.vectorizeShortcut = vectorizeShortcut;
+  core.vectorizeShortcut = vectorizeShortcut;
 })();

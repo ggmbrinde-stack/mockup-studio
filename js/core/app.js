@@ -44,6 +44,7 @@
     runToken: 0,
     bridgeFolder: "",
     batch: null,
+    shortcutStatusPath: "",
     appVersion: "2.2.0",
     update: { status: "idle", remoteVersion: "", available: false, staged: false, checking: false, downloading: false },
     settings: {
