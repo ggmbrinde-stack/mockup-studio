@@ -84,6 +84,27 @@ async function pollStatusFile(statusPath, timeoutMs) {
   return { state: 'error', message: 'Timed out waiting for daemon result' + (lastState ? (' (last: ' + lastState + ')') : '') + '.' };
 }
 
+/* The warm daemon writes agent-daemon.json before it can answer /health (Chrome is
+   launched first), and every job in a parallel batch reads that file at the same
+   moment. Deleting it on the first unanswered probe made the sibling jobs decide the
+   daemon was gone and start their own Chrome on the same profile - the profile-lock
+   pile-up that showed up as "stuck: starting". So wait briefly for a warm daemon and
+   only drop the file once it is genuinely stale. */
+const DAEMON_WAIT_MS = 20000;
+const DAEMON_STALE_MS = 3 * 60 * 1000;
+
+async function waitForDaemonHealth(info, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const h = await httpJson('GET', info.port, '/health', null, 1200);
+      if (h && h.body && h.body.ok) return h.body;
+    } catch (e) { /* port not listening yet */ }
+    if (Date.now() >= deadline) return null;
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
 async function tryDaemon(args) {
   if (args['no-daemon'] || args.noDaemon) return null;
   const work = args.work || (args.profile ? path.dirname(args.profile) : '');
@@ -93,10 +114,12 @@ async function tryDaemon(args) {
   try { info = JSON.parse(fs.readFileSync(infoPath, 'utf8')); } catch (e) { return null; }
   if (!info || !info.port) return null;
   if (info.profile && args.profile && path.resolve(info.profile) !== path.resolve(args.profile)) return null;
-  try {
-    const h = await httpJson('GET', info.port, '/health', null, 1200);
-    if (!h || !h.body || !h.body.ok) { try { fs.unlinkSync(infoPath); } catch (e) {} return null; }
-  } catch (e) { try { fs.unlinkSync(infoPath); } catch (e2) {} return null; }
+  const fresh = Number(info.time || 0) > 0 && (Date.now() - Number(info.time || 0)) < DAEMON_STALE_MS;
+  const health = await waitForDaemonHealth(info, fresh ? DAEMON_WAIT_MS : 3000);
+  if (!health) {
+    if (!fresh) { try { fs.unlinkSync(infoPath); } catch (e) {} }
+    return null;
+  }
   const job = {
     png: args.png, out: args.out, profile: args.profile, status: args.status,
     timeout: parseInt(args.timeout, 10) || 300000, debug: args.debug || '', work

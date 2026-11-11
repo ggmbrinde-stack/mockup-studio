@@ -167,12 +167,21 @@ async function runJob(opts) {
 
     writeStatus(statusPath, { state: 'result' });
 
-    const link = await page.evaluate(() => {
-      const links = [...document.querySelectorAll('.App-downloadLink')].filter(a => a.offsetParent !== null);
-      const a = links[0];
-      if (!a) return null;
-      return (a.getAttribute('href') || '').split('#')[0];
-    });
+    // The result page swaps its DOM shortly after the progress overlay disappears,
+    // and with several pages running at once that swap lags. Poll briefly instead of
+    // failing on the first look (this was the "Download link not found" batch failure).
+    let link = null;
+    for (let attempt = 0; attempt < 20 && !link; attempt++) {
+      if (attempt) await sleep(500);
+      try {
+        link = await page.evaluate(() => {
+          const links = [...document.querySelectorAll('.App-downloadLink')].filter(a => a.offsetParent !== null);
+          const a = links[0];
+          if (!a) return null;
+          return (a.getAttribute('href') || '').split('#')[0];
+        });
+      } catch (e) { link = null; }
+    }
     if (!link) { const err = { state: 'error', message: 'Download link not found.' }; writeStatus(statusPath, err); return err; }
 
     let target = link;
@@ -185,7 +194,7 @@ async function runJob(opts) {
       writeStatus(statusPath, err); return err;
     }
 
-    const pageState = await waitForExportPage(page, 20000);
+    const pageState = await waitForExportPage(page, 30000);
     if (debugDir) {
       try { fs.writeFileSync(path.join(debugDir, 'page-state.txt'), 'pageState=' + pageState + ' url=' + page.url()); } catch (e) { }
     }
@@ -205,7 +214,7 @@ async function runJob(opts) {
     let fetchResolve;
     const fetchPromise = new Promise((resolve, reject) => {
       fetchResolve = resolve;
-      fetchTimer = setTimeout(() => reject(new Error('Fetch.requestPaused timeout')), 60000);
+      fetchTimer = setTimeout(() => reject(new Error('Fetch.requestPaused timeout')), 120000);
     });
     // This run can return early (login bounce, site error) while the wait is still
     // pending. Without a handler that becomes an unhandled rejection 60s later,

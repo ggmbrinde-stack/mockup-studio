@@ -108,23 +108,45 @@
       launchBatchAgent(j, token);
     });
   }
+  /* Spawning several hidden VBS -> cmd -> node launchers at the same instant is what
+     starved the launcher on Windows: the host's "starting" marker sat there with no
+     pid, the panel relaunched it, and the duplicate node processes fought over the
+     Chrome profile. Launch one agent at a time, a beat apart. */
+  var launchQueue = [];
+  var launching = false;
+  function runLaunchQueue() {
+    if (launching) return;
+    var task = launchQueue.shift();
+    if (!task) return;
+    launching = true;
+    task(function release() {
+      launching = false;
+      setTimeout(runLaunchQueue, 150);
+    });
+  }
+  function enqueueLaunch(task) { launchQueue.push(task); runLaunchQueue(); }
+
   function launchBatchAgent(j, token) {
     var b = core.state.batch; if (!b || b.cancelled || token !== core.state.runToken || j.done) return;
     j.agentStartedAt = Date.now();
     var spArg = j.statusPath ? (', ' + core.jsxString(j.statusPath)) : '';
-    bridge.evalJsx('VB.agentStart(\'run\', ' + core.jsxString(j.pngPath) + spArg + ')', function (started) {
-      if (token !== core.state.runToken || !core.state.batch || core.state.batch.cancelled) return;
-      if (String(started) !== 'started') {
-        var s = String(started || '');
-        if (j.busyRetries < 12 && /busy|previous run is still starting|profile/i.test(s)) {
-          j.busyRetries++; j.stageLabel = core.t('statusAgentLaunch');
-          setTimeout(function () { launchBatchAgent(j, token); }, 1200);
-          return;
+    enqueueLaunch(function (release) {
+      if (token !== core.state.runToken || !core.state.batch || core.state.batch.cancelled || j.done) { release(); return; }
+      bridge.evalJsx('VB.agentStart(\'run\', ' + core.jsxString(j.pngPath) + spArg + ')', function (started) {
+        release();
+        if (token !== core.state.runToken || !core.state.batch || core.state.batch.cancelled) return;
+        if (String(started) !== 'started') {
+          var s = String(started || '');
+          if (j.busyRetries < 12 && /busy|previous run is still starting|profile/i.test(s)) {
+            j.busyRetries++; j.stageLabel = core.t('statusAgentLaunch');
+            setTimeout(function () { launchBatchAgent(j, token); }, 1200);
+            return;
+          }
+          return batchFailJob(j, s || 'agent start failed', token);
         }
-        return batchFailJob(j, s || 'agent start failed', token);
-      }
-      core.addHistory('batchSent', '#' + (j.index + 1), true, 'export ' + core.fmtElapsed(j.exportMs || 0));
-      pollBatchJob(j, token);
+        core.addHistory('batchSent', '#' + (j.index + 1), true, 'export ' + core.fmtElapsed(j.exportMs || 0));
+        pollBatchJob(j, token);
+      });
     });
   }
   function pollBatchJob(j, token) {
@@ -146,13 +168,15 @@
       var age = Date.now() - Number(s.time || 0);
       var noPid = !(s.pid || s.browserPid || s.viaDaemon || s.daemon);
       j._startRetries = j._startRetries || 0;
-      if (s.state === 'starting' && noPid && age > 15000 && j._startRetries < 3) {
+      // One relaunch is enough: a real launcher answers within a few seconds, and a
+      // second node process for the same job only adds profile contention.
+      if (s.state === 'starting' && noPid && age > 25000 && j._startRetries < 2) {
         j._startRetries++;
         j.stageLabel = core.t('statusAgentLaunch');
-        core.log('Batch item ' + (j.index + 1) + ': relaunching (stale start, attempt ' + j._startRetries + '/3)');
+        core.log('Batch item ' + (j.index + 1) + ': relaunching (stale start, attempt ' + j._startRetries + '/2)');
         return launchBatchAgent(j, token);
       }
-      if (s.state === 'starting' && noPid && age > 120000) return batchFailJob(j, 'stuck: starting', token);
+      if (s.state === 'starting' && noPid && age > 150000) return batchFailJob(j, 'stuck: starting', token);
       if (s.state === 'launching' && age > 180000) return batchFailJob(j, 'stuck: launching', token);
       if (s.state === 'starting' && !noPid && age > 150000) return batchFailJob(j, 'stuck: starting', token);
       if (s.state === 'loginRequired') return batchFailJob(j, 'login required', token);
@@ -195,6 +219,38 @@
     });
   }
 
+  /* Wait until the warm Chrome daemon is actually serving before a parallel batch
+     starts, so the items share it instead of each launching a browser on the same
+     profile. Falls through after 20s so a missing browser still produces per-item
+     errors rather than a hung batch. */
+  function waitForWarmDaemon(workers, token, done) {
+    var deadline = Date.now() + 20000;
+    var started = false;
+    core.log('Waiting for warm Chrome (workers=' + workers + ') …');
+    function poll() {
+      if (token !== core.state.runToken || !core.state.batch) return;
+      bridge.evalJsx('VB.daemonStatus()', function (text) {
+        if (token !== core.state.runToken || !core.state.batch) return;
+        var s = bridge.parseResult(text) || {};
+        var running = (s.state === 'running' || s.state === 'ready');
+        var cur = parseInt(s.workers, 10);
+        if (running && (!isFinite(cur) || cur >= workers)) return done();
+        if (!started) {
+          started = true;
+          bridge.evalJsx("VB.agentStart('daemon-start', '', " + core.jsxString(String(workers)) + ")", function (r) {
+            if (String(r) !== 'started') core.log('Warm Chrome start failed: ' + r);
+          });
+        }
+        if (Date.now() > deadline) {
+          core.log('Warm Chrome was not ready in 20s; continuing with per-item launches.');
+          return done();
+        }
+        setTimeout(poll, 500);
+      });
+    }
+    poll();
+  }
+
   function vectorize() {
     if (core.state.busy || core.state.waiting || core.state.login) return;
     if (!bridge.hostOk) { core.showError(core.t('errorHost')); return; }
@@ -230,7 +286,8 @@
       function beginParallelBatch() {
         if (token !== core.state.runToken || !core.state.batch) return;
         updateBatchStatus();
-        scheduleBatch(token);
+        if (!core.state.settings.warmDaemon || workers < 2) return scheduleBatch(token);
+        waitForWarmDaemon(workers, token, function () { scheduleBatch(token); });
       }
       if (!core.state.bridgeFolder && bridge.hostOk) {
         bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) {

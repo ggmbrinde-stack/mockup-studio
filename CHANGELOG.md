@@ -1,5 +1,13 @@
 # Changelog — Mockup Studio
 
+## Unreleased
+
+### Fixes
+- **Parallel batches (Windows):** a 6-item run at `workers=4` ended 3/6 with `stuck: starting` and `Download link not found`.
+  - `agent/run.js` deleted `agent-daemon.json` on the first unanswered `/health` probe. The daemon writes that file before Chrome is serving, so the other items concluded it was gone and each started its own Chrome on the same profile — the profile-lock pile-up behind `stuck: starting`. It now waits up to 20 s for the daemon and only removes the file when it is more than 3 minutes stale.
+  - `js/queue/batch.js` serializes agent launches instead of firing every VBS/cmd/node launcher at once, waits for the warm daemon (sized to the batch's worker count) before scheduling items, and relaunches a stale start once instead of three times.
+  - `agent/vectorizer/job.js` retries the result-page download link for ~10 s instead of failing on the first look, waits up to 30 s for the export page, and allows 120 s for the captured SVG download.
+
 ## 2.3.2 — 2026-11-11
 
 ### Fixes

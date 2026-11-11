@@ -49,7 +49,7 @@ ES3: no `JSON` (use `host/json.jsx`/`VB.toJSON`/`VB.fromJSON`), no `let/const`, 
 - Manifest version: `CSXS/manifest.xml` (bundle + panel). Update `CHANGELOG.md` for releases.
 
 ## Known risks / deferred (post-freeze)
-- Intermittent `stuck: starting` under parallel load on Windows (launcher/spawn); validate with `workers=1` default.
+- `stuck: starting` under parallel load on Windows (launcher/spawn): mitigated — the panel serializes agent launches (`js/queue/batch.js`), a parallel batch waits for the warm daemon first, `agent/run.js` no longer deletes `agent-daemon.json` on a transient health probe, and a stale start is relaunched once. Use `workers=1` when diagnosing.
 - “Whole selection as one image” batch mode deferred.
 - Further host/agent internal splits and richer typed event/command interfaces if needed.
 - UI/UX redesign (current focus) — must preserve contracts above.
