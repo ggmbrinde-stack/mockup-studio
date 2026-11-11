@@ -86,6 +86,7 @@ async function runJob(opts) {
   let onRequestPaused = null;
   let downloadUrl = null;
   let downloadResolve = null;
+  let fetchTimer = null;
 
   try {
     if (!browser) {
@@ -202,7 +203,6 @@ async function runJob(opts) {
     writeStatus(statusPath, { state: 'downloading' });
     const svgPath = path.join(outDir, 'vectorizer_export_' + runStamp + '.svg');
     let fetchResolve;
-    let fetchTimer = null;
     const fetchPromise = new Promise((resolve, reject) => {
       fetchResolve = resolve;
       fetchTimer = setTimeout(() => reject(new Error('Fetch.requestPaused timeout')), 60000);
