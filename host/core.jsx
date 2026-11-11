@@ -280,20 +280,6 @@ VB.fitArtboard = function (doc, rect) {
   }
 };
 
-/* Read extension version from CSXS/manifest.xml */
-VB.getExtensionVersion = function () {
-  try {
-    var ext = VB.extensionPath || "";
-    if (!ext) return "";
-    var path = ext.replace(/\\/g, "/") + "/CSXS/manifest.xml";
-    var txt = VB.readTextFile(path);
-    if (!txt) return "";
-    var m = txt.match(/ExtensionBundleVersion=\"([^\"]+)\"/);
-    if (m && m[1]) return String(m[1]);
-  } catch (e) { VB.log("getExtensionVersion error: " + e); }
-  return "";
-};
-
 /* List recent SVG files in agent-downloads (for panel history). */
 VB.listVectorizedSvgs = function (limit) {
   try {

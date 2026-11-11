@@ -22,8 +22,6 @@ window.LOCALES.pt = {
   setShortcut: "Definir",
   resetShortcut: "Repor",
   pressShortcut: "Prima as teclas…",
-  checkUpdates: "Verificar atualizações",
-  downloadUpdateBtn: "Baixar atualização",
   statusBatchProgress: "Lote {done}/{n} ({active} ativos){stage}",
   pngLongSide: "Lado maior do PNG (px)",
   pngPresetFast: "Rápido (1200 px)",

@@ -45,7 +45,6 @@
     bridgeFolder: "",
     batch: null,
     shortcutStatusPath: "",
-    appVersion: "2.3.0",
     settings: {
       pngLongSide: 1700,
       hideOriginal: false,
@@ -255,5 +254,4 @@
   core.schedulePoll = schedulePoll; core.currentPollMs = currentPollMs;
   core.events = { on: busOn, off: busOff, emit: busEmit };
   core.shortcutLabel = shortcutLabel;
-  core.APP_VERSION_FALLBACK = "2.3.0";
 })();

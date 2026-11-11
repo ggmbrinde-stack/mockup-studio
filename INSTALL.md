@@ -9,26 +9,22 @@
    cd mockup-studio
    ```
 
-2. Instale as dependências do agente:
+2. Rode o instalador na raiz do repositório. Ele copia apenas os arquivos de runtime para
+   `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\`, instala as
+dependências do agente (`npm install --omit=dev`), ativa o `PlayerDebugMode` para CSXS 9-16 e
+   verifica a versão instalada no final:
 
    ```powershell
-   cd agent
-   npm install
-   cd ..
+   powershell -ExecutionPolicy Bypass -File .\install.ps1
    ```
 
-3. Copie ou sincronize o conteúdo da extensão para:
+   Com o Illustrator aberto o instalador **aborta** (ele guarda scripts em cache): feche o app ou
+   use `-Force` e reinicie o Illustrator depois. Rodar o script de dentro da pasta instalada
+   também é recusado, porque origem e destino seriam a mesma pasta.
 
-   ```text
-   %APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\
-   ```
+3. Reinicie o Adobe Illustrator e abra **Window > Extensions > Vectorizer Bridge**.
 
-4. Ative o modo de desenvolvimento CEP no PowerShell, usando a versão CSXS instalada:
-
-   ```powershell
-   New-ItemProperty -Path 'HKCU:\Software\Adobe\CSXS.<ver>' -Name PlayerDebugMode -Value '1' -PropertyType String -Force
-   ```
-
-   Para versões CSXS 11 e 12, repita o comando com cada versão aplicável.
-
-5. Reinicie o Adobe Illustrator e abra **Window > Extensions > Vectorizer Bridge**.
+Para remover a extensão, rode `powershell -ExecutionPolicy Bypass -File .\uninstall.ps1`
+(ela para o daemon antes de apagar); acrescente `-RemoveDebugMode` para também limpar o
+`PlayerDebugMode` de CSXS 9-16. Os dados do usuário em
+`%USERPROFILE%\Documents\VectorizerBridge` nunca são tocados.

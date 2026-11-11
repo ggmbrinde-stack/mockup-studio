@@ -426,9 +426,6 @@
       core.updateButtons();
       core.setStatus(core.t("statusReady"));
       core.setDetail("");
-      bridge.getLocalVersion(function (v) {
-        if (v) core.state.appVersion = v;
-      });
       bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
       refreshDaemonStatus();
       refreshSvgHistory();

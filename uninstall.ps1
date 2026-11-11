@@ -1,10 +1,12 @@
-﻿<#
+<#
 .SYNOPSIS
-  Uninstalls Vectorizer Bridge CEP extension for the current user.
+  Uninstalls the Vectorizer Bridge CEP extension for the current user.
 .DESCRIPTION
-  Removes %APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge.
-  Optionally removes PlayerDebugMode values for CSXS 11/12.
-  NEVER touches %USERPROFILE%\Documents\VectorizerBridge\ (user runtime data).
+  Stops the warm agent daemon, then removes
+  %APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge.
+  Never touches %USERPROFILE%\Documents\VectorizerBridge (user runtime data).
+.PARAMETER RemoveDebugMode
+  Also clear PlayerDebugMode for CSXS 9-16 (the versions install.ps1 sets).
 #>
 [CmdletBinding()]
 param(
@@ -13,33 +15,54 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ExtensionId = 'com.bestofgifts.vectorizerbridge'
-$Dest = Join-Path $env:APPDATA "Adobe\CEP\extensions\$ExtensionId"
-$RuntimeData = Join-Path $env:USERPROFILE 'Documents\VectorizerBridge'
+$Dest = [IO.Path]::GetFullPath((Join-Path $env:APPDATA "Adobe\CEP\extensions\$ExtensionId")).TrimEnd('\')
+$RuntimeData = [IO.Path]::GetFullPath((Join-Path $env:USERPROFILE 'Documents\VectorizerBridge')).TrimEnd('\')
 
 function Write-Log($msg) {
-  $line = "[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
-  Write-Host $line
+  Write-Host ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg)
 }
 
 Write-Log "Vectorizer Bridge uninstaller starting."
 Write-Log "Extension folder target: $Dest"
 Write-Log "User runtime data will NOT be touched: $RuntimeData"
 
-# Warn if Illustrator appears to be running
-try {
-  $ai = Get-Process -Name 'Illustrator' -ErrorAction SilentlyContinue
-  if ($ai) {
-    Write-Log "WARNING: Adobe Illustrator appears to be running (PID(s): $($ai.Id -join ', ')). Close Illustrator before uninstalling."
-  } else {
-    Write-Log "Illustrator process not detected."
-  }
-} catch { Write-Log "Could not check Illustrator process: $($_.Exception.Message)" }
+# Safety guard: only ever delete inside the CEP extensions folder, never runtime data.
+$extRoot = [IO.Path]::GetFullPath((Join-Path $env:APPDATA 'Adobe\CEP\extensions')).TrimEnd('\').ToLowerInvariant()
+$destNorm = $Dest.ToLowerInvariant()
+$runtimeNorm = $RuntimeData.ToLowerInvariant()
+if (-not $destNorm.StartsWith($extRoot + '\') -or $destNorm -eq $runtimeNorm -or $destNorm.StartsWith($runtimeNorm + '\')) {
+  throw "Safety check failed: '$Dest' is not a CEP extension folder. Aborting."
+}
 
-# Safety guard: never operate on Documents\VectorizerBridge
-$destNorm = [IO.Path]::GetFullPath($Dest).TrimEnd('\').ToLowerInvariant()
-$runtimeNorm = [IO.Path]::GetFullPath($RuntimeData).TrimEnd('\').ToLowerInvariant()
-if ($destNorm -eq $runtimeNorm -or $destNorm.StartsWith($runtimeNorm + '\')) {
-  throw "Safety check failed: destination resolves inside user runtime data path. Aborting."
+$aiPids = @()
+try {
+  $aiPids = @(Get-Process -Name 'Illustrator' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+} catch {
+  Write-Log "Could not check Illustrator process: $($_.Exception.Message)"
+}
+if ($aiPids.Count -gt 0) {
+  Write-Log "WARNING: Adobe Illustrator is running (PID(s): $($aiPids -join ', ')). Close it before uninstalling."
+} else {
+  Write-Log "Illustrator process not detected."
+}
+
+# Stop the warm daemon first: it serves code from this folder and holds a Chrome profile,
+# so deleting underneath it leaves an orphan process and locked files.
+$ctl = Join-Path $Dest 'agent\daemon\ctl.js'
+$node = Get-Command node -ErrorAction SilentlyContinue
+$infoFile = Join-Path $RuntimeData 'agent-daemon.json'
+if ((Test-Path $ctl) -and $node) {
+  Write-Log "Stopping warm agent daemon (if running) ..."
+  try {
+    & node $ctl stop --work $RuntimeData 2>&1 | ForEach-Object { Write-Log "  $_" }
+  } catch {
+    Write-Log "WARNING: daemon stop failed: $($_.Exception.Message)"
+  }
+  Start-Sleep -Milliseconds 800
+  if (Test-Path $infoFile) { Write-Log "WARNING: $infoFile still exists; the daemon may still be running." }
+  else { Write-Log "Daemon stopped." }
+} else {
+  Write-Log "No daemon control script in the installed folder; nothing to stop."
 }
 
 if (Test-Path $Dest) {
@@ -47,19 +70,20 @@ if (Test-Path $Dest) {
     Remove-Item -LiteralPath $Dest -Recurse -Force
     Write-Log "Removed extension folder: $Dest"
   } catch {
-    throw "Failed to remove extension folder '$Dest': $($_.Exception.Message)"
+    throw "Failed to remove '$Dest': $($_.Exception.Message). Close Illustrator and any agent Chrome windows, then retry."
   }
 } else {
   Write-Log "Extension folder not found (already removed): $Dest"
 }
 
+$csxsVersions = @('9','10','11','12','13','14','15','16')
 if ($RemoveDebugMode) {
-  foreach ($ver in @('11','12')) {
+  foreach ($ver in $csxsVersions) {
     $keyPath = "HKCU:\Software\Adobe\CSXS.$ver"
     try {
       if (Test-Path $keyPath) {
         Remove-ItemProperty -Path $keyPath -Name 'PlayerDebugMode' -ErrorAction SilentlyContinue
-        Write-Log "Removed PlayerDebugMode from $keyPath (if present)."
+        Write-Log "Cleared PlayerDebugMode at $keyPath (if present)."
       } else {
         Write-Log "Registry key not found: $keyPath"
       }
@@ -68,7 +92,7 @@ if ($RemoveDebugMode) {
     }
   }
 } else {
-  Write-Log "PlayerDebugMode registry keys left unchanged (pass -RemoveDebugMode to remove)."
+  Write-Log "PlayerDebugMode left unchanged (pass -RemoveDebugMode to clear CSXS 9-16)."
 }
 
 Write-Log "Uninstall complete. User runtime data preserved: $RuntimeData"

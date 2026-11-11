@@ -22,8 +22,6 @@ window.LOCALES.en = {
   setShortcut: "Set",
   resetShortcut: "Reset",
   pressShortcut: "Press keys…",
-  checkUpdates: "Check for updates",
-  downloadUpdateBtn: "Download update",
   statusBatchProgress: "Batch {done}/{n} ({active} active){stage}",
 
   pngLongSide: "PNG long side (px)",

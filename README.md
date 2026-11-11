@@ -19,7 +19,7 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 
 ## Install
 1. Close Illustrator. Copy/sync this folder to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\` so `CSXS/manifest.xml` exists there.
-2. Enable unsigned CEP: set `HKCU\Software\Adobe\CSXS.<ver>\PlayerDebugMode` = `1` for the CSXS version Illustrator uses (e.g. 11/12+). `install.ps1` can do this if present.
+2. Enable unsigned CEP: run `install.ps1` from the repo, which copies only the runtime files, installs agent deps, sets `PlayerDebugMode` for CSXS 9-16 and verifies the install. It refuses to run while Illustrator is open unless you pass `-Force`.
 3. Start Illustrator → **Window > Extensions > Vectorizer Bridge**.
 4. **Sign in to vectorizer.ai** once (profile stored in `Documents\VectorizerBridge\vectorizer-profile`).
 

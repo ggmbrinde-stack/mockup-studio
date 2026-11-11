@@ -13,7 +13,9 @@
 - **i18n:** added the missing `pngLongSide` key; rewrote `pt.js` as clean UTF-8 (it was double-encoded mojibake).
 - **Cancelled batch:** emits `batch:finished`, so the SVG history refreshes after a cancel.
 - **Removed:** the self-updater (it downloaded a third-party GitHub zip and robocopied it over the installed extension at startup), the dead `host/vectorize-shortcut.jsx` path and the unused `js/core/namespace.js`.
-- **Installer:** sets `PlayerDebugMode` for CSXS 9-16 and runs `npm install --omit=dev` when `agent/node_modules` is missing.
+- **Installer:** mirrors only runtime files (`index.html`, `CSXS`, `css`, `host`, `js`, `modules`, `agent`), prunes docs/installers left in the extension by older versions, sets `PlayerDebugMode` for CSXS 9-16 and installs `npm install --omit=dev` when `agent/node_modules` is missing. It now refuses to run from inside the installed folder (source == destination), aborts when Illustrator is open unless `-Force` is passed, fails loudly on a non-zero npm exit or a missing `puppeteer-core`, and prints the verified manifest version and file count at the end.
+- **Uninstaller:** stops the warm daemon before deleting the folder, and `-RemoveDebugMode` now clears CSXS 9-16 (it only handled 11/12 while the installer set more).
+- **Cleanup:** removed the now-dead extension-version plumbing (`getLocalVersion`/`VB.getExtensionVersion`/`state.appVersion`) and the two orphaned update locale keys.
 - **Tests:** `tools/verify-host.cjs` now covers the shipped modular host scripts (`core.jsx`, `batch.jsx`, `place.jsx`); removed the broken ESM `.js` duplicates.
 
 ## 2.2.0 — 2026-11-10 (development freeze for UI/UX)

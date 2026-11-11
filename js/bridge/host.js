@@ -118,14 +118,7 @@
     evalJsx('VB.openFolder(VB.getBridgeFolderPath() + "/agent-downloads")');
   }
 
-  function getLocalVersion(callback) {
-    evalJsx('VB.getExtensionVersion()', function (res) {
-      var v = String(res || '').replace(/^"|"$/g, '');
-      if (callback) callback(v || (core.APP_VERSION_FALLBACK || '2.2.0'));
-    });
-  }
   bridge.getCS = getCS; bridge.setCS = setCS;
   bridge.logToHost = logToHost; bridge.evalJsx = evalJsx; bridge.parseResult = parseResult; bridge.friendlyError = friendlyError;
   bridge.loadHost = loadHost; bridge.openLogFolder = openLogFolder; bridge.openSvgsFolder = openSvgsFolder;
-  bridge.getLocalVersion = getLocalVersion;
 })();
