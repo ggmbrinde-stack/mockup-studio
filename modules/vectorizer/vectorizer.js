@@ -39,7 +39,7 @@
       sub.textContent = [fmtFileTime(f.modified), fmtFileSize(f.size)].filter(Boolean).join(' · ');
       meta.appendChild(name); meta.appendChild(sub);
       var actions = document.createElement('div'); actions.className = 'svg-history-actions';
-      var openBtn = document.createElement('button'); openBtn.className = 'btn small'; openBtn.textContent = core.t('openSvg') || 'Open file'; openBtn.title = f.path || '';
+      var openBtn = document.createElement('button'); openBtn.className = 'btn small'; openBtn.textContent = core.t('openSvgFolder') || 'Show in folder'; openBtn.title = f.path || '';
       core.on(openBtn, 'click', function () { if (bridge.hostOk) bridge.evalJsx('VB.revealFile ? VB.revealFile(' + core.jsxString(f.path || '') + ') : VB.openFolder(' + core.jsxString(f.path || '') + ')'); });
       var placeBtn = document.createElement('button'); placeBtn.className = 'btn small'; placeBtn.textContent = core.t('placeSvg') || 'Place';
       core.on(placeBtn, 'click', function () {

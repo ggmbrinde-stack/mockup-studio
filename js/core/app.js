@@ -230,7 +230,7 @@
       var h = state.history[i];
       var d = document.createElement("div");
       d.className = "history-item " + (h.ok ? "ok" : "bad");
-      d.textContent = h.time + " — " + t(h.action) + (h.file ? " (" + h.file + ")" : "") + (h.msg ? " — " + h.msg : "");
+      d.textContent = (h.ok ? "\u2713 " : "\u2715 ") + h.time + " — " + t(h.action) + (h.file ? " (" + h.file + ")" : "") + (h.msg ? " — " + h.msg : "");
       el.appendChild(d);
     }
   }

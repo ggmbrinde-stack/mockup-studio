@@ -13,7 +13,7 @@
     <button id="langBtn" class="btn small">EN</button>
   </header>
 
-  <div class="status" id="statusBar">Ready</div>
+  <div class="status" id="statusBar" role="status" aria-live="polite">Ready</div>
   <div id="statusDetail" class="statusDetail"></div>
 
   <button id="vectorizeBtn" class="btn primary" data-i18n="vectorizeBtn">Vectorize selection</button>
@@ -67,8 +67,8 @@
       </div>
       <div class="field full">
         <label for="settingsVectorizeShortcut" data-i18n="vectorizeShortcut">Vectorize shortcut</label>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <input id="settingsVectorizeShortcut" type="text" readonly value="Ctrl+Shift+Ç" style="flex:1;">
+        <div class="row">
+          <input id="settingsVectorizeShortcut" type="text" readonly value="Ctrl+Shift+Ç">
           <button id="setVectorizeShortcutBtn" class="btn small" type="button" data-i18n="setShortcut">Set</button>
           <button id="resetVectorizeShortcutBtn" class="btn small" type="button" data-i18n="resetShortcut">Reset</button>
         </div>
@@ -81,8 +81,7 @@
     <div class="panelTitleRow"><div class="panelTitle" data-i18n="history">History</div><button id="refreshSvgsBtn" class="btn small" data-i18n="refreshSvgs">Refresh</button></div>
     <div class="hint" data-i18n="svgHistoryHint">SVG files are saved in Documents/VectorizerBridge/agent-downloads.</div>
     <div id="svgHistoryList" class="list"></div>
-    <div class="panelSubTitle">Recent activity</div>
-    <div class="panelTitle" style="display:none" data-i18n="history">History</div>
+    <div class="panelSubTitle" data-i18n="recentActivity">Recent activity</div>
     <div id="historyList" class="list"></div>
   </div>
 
@@ -104,7 +103,7 @@
 
   <div class="version" id="versionText"></div>
   <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
-  <div id="jsError" class="error-box" style="display:none;padding:8px;background:#ffebee;border:1px solid #b71c1c;color:#b71c1c;font-size:11px;margin-top:8px;overflow:auto;max-height:150px;"></div>
+  <div id="jsError" class="error-box"></div>
 </div>
 <script src="js/csinterface.js"></script>
 <script src="js/locales/en.js"></script>
