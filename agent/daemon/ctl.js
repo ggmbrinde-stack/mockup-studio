@@ -86,5 +86,5 @@ if (require.main === module) {
   main().catch(e => { console.error(e && e.message ? e.message : e); process.exit(1); });
 }
 
-module.exports = { infoPathFor };
+module.exports = { infoPathFor, main };
 
