@@ -7,8 +7,11 @@
 No PowerShell **ou** no cmd.exe, cole:
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((irm 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1') -join [Environment]::NewLine)"
 ```
+
+O `-join [Environment]::NewLine` é necessário: jogar o `irm` direto no `iex` quebra o script em linhas e o
+comentário de cabeçalho falha no Windows PowerShell 5.1.
 
 O instalador baixa o release mais recente do GitHub, confere o **SHA-256**, valida o conteúdo do
 arquivo **antes** de mexer na instalação, faz backup da versão instalada, para o daemon, copia os

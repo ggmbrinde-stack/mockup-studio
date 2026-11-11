@@ -1,8 +1,8 @@
 <#
-  Mockup Studio / Vectorizer Bridge - one-line online installer (no git, no admin).
+  Mockup Studio / Vectorizer Bridge - one-line online setup (no git, no admin).
 
   Run from PowerShell or cmd.exe:
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1 | iex"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((irm 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1') -join [Environment]::NewLine)"
 
   WHAT IT DOES
     - Downloads the latest published GitHub release .zip and verifies its SHA-256 digest.
@@ -46,11 +46,28 @@ $exitCode = & {
   $Required = @('index.html', 'host\core.jsx', 'host\place.jsx', 'js\bridge\host.js', 'agent\run.js')
   $StaleRootFiles = @('*.md', '.gitignore', 'install.ps1', 'install-online.ps1', 'uninstall.ps1')
 
-  function Log([string]$Message, [string]$Color = 'Gray') {
-    Write-Host ('[{0}] {1}' -f (Get-Date -Format 'HH:mm:ss'), $Message) -ForegroundColor $Color
-  }
+  # ------------------------------------------------------------------ presentation helpers
   function Fail([string]$Message) { throw $Message }
+  function Rule([string]$Color = 'DarkGray') { Write-Host ('  ' + ('-' * 66)) -ForegroundColor $Color }
+  function Head([string]$Title, [string]$Color = 'White') {
+    Write-Host ''
+    Write-Host ('  ' + $Title) -ForegroundColor $Color
+  }
+  function Say([string]$Message, [string]$Color = 'Gray') {
+    Write-Host ('        ' + $Message) -ForegroundColor $Color
+  }
+  function Start-Step([int]$Number, [int]$Total, [string]$Title) {
+    Write-Host ''
+    Write-Host ('  [{0}/{1}] {2}' -f $Number, $Total, $Title) -ForegroundColor White
+  }
+  function Step-Ok([string]$Detail = 'done') {
+    Write-Host ('        ok    ' + $Detail) -ForegroundColor Green
+  }
+  function Step-Skip([string]$Detail) {
+    Write-Host ('        skip  ' + $Detail) -ForegroundColor DarkGray
+  }
 
+  # ------------------------------------------------------------------ core helpers
   function Get-FullPath([string]$Path) { return [IO.Path]::GetFullPath($Path).TrimEnd('\') }
   function Test-PathInside([string]$Parent, [string]$Child) {
     $p = (Get-FullPath $Parent).ToLowerInvariant()
@@ -87,14 +104,13 @@ $exitCode = & {
   $aiPids = @()
 
   try {
-    # -------------------------------------------------------------- environment + guards
+    # ---------------------------------------------------------------- welcome
     if (-not $env:APPDATA) { Fail 'APPDATA is not set; cannot locate the CEP extensions folder.' }
     $ExtensionsRoot = Join-Path $env:APPDATA 'Adobe\CEP\extensions'
     $Dest = Get-FullPath (Join-Path $ExtensionsRoot $ExtensionId)
     $Runtime = Get-FullPath (Join-Path $env:USERPROFILE 'Documents\VectorizerBridge')
     $BackupRoot = Get-FullPath (Join-Path $env:LOCALAPPDATA 'VectorizerBridge\install-backups')
 
-    # The only folder this script is allowed to write into besides its own backups.
     if (-not (Test-PathInside (Get-FullPath $ExtensionsRoot) $Dest)) {
       Fail "Refusing to install: '$Dest' is not inside the CEP extensions folder."
     }
@@ -105,44 +121,62 @@ $exitCode = & {
     $currentVersion = ''
     if (Test-Path -LiteralPath $manifestDest) { $currentVersion = Get-ManifestVersion $manifestDest }
 
-    Log 'Mockup Studio installer' 'Cyan'
-    Log "Extension folder: $Dest"
-    if ($currentVersion) { Log "Currently installed: $currentVersion" } else { Log 'No existing install found (fresh install).' }
-    Log "User data stays untouched: $Runtime"
+    Write-Host ''
+    Write-Host '  ==================================================================' -ForegroundColor Cyan
+    Write-Host '        M O C K U P   S T U D I O' -ForegroundColor Cyan
+    Write-Host '        Vectorizer Bridge  -  setup for Adobe Illustrator' -ForegroundColor Cyan
+    Write-Host '  ==================================================================' -ForegroundColor Cyan
+    Write-Host ''
 
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
 
     try { $aiPids = @(Get-Process -Name 'Illustrator' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id) } catch { }
-    if ($aiPids.Count -gt 0) {
-      Log "NOTE: Illustrator is running (PID(s): $($aiPids -join ', ')). Files will be updated, but CEP caches host scripts: fully quit and reopen Illustrator afterwards." 'Yellow'
-    }
-
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
     $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
     if ($nodeCmd) { $nodeExe = $nodeCmd.Source }
     $npmExe = $null
     if ($npmCmd) { $npmExe = $npmCmd.Source }
-    if ($nodeExe) { Log ("Node.js: " + (& $nodeExe --version)) } else { Log 'WARNING: Node.js not found on PATH. The vectorizer agent needs it.' 'Yellow' }
+    $nodeLabel = 'not found'
+    if ($nodeExe) { $nodeLabel = (& $nodeExe --version) }
+
+    Head 'This is what setup found' 'White'
+    if ($currentVersion) { Say ("Panel installed   : " + $currentVersion) } else { Say 'Panel installed   : none (first install)' }
+    Say ("Node.js           : " + $nodeLabel)
+    if ($aiPids.Count -gt 0) { Say ("Illustrator       : running (PID " + ($aiPids -join ', ') + ")") } else { Say 'Illustrator       : not running' }
+    Say ("Panel folder      : " + $Dest)
+    Say ("Your own files    : " + $Runtime)
+    Say '                    never written, moved or deleted by setup' 'DarkGray'
 
     $destAgent = Join-Path $Dest 'agent'
     $hasDeps = Test-Path -LiteralPath (Join-Path $destAgent 'node_modules\puppeteer-core')
     if (-not $hasDeps -and -not $SkipDeps -and -not $npmExe) {
       Fail ("Node.js/npm is required to install the agent dependencies and was not found.`n" +
-        'Install the Node.js LTS build from https://nodejs.org/en/download , then run the command again.' +
-        "`nNothing on this computer was changed.")
+        '  Install the Node.js LTS build from https://nodejs.org/en/download and run setup again.' +
+        "`n  Nothing on this computer was changed.")
     }
 
-    # -------------------------------------------------------------- resolve the release
+    Head 'What setup will do' 'White'
+    Say '1. Download the newest release from GitHub and verify its SHA-256'
+    Say '2. Unpack it in a temp folder and check it before touching your install'
+    Say '3. Stop the background agent if it is running'
+    Say '4. Back up the version you have now (so a failure can be undone)'
+    Say '5. Copy the panel in and install agent dependencies if missing'
+    Say '6. Enable unsigned CEP and verify the result'
+    Write-Host ''
+    Write-Host '  Nothing outside the panel folder, its rollback copies and HKCU\Software\Adobe\CSXS.9-16 is touched.' -ForegroundColor DarkGray
+    Write-Host ''
+
+    # ---------------------------------------------------------------- step 1: release
+    Start-Step 1 6 'Finding and downloading the release'
     $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
     if ($Pinned) { $apiUrl = "https://api.github.com/repos/$Repo/releases/tags/$Pinned" }
-    Log "Looking up the release in $Repo ..."
     $release = $null
     try {
       $release = (Get-HttpsText $apiUrl) | ConvertFrom-Json
     } catch {
       $detail = $_.Exception.Message
       if ($detail -match '404') { Fail "No published release found for '$Repo'. Nothing was changed." }
-      if ($detail -match '403') { Fail 'GitHub rate limit reached while looking up the release. Wait a few minutes and run the command again. Nothing was changed.' }
+      if ($detail -match '403') { Fail 'GitHub rate limit reached while looking up the release. Wait a few minutes and run setup again. Nothing was changed.' }
       Fail "Could not reach GitHub ($detail). Check the internet connection and try again. Nothing was changed."
     }
     if (-not $release -or -not $release.tag_name) { Fail 'GitHub returned an unexpected release description. Nothing was changed.' }
@@ -154,18 +188,11 @@ $exitCode = & {
       Fail "Release $version publishes no SHA-256 digest, so the download cannot be verified. Refusing to install unverified code. Nothing was changed."
     }
     $expectedSha = $Matches[1].ToLowerInvariant()
-
-    Log "Release: $version ($($asset.name), $([math]::Round($asset.size / 1024, 1)) KB)"
-    if ($currentVersion -eq $version) { Log 'Same version is already installed - this run will verify and repair it.' }
-    elseif ($currentVersion) { Log "Updating $currentVersion -> $version" }
-    else { Log "Installing $version" }
+    Say ("release $version  (" + [math]::Round($asset.size / 1024, 1) + " KB)")
 
     $tmp = Join-Path ([IO.Path]::GetTempPath()) ('vb-install-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force -Path $tmp | Out-Null
     $zipPath = Join-Path $tmp $asset.name
-
-    # -------------------------------------------------------------- download + verify
-    Log 'Downloading ...'
     try { Save-HttpsFile ([string]$asset.browser_download_url) $zipPath }
     catch { Fail "Download failed ($($_.Exception.Message)). Nothing was changed." }
 
@@ -174,9 +201,10 @@ $exitCode = & {
       Fail ("Checksum mismatch: expected $($expectedSha.Substring(0, 12))..., got $($actualSha.Substring(0, 12))... " +
         'The download was corrupted or tampered with. Nothing was changed.')
     }
-    Log 'Checksum verified (SHA-256).'
+    Step-Ok "downloaded, SHA-256 matches ($($expectedSha.Substring(0, 12))...)"
 
-    # -------------------------------------------------------------- stage + validate
+    # ---------------------------------------------------------------- step 2: validate
+    Start-Step 2 6 'Checking the package before installing'
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $stage = Join-Path $tmp 'staged'
     [IO.Directory]::CreateDirectory($stage) | Out-Null
@@ -206,21 +234,24 @@ $exitCode = & {
     }
     $missing = @($Required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $root $_)) })
     if ($missing.Count -gt 0) { Fail ('The archive is missing: ' + ($missing -join ', ') + '. Nothing was changed.') }
-    Log "Archive validated: version $stagedVersion, all required files present."
+    Step-Ok "package is version $stagedVersion and contains every required file"
 
     if ($DryRun) {
-      Log 'DRY RUN: validation finished; no files were written. Nothing was changed.' 'Green'
+      Write-Host ''
+      Write-Host '  Dry run: everything checks out, and nothing was written.' -ForegroundColor Green
+      Write-Host ''
       return 0
     }
 
-    # -------------------------------------------------------------- stop the warm daemon
+    # ---------------------------------------------------------------- step 3: daemon
+    Start-Step 3 6 'Stopping the background agent'
     $ctl = Join-Path $Dest 'agent\daemon\ctl.js'
-    if ((Test-Path -LiteralPath $ctl) -and $nodeExe) {
-      Log 'Stopping the warm agent daemon (if running) ...'
-      try { & $nodeExe $ctl stop --work $Runtime 2>&1 | ForEach-Object { Log "  $_" } }
-      catch { Log "WARNING: daemon stop failed: $($_.Exception.Message)" 'Yellow' }
-      # Chrome needs a moment to flush its profile before the folder can be replaced.
-      # Wait for the daemon's own info file to disappear, then ask a second time if needed.
+    if (-not (Test-Path -LiteralPath $ctl) -or -not $nodeExe) {
+      Step-Skip 'nothing to stop'
+    } else {
+      try { & $nodeExe $ctl stop --work $Runtime 2>&1 | ForEach-Object { Say $_ } }
+      catch { Say ("warning: daemon stop failed: " + $_.Exception.Message) 'Yellow' }
+      # Chrome needs a moment to flush its profile; ask a second time if it lingers.
       $daemonInfo = Join-Path $Runtime 'agent-daemon.json'
       for ($round = 0; $round -lt 2; $round++) {
         for ($i = 0; $i -lt 30; $i++) {
@@ -228,13 +259,15 @@ $exitCode = & {
           Start-Sleep -Milliseconds 500
         }
         if (-not (Test-Path -LiteralPath $daemonInfo)) { break }
-        if ($round -eq 0) { Log 'Daemon still reporting; asking it to stop again ...' 'Yellow' }
-        try { & $nodeExe $ctl stop --work $Runtime 2>&1 | ForEach-Object { Log "  $_" } } catch { }
+        if ($round -eq 0) { Say 'still reporting, asking again ...' 'Yellow' }
+        try { & $nodeExe $ctl stop --work $Runtime 2>&1 | ForEach-Object { Say $_ } } catch { }
       }
-      if (Test-Path -LiteralPath $daemonInfo) { Log 'WARNING: the warm daemon still looks active; files may be in use. Continue and verify afterwards.' 'Yellow' }
+      if (Test-Path -LiteralPath $daemonInfo) { Say 'warning: the agent still looks active; files may be in use' 'Yellow' }
+      else { Step-Ok 'agent is stopped' }
     }
 
-    # -------------------------------------------------------------- backup, then copy
+    # ---------------------------------------------------------------- step 4: backup
+    Start-Step 4 6 'Backing up the current install'
     $depsExisted = Test-Path -LiteralPath (Join-Path $destAgent 'node_modules')
     if (Test-Path -LiteralPath $Dest) {
       $stamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
@@ -242,7 +275,6 @@ $exitCode = & {
       if ($currentVersion) { $label = $currentVersion }
       $backup = Join-Path $BackupRoot "$label-$stamp"
       New-Item -ItemType Directory -Force -Path $backup | Out-Null
-      Log "Backing up the current install ..."
       Invoke-Robocopy @($Dest, $backup, '/E', '/R:1', '/W:1', '/NFL', '/NDL', '/NP',
         '/XD', 'agent\node_modules', 'node_modules', '.git', 'agent-downloads', 'agent-debug', 'vectorizer-profile',
         '/XF', 'agent-status*.json', 'agent-daemon.json', 'agent-log.txt', 'log.txt', '*.zip') 'Backup'
@@ -250,10 +282,14 @@ $exitCode = & {
       if (-not (Test-Path -LiteralPath (Join-Path $backup 'CSXS\manifest.xml'))) {
         Fail 'Backup could not be verified (no CSXS/manifest.xml). Install manually instead. Nothing was changed.'
       }
+      Step-Ok ("saved to " + $backup)
+    } else {
+      Step-Skip 'first install, nothing to back up'
     }
 
+    # ---------------------------------------------------------------- step 5: copy
+    Start-Step 5 6 'Installing the panel'
     try {
-      Log 'Copying new files ...'
       New-Item -ItemType Directory -Force -Path $Dest | Out-Null
       Invoke-Robocopy @($root, $Dest, '/E', '/R:2', '/W:1', '/NFL', '/NDL', '/NP',
         '/XD', 'agent\node_modules', 'node_modules', '.git', 'agent-downloads', 'agent-debug', 'vectorizer-profile',
@@ -263,36 +299,36 @@ $exitCode = & {
       # Prune development leftovers that older installers used to mirror.
       foreach ($pattern in $StaleRootFiles) {
         Get-ChildItem -LiteralPath $Dest -File -Filter $pattern -ErrorAction SilentlyContinue | ForEach-Object {
-          try { Remove-Item -LiteralPath $_.FullName -Force; Log "  pruned stale file: $($_.Name)" } catch { }
+          try { Remove-Item -LiteralPath $_.FullName -Force } catch { }
         }
       }
+      Say 'panel files copied'
 
-      # ------------------------------------------------------------ agent dependencies
       $puppeteer = Join-Path $destAgent 'node_modules\puppeteer-core'
       if (-not (Test-Path -LiteralPath $puppeteer)) {
         if ($SkipDeps) {
-          Log 'WARNING: agent dependencies skipped (VB_SKIP_AGENT_DEPS=1). Vectorizing cannot run until npm install is done.' 'Yellow'
+          Say 'warning: agent dependencies skipped (VB_SKIP_AGENT_DEPS=1)' 'Yellow'
         } elseif (-not $npmExe) {
-          Fail 'npm disappeared during the install; agent dependencies are missing.'
+          Fail 'npm disappeared during setup; agent dependencies are missing.'
         } else {
           $npmLog = Join-Path $tmp 'npm.log'
-          Log 'Installing agent dependencies (npm install --omit=dev) ...'
+          Say 'installing agent dependencies (npm install --omit=dev) ...'
           Push-Location $destAgent
           try { & cmd.exe /c "npm install --omit=dev --no-audit --no-fund > `"$npmLog`" 2>&1"; $npmExit = $LASTEXITCODE }
           finally { Pop-Location }
           if ($npmExit -ne 0) {
-            Log 'npm output (last 15 lines):' 'Yellow'
-            Get-Content -LiteralPath $npmLog -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Log "  $_" }
+            Say 'npm output (last 15 lines):' 'Yellow'
+            Get-Content -LiteralPath $npmLog -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Say ("  " + $_) }
             Fail "npm install failed (exit $npmExit). The previous install was restored."
           }
           if (-not (Test-Path -LiteralPath $puppeteer)) { Fail 'npm reported success but puppeteer-core is missing. The previous install was restored.' }
-          Log 'Agent dependencies installed.'
+          Say 'agent dependencies installed'
         }
       } else {
-        Log 'Agent dependencies already present (kept).'
+        Say 'agent dependencies already present (kept)'
       }
 
-      # ------------------------------------------------------------ verify the result
+      # -------------------------------------------------------------- verify before claiming success
       $installedVersion = Get-ManifestVersion $manifestDest
       if ($installedVersion -ne $version) {
         Fail "Verification failed: installed manifest reports '$installedVersion', expected '$version'."
@@ -300,15 +336,16 @@ $exitCode = & {
       $missingNow = @($Required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Dest $_)) })
       if ($missingNow.Count -gt 0) { Fail ('Verification failed; missing: ' + ($missingNow -join ', ')) }
       if (-not $SkipDeps -and -not (Test-Path -LiteralPath $puppeteer)) { Fail 'Verification failed: agent dependencies are missing.' }
+      Step-Ok "version $installedVersion, all required files present"
     } catch {
       $problem = $_.Exception.Message
       if ($backup -and (Test-Path -LiteralPath (Join-Path $backup 'CSXS\manifest.xml'))) {
-        Log "Rolling back to the previous install ..." 'Yellow'
+        Say 'rolling back to the previous install ...' 'Yellow'
         try {
           Invoke-Robocopy @($backup, $Dest, '/E', '/R:2', '/W:1', '/NFL', '/NDL', '/NP') 'Rollback'
-          Log "Rollback finished; the previous install is in place. Copy kept at $backup" 'Yellow'
+          Say ("restored. The copy is kept at " + $backup) 'Yellow'
         } catch {
-          Log "WARNING: rollback failed ($($_.Exception.Message)). Backup kept at $backup" 'Red'
+          Say ("warning: rollback failed ($($_.Exception.Message)). Backup kept at " + $backup) 'Red'
         }
       }
       if (-not $depsExisted -and (Test-Path -LiteralPath (Join-Path $destAgent 'node_modules'))) {
@@ -317,19 +354,20 @@ $exitCode = & {
       throw $problem
     }
 
-    # -------------------------------------------------------------- enable unsigned CEP
+    # ---------------------------------------------------------------- step 6: enable + verify
+    Start-Step 6 6 'Enabling the panel in Illustrator'
     foreach ($ver in 9..16) {
       $keyPath = "HKCU:\Software\Adobe\CSXS.$ver"
       try {
         if (-not (Test-Path $keyPath)) { New-Item -Path $keyPath -Force | Out-Null }
         New-ItemProperty -Path $keyPath -Name 'PlayerDebugMode' -PropertyType String -Value '1' -Force | Out-Null
       } catch {
-        Log "WARNING: could not set PlayerDebugMode for CSXS.$ver : $($_.Exception.Message)" 'Yellow'
+        Say ("warning: could not set PlayerDebugMode for CSXS.$ver : " + $_.Exception.Message) 'Yellow'
       }
     }
-    Log 'PlayerDebugMode=1 set for CSXS 9-16 (current user only).'
+    Step-Ok 'unsigned CEP enabled for CSXS 9-16 (current user only)'
 
-    # -------------------------------------------------------------- prune old backups
+    # Keep the two newest rollback copies so repeated runs cannot pile up.
     try {
       $old = @(Get-ChildItem -LiteralPath $BackupRoot -Directory -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -Skip 2)
@@ -338,22 +376,48 @@ $exitCode = & {
 
     $fileCount = @(Get-ChildItem -LiteralPath $Dest -Recurse -File -ErrorAction SilentlyContinue |
       Where-Object { $_.FullName -notlike '*\node_modules\*' }).Count
-    Log "Installed and verified: version $installedVersion, $fileCount files, agent dependencies present." 'Green'
+    $depCount = @(Get-ChildItem -LiteralPath (Join-Path $destAgent 'node_modules') -Directory -ErrorAction SilentlyContinue).Count
+
+    # ---------------------------------------------------------------- done
     Write-Host ''
-    Write-Host ('  Installed: ' + $installedVersion) -ForegroundColor Green
-    Write-Host ('  Folder:    ' + $Dest)
-    if ($aiPids.Count -gt 0) { Write-Host '  Next: fully quit and reopen Illustrator (host scripts are cached).' }
-    else { Write-Host '  Next: open Illustrator -> Window > Extensions > Vectorizer Bridge.' }
-    Write-Host ('  User data: ' + $Runtime + '  (untouched)')
-    Write-Host '  Written: the extension folder, HKCU CSXS.9-16 PlayerDebugMode, and the rollback copy.'
+    Write-Host '  ==================================================================' -ForegroundColor Green
+    $wasUpdate = [bool]($currentVersion -and $currentVersion -ne $version)
+    if ($wasUpdate) { Write-Host ('        SETUP COMPLETE   ' + $currentVersion + '  ->  ' + $version) -ForegroundColor Green }
+    else { Write-Host ('        SETUP COMPLETE   version ' + $version) -ForegroundColor Green }
+    Write-Host '  ==================================================================' -ForegroundColor Green
+    Write-Host ''
+    Say ("Panel folder  : " + $Dest)
+    Say ("Files         : " + $fileCount)
+    Say ("Agent         : " + $depCount + " packages")
+    Say ("Your own files: " + $Runtime + "  (untouched)")
+    Write-Host ''
+    Head 'Open the panel' 'White'
+    if ($aiPids.Count -gt 0) {
+      Say '1. Fully QUIT Illustrator (it caches panel scripts), then open it again.'
+      Say '2. Window > Extensions > Vectorizer Bridge.'
+    } else {
+      Say '1. Open Adobe Illustrator.'
+      Say '2. Window > Extensions > Vectorizer Bridge.'
+    }
+    Say '3. Sign in to vectorizer.ai once, on first use.' 'DarkGray'
+    Write-Host ''
+    Write-Host '  Undo: re-run this setup with an older VB_INSTALL_VERSION, or use install.ps1 / uninstall.ps1 from the repo.' -ForegroundColor DarkGray
     Write-Host ''
     return 0
   } catch {
     Write-Host ''
-    Write-Host ('INSTALL FAILED: ' + $_.Exception.Message) -ForegroundColor Red
+    Write-Host '  ==================================================================' -ForegroundColor Red
+    Write-Host '        SETUP FAILED' -ForegroundColor Red
+    Write-Host '  ==================================================================' -ForegroundColor Red
+    Write-Host ''
+    foreach ($line in ([string]$_.Exception.Message -split "`n")) { Write-Host ('  ' + $line) -ForegroundColor Red }
     if ($backup -and (Test-Path -LiteralPath (Join-Path $backup 'CSXS\manifest.xml'))) {
-      Write-Host ('A rollback copy is kept at ' + $backup) -ForegroundColor Yellow
+      Write-Host ''
+      Write-Host ('  A rollback copy is kept at ' + $backup) -ForegroundColor Yellow
     }
+    Write-Host ''
+    Write-Host '  Nothing in Documents\VectorizerBridge was changed.' -ForegroundColor DarkGray
+    Write-Host ''
     return 1
   } finally {
     if ($tmp -and (Test-Path -LiteralPath $tmp)) { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }

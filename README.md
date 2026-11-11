@@ -21,8 +21,10 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 One line, PowerShell or cmd.exe, no git and no admin:
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((irm 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1') -join [Environment]::NewLine)"
 ```
+
+(`-join` matters: piping `irm` straight into `iex` splits the script into lines and breaks its header comment on Windows PowerShell 5.1.)
 
 It downloads the latest GitHub release, verifies its SHA-256 digest, validates the archive before touching anything, backs up the installed copy, stops the warm daemon, copies the files, installs missing agent dependencies, sets `PlayerDebugMode` for CSXS 9-16 and verifies the result. A failure after the copy restores the backup automatically.
 
