@@ -31,6 +31,7 @@ window.LOCALES.en = {
   warmDaemonOn: "Warm Chrome: on",
   warmDaemonStopping: "Warm Chrome: stopping…",
   warmDaemonError: "Warm Chrome: unavailable",
+  updateWhatsNew: "What's new:",
   batchWorkers: "Parallel batch workers",
   batchWorkersHint: "1 = safest (sequential). 2 uses warm Chrome pages in parallel for faster batches.",
   vectorizeShortcut: "Vectorize shortcut",

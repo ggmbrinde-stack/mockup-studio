@@ -460,6 +460,22 @@
     return value ? s.replace("{version}", value) : s;
   }
 
+  /* The updater reports the GitHub release body alongside the version, so the panel
+     can say what actually changed instead of only showing a number. */
+  function renderUpdateNotes(r) {
+    var el = core.$("updateNotes");
+    if (!el) return;
+    var notes = (r && r.notes) ? String(r.notes).replace(/\r\n/g, "\n").trim() : "";
+    var wanted = (r && (r.state === "available" || r.state === "uptodate"));
+    if (!notes || !wanted) {
+      el.textContent = "";
+      el.className = "updateNotes";
+      return;
+    }
+    el.textContent = (core.t("updateWhatsNew") || "What's new:") + "\n" + notes;
+    el.className = "updateNotes show";
+  }
+
   function renderUpdate(r) {
     var statusEl = core.$("updateStatusText");
     var versionEl = core.$("updateVersionText");
@@ -480,6 +496,7 @@
     }
     if (statusEl) statusEl.textContent = text;
     if (applyBtn) applyBtn.style.display = (r.state === "available") ? "" : "none";
+    renderUpdateNotes(r);
   }
 
   function refreshUpdateInfo() {

@@ -201,7 +201,11 @@ async function resolveRelease(opts, status) {
   if (!asset) throw new Error('The latest release has no .zip asset to install.');
   const digest = String(asset.digest || '');
   if (!/^sha256:[0-9a-f]{64}$/i.test(digest)) throw new Error('The release asset has no SHA-256 digest; publish one before updating.');
-  return { version: tag, url: asset.browser_download_url, sha256: digest.slice(7).toLowerCase(), notes: String(body.name || '') };
+  // Release notes double as the changelog shown in the panel's Updates section.
+  // Prefer the release body (what changed) and fall back to its title.
+  const noteBody = String(body.body || '').trim();
+  const notes = noteBody ? noteBody.slice(0, 2000) : String(body.name || '').trim();
+  return { version: tag, url: asset.browser_download_url, sha256: digest.slice(7).toLowerCase(), notes: notes };
 }
 
 function extract(zipPath, dest) {
@@ -246,7 +250,7 @@ async function check(opts, status) {
   const c = compareVersions(rel.version, current);
   if (c === null) throw new Error('Cannot compare versions (installed ' + current + ', latest ' + rel.version + ').');
   if (c > 0) writeStatus(status, { state: 'available', current, latest: rel.version, notes: rel.notes || '' });
-  else writeStatus(status, { state: 'uptodate', current, latest: rel.version });
+  else writeStatus(status, { state: 'uptodate', current, latest: rel.version, notes: rel.notes || '' });
 }
 
 async function apply(opts, status) {

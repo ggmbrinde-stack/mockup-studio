@@ -31,6 +31,7 @@ window.LOCALES.pt = {
   warmDaemonOn: "Chrome aquecido: ligado",
   warmDaemonStopping: "Chrome aquecido: a parar…",
   warmDaemonError: "Chrome aquecido: indisponível",
+  updateWhatsNew: "Novidades:",
   batchWorkers: "Trabalhadores do lote em paralelo",
   batchWorkersHint: "1 = mais seguro (sequencial). 2 usa páginas do Chrome aquecido em paralelo para lotes mais rápidos.",
   vectorizeShortcut: "Atalho de vetorização",
