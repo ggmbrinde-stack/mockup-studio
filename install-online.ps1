@@ -8,6 +8,9 @@
     - Downloads the latest published GitHub release .zip and verifies its SHA-256 digest.
     - Unpacks into a temp folder and validates it (manifest version + required files)
       BEFORE the installed extension is touched at all.
+    - If Node.js is missing and the agent needs it, installs the official Node.js LTS
+      Windows build into your own AppData (verified against nodejs.org's SHASUMS256.txt,
+      no admin, no PATH change). The panel already looks for it there.
     - Stops the warm agent daemon, backs up the current install, copies the new files in,
       installs agent dependencies when they are missing, enables PlayerDebugMode for
       CSXS 9-16, then verifies the installed result.
@@ -16,18 +19,22 @@
   SAFETY CONTRACT (nothing outside these paths is written or deleted)
     %APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge   the extension itself
     %LOCALAPPDATA%\VectorizerBridge\install-backups\                  rollback copies (last 2)
+    %LOCALAPPDATA%\Programs\nodejs\                                   private Node.js LTS, only
+                                                                      when Node is missing
     HKCU\Software\Adobe\CSXS.9-16  ->  PlayerDebugMode = 1            (unsigned CEP only)
 
     - %USERPROFILE%\Documents\VectorizerBridge is never written, moved or deleted. The only
       thing done there is asking the agent's own control script to stop the warm daemon.
     - The extension folder is never deleted. Files are copied over it additively.
     - No admin/elevation, no PATH edits, no other registry keys, no scheduled tasks.
-    - It aborts BEFORE changing anything when Node/npm is missing but agent deps are absent,
-      when the download or digest check fails, when the archive is invalid, or when the
+    - Nothing installed by setup is deleted; an existing newer Node.js is left alone.
+    - It aborts BEFORE changing anything when the download or digest check fails, when the
+      archive is invalid, when a private Node copy is too old for the agent, or when the
       target path is not the CEP extension folder.
 
   OPTIONAL OVERRIDES (testing)
-    VB_REPO, VB_INSTALL_VERSION, VB_DRY_RUN=1, VB_SKIP_AGENT_DEPS=1
+    VB_REPO, VB_INSTALL_VERSION, VB_DRY_RUN=1, VB_SKIP_AGENT_DEPS=1,
+    VB_NODE_DIR, VB_FORCE_NODE_SETUP=1
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -42,13 +49,13 @@ $exitCode = & {
   if ($env:VB_INSTALL_VERSION) { $Pinned = $env:VB_INSTALL_VERSION.Trim() }
   $DryRun = ($env:VB_DRY_RUN -eq '1')
   $SkipDeps = ($env:VB_SKIP_AGENT_DEPS -eq '1')
+  $ForceNode = ($env:VB_FORCE_NODE_SETUP -eq '1')
 
   $Required = @('index.html', 'host\core.jsx', 'host\place.jsx', 'js\bridge\host.js', 'agent\run.js')
   $StaleRootFiles = @('*.md', '.gitignore', 'install.ps1', 'install-online.ps1', 'uninstall.ps1')
 
   # ------------------------------------------------------------------ presentation helpers
   function Fail([string]$Message) { throw $Message }
-  function Rule([string]$Color = 'DarkGray') { Write-Host ('  ' + ('-' * 66)) -ForegroundColor $Color }
   function Head([string]$Title, [string]$Color = 'White') {
     Write-Host ''
     Write-Host ('  ' + $Title) -ForegroundColor $Color
@@ -96,11 +103,25 @@ $exitCode = & {
     # Robocopy exit codes 0-7 mean success of some kind; 8 and above are real failures.
     if ($rc -ge 8) { Fail "$What failed (robocopy exit code $rc)." }
   }
+  function Get-NodeVersion([string]$NodePath) {
+    try {
+      if (-not (Test-Path -LiteralPath $NodePath)) { return '' }
+      $v = & $NodePath --version 2>$null
+      if ("$v" -match '^v\d+\.\d+\.\d+') { return [string]$v }
+    } catch { }
+    return ''
+  }
+  function Test-NodeSupportsDeps([string]$Version) {
+    if ("$Version" -notmatch '^v(\d+)\.(\d+)\.') { return $false }
+    $major = [int]$Matches[1]; $minor = [int]$Matches[2]
+    return (($major -gt 22) -or ($major -eq 22 -and $minor -ge 12))
+  }
 
   $tmp = $null
   $backup = $null
   $depsExisted = $false
   $nodeExe = $null
+  $npmExe = $null
   $aiPids = @()
 
   try {
@@ -110,6 +131,8 @@ $exitCode = & {
     $Dest = Get-FullPath (Join-Path $ExtensionsRoot $ExtensionId)
     $Runtime = Get-FullPath (Join-Path $env:USERPROFILE 'Documents\VectorizerBridge')
     $BackupRoot = Get-FullPath (Join-Path $env:LOCALAPPDATA 'VectorizerBridge\install-backups')
+    $NodeDir = Get-FullPath (Join-Path $env:LOCALAPPDATA 'Programs\nodejs')
+    if ($env:VB_NODE_DIR) { $NodeDir = Get-FullPath $env:VB_NODE_DIR }
 
     if (-not (Test-PathInside (Get-FullPath $ExtensionsRoot) $Dest)) {
       Fail "Refusing to install: '$Dest' is not inside the CEP extensions folder."
@@ -134,40 +157,40 @@ $exitCode = & {
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
     $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
     if ($nodeCmd) { $nodeExe = $nodeCmd.Source }
-    $npmExe = $null
     if ($npmCmd) { $npmExe = $npmCmd.Source }
     $nodeLabel = 'not found'
     if ($nodeExe) { $nodeLabel = (& $nodeExe --version) }
+    $nodeVersion = $nodeLabel
+
+    $destAgent = Join-Path $Dest 'agent'
+    $hasDeps = Test-Path -LiteralPath (Join-Path $destAgent 'node_modules\puppeteer-core')
+    $needsNode = (-not $hasDeps) -and (-not $SkipDeps) -and (-not $nodeExe)
 
     Head 'This is what setup found' 'White'
     if ($currentVersion) { Say ("Panel installed   : " + $currentVersion) } else { Say 'Panel installed   : none (first install)' }
-    Say ("Node.js           : " + $nodeLabel)
+    if ($nodeExe) { Say ("Node.js           : " + $nodeLabel) }
+    elseif ($SkipDeps) { Say 'Node.js           : not found (agent dependencies will be skipped)' }
+    else { Say 'Node.js           : not found (setup will install a private copy, no admin)' }
     if ($aiPids.Count -gt 0) { Say ("Illustrator       : running (PID " + ($aiPids -join ', ') + ")") } else { Say 'Illustrator       : not running' }
     Say ("Panel folder      : " + $Dest)
     Say ("Your own files    : " + $Runtime)
     Say '                    never written, moved or deleted by setup' 'DarkGray'
 
-    $destAgent = Join-Path $Dest 'agent'
-    $hasDeps = Test-Path -LiteralPath (Join-Path $destAgent 'node_modules\puppeteer-core')
-    if (-not $hasDeps -and -not $SkipDeps -and -not $npmExe) {
-      Fail ("Node.js/npm is required to install the agent dependencies and was not found.`n" +
-        '  Install the Node.js LTS build from https://nodejs.org/en/download and run setup again.' +
-        "`n  Nothing on this computer was changed.")
-    }
-
     Head 'What setup will do' 'White'
     Say '1. Download the newest release from GitHub and verify its SHA-256'
     Say '2. Unpack it in a temp folder and check it before touching your install'
-    Say '3. Stop the background agent if it is running'
-    Say '4. Back up the version you have now (so a failure can be undone)'
-    Say '5. Copy the panel in and install agent dependencies if missing'
-    Say '6. Enable unsigned CEP and verify the result'
+    Say '3. Make sure Node.js is available (private copy in your AppData if missing)'
+    Say '4. Stop the background agent if it is running'
+    Say '5. Back up the version you have now (so a failure can be undone)'
+    Say '6. Copy the panel in and install agent dependencies if missing'
+    Say '7. Enable unsigned CEP and verify the result'
     Write-Host ''
-    Write-Host '  Nothing outside the panel folder, its rollback copies and HKCU\Software\Adobe\CSXS.9-16 is touched.' -ForegroundColor DarkGray
+    Write-Host '  Nothing outside the panel folder, its rollback copies, the private Node.js copy and' -ForegroundColor DarkGray
+    Write-Host '  HKCU\Software\Adobe\CSXS.9-16 is touched.' -ForegroundColor DarkGray
     Write-Host ''
 
     # ---------------------------------------------------------------- step 1: release
-    Start-Step 1 6 'Finding and downloading the release'
+    Start-Step 1 7 'Finding and downloading the release'
     $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
     if ($Pinned) { $apiUrl = "https://api.github.com/repos/$Repo/releases/tags/$Pinned" }
     $release = $null
@@ -204,7 +227,7 @@ $exitCode = & {
     Step-Ok "downloaded, SHA-256 matches ($($expectedSha.Substring(0, 12))...)"
 
     # ---------------------------------------------------------------- step 2: validate
-    Start-Step 2 6 'Checking the package before installing'
+    Start-Step 2 7 'Checking the package before installing'
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $stage = Join-Path $tmp 'staged'
     [IO.Directory]::CreateDirectory($stage) | Out-Null
@@ -243,8 +266,67 @@ $exitCode = & {
       return 0
     }
 
-    # ---------------------------------------------------------------- step 3: daemon
-    Start-Step 3 6 'Stopping the background agent'
+    # ---------------------------------------------------------------- step 3: node
+    Start-Step 3 7 'Preparing Node.js'
+    $privateNode = Join-Path $NodeDir 'node.exe'
+    $privateNpm = Join-Path $NodeDir 'npm.cmd'
+    if ($nodeExe -and -not $ForceNode) {
+      Step-Ok ("using the Node.js already on this computer (" + $nodeLabel + ")")
+    } elseif ($SkipDeps -and -not $ForceNode) {
+      Step-Skip 'agent dependencies are being skipped'
+    } else {
+      $privateVersion = Get-NodeVersion $privateNode
+      if ($privateVersion -and -not $ForceNode) {
+        if (-not (Test-NodeSupportsDeps $privateVersion)) {
+          Fail ("A Node.js $privateVersion copy sits in $NodeDir but the agent needs 22.12 or newer.`n" +
+            "  Install Node.js 22 LTS from https://nodejs.org/en/download and run setup again.`n" +
+            '  Nothing on this computer was changed.')
+        }
+        $nodeExe = $privateNode
+        if (Test-Path -LiteralPath $privateNpm) { $npmExe = $privateNpm }
+        $nodeVersion = $privateVersion
+        Step-Ok ("using the private copy already in your AppData (" + $privateVersion + ")")
+      } else {
+        Say 'not found, downloading the official Node.js LTS build (about 30 MB) ...'
+        $releases = $null
+        try { $releases = (Get-HttpsText 'https://nodejs.org/dist/index.json') | ConvertFrom-Json }
+        catch { Fail ("Could not reach nodejs.org ($($_.Exception.Message)). Install Node.js 22 LTS from https://nodejs.org/en/download and run setup again. Nothing was changed.") }
+        $lts = @($releases | Where-Object { $_.lts }) | Select-Object -First 1
+        if (-not $lts -or -not $lts.version) { Fail 'nodejs.org did not report a Node.js LTS release. Nothing was changed.' }
+        $nodeVer = [string]$lts.version
+        $nodeZipName = "node-$nodeVer-win-x64.zip"
+        $sums = Get-HttpsText ("https://nodejs.org/dist/" + $nodeVer + "/SHASUMS256.txt")
+        $sumLine = @(($sums -split "`n") | Where-Object { $_ -match [regex]::Escape($nodeZipName) }) | Select-Object -First 1
+        if (-not $sumLine -or $sumLine -notmatch '^([0-9a-fA-F]{64})') {
+          Fail "nodejs.org published no SHA-256 for $nodeZipName. Refusing an unverified download. Nothing was changed."
+        }
+        $nodeSha = $Matches[1].ToLowerInvariant()
+        $nodeZip = Join-Path $tmp $nodeZipName
+        try { Save-HttpsFile ("https://nodejs.org/dist/" + $nodeVer + "/" + $nodeZipName) $nodeZip }
+        catch { Fail ("The Node.js download failed ($($_.Exception.Message)). Install Node.js 22 LTS from https://nodejs.org/en/download and run setup again. Nothing was changed.") }
+        $nodeActual = (Get-FileHash -LiteralPath $nodeZip -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($nodeActual -ne $nodeSha) {
+          Fail 'The Node.js download failed its checksum check. Nothing was changed.'
+        }
+        $nodeStage = Join-Path $tmp 'node-stage'
+        [IO.Directory]::CreateDirectory($nodeStage) | Out-Null
+        [IO.Compression.ZipFile]::ExtractToDirectory($nodeZip, $nodeStage)
+        $nodeInner = @(Get-ChildItem -LiteralPath $nodeStage -Directory) | Select-Object -First 1
+        if (-not $nodeInner -or -not (Test-Path -LiteralPath (Join-Path $nodeInner.FullName 'node.exe'))) {
+          Fail 'The Node.js package did not contain node.exe. Nothing was changed.'
+        }
+        New-Item -ItemType Directory -Force -Path $NodeDir | Out-Null
+        Invoke-Robocopy @($nodeInner.FullName, $NodeDir, '/E', '/R:1', '/W:1', '/NFL', '/NDL', '/NP') 'Node.js copy'
+        $nodeVersion = Get-NodeVersion $privateNode
+        if (-not $nodeVersion) { Fail ("Node.js was copied to $NodeDir but it does not run. Nothing else was changed.") }
+        $nodeExe = $privateNode
+        if (Test-Path -LiteralPath $privateNpm) { $npmExe = $privateNpm }
+        Step-Ok ("installed Node.js $nodeVersion privately in your AppData (no admin, no PATH change)")
+      }
+    }
+
+    # ---------------------------------------------------------------- step 4: daemon
+    Start-Step 4 7 'Stopping the background agent'
     $ctl = Join-Path $Dest 'agent\daemon\ctl.js'
     if (-not (Test-Path -LiteralPath $ctl) -or -not $nodeExe) {
       Step-Skip 'nothing to stop'
@@ -266,8 +348,8 @@ $exitCode = & {
       else { Step-Ok 'agent is stopped' }
     }
 
-    # ---------------------------------------------------------------- step 4: backup
-    Start-Step 4 6 'Backing up the current install'
+    # ---------------------------------------------------------------- step 5: backup
+    Start-Step 5 7 'Backing up the current install'
     $depsExisted = Test-Path -LiteralPath (Join-Path $destAgent 'node_modules')
     if (Test-Path -LiteralPath $Dest) {
       $stamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
@@ -287,8 +369,8 @@ $exitCode = & {
       Step-Skip 'first install, nothing to back up'
     }
 
-    # ---------------------------------------------------------------- step 5: copy
-    Start-Step 5 6 'Installing the panel'
+    # ---------------------------------------------------------------- step 6: copy
+    Start-Step 6 7 'Installing the panel'
     try {
       New-Item -ItemType Directory -Force -Path $Dest | Out-Null
       Invoke-Robocopy @($root, $Dest, '/E', '/R:2', '/W:1', '/NFL', '/NDL', '/NP',
@@ -309,12 +391,12 @@ $exitCode = & {
         if ($SkipDeps) {
           Say 'warning: agent dependencies skipped (VB_SKIP_AGENT_DEPS=1)' 'Yellow'
         } elseif (-not $npmExe) {
-          Fail 'npm disappeared during setup; agent dependencies are missing.'
+          Fail 'npm was not found, so the agent dependencies cannot be installed.'
         } else {
           $npmLog = Join-Path $tmp 'npm.log'
           Say 'installing agent dependencies (npm install --omit=dev) ...'
           Push-Location $destAgent
-          try { & cmd.exe /c "npm install --omit=dev --no-audit --no-fund > `"$npmLog`" 2>&1"; $npmExit = $LASTEXITCODE }
+          try { & cmd.exe /c "`"$npmExe`" install --omit=dev --no-audit --no-fund > `"$npmLog`" 2>&1"; $npmExit = $LASTEXITCODE }
           finally { Pop-Location }
           if ($npmExit -ne 0) {
             Say 'npm output (last 15 lines):' 'Yellow'
@@ -354,8 +436,8 @@ $exitCode = & {
       throw $problem
     }
 
-    # ---------------------------------------------------------------- step 6: enable + verify
-    Start-Step 6 6 'Enabling the panel in Illustrator'
+    # ---------------------------------------------------------------- step 7: enable + verify
+    Start-Step 7 7 'Enabling the panel in Illustrator'
     foreach ($ver in 9..16) {
       $keyPath = "HKCU:\Software\Adobe\CSXS.$ver"
       try {
@@ -390,6 +472,7 @@ $exitCode = & {
     Say ("Panel folder  : " + $Dest)
     Say ("Files         : " + $fileCount)
     Say ("Agent         : " + $depCount + " packages")
+    if ($nodeExe) { Say ("Node.js       : " + $nodeVersion) }
     Say ("Your own files: " + $Runtime + "  (untouched)")
     Write-Host ''
     Head 'Open the panel' 'White'
