@@ -103,7 +103,7 @@ select:focus-visible {
    keeping its summary row visible, so the sections below always get real space. */
 .settings {
   border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface);
-  flex: 0 1 auto; min-height: 96px; max-height: 42vh; overflow-y: auto; overscroll-behavior: contain;
+  flex: 0 1 auto; max-height: 42vh; overflow-y: auto; overscroll-behavior: contain;
 }
 .settingsSummary {
   display: flex; align-items: center; gap: 6px;
@@ -221,6 +221,11 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 @media (max-height: 720px) {
   .app { gap: 6px; }
   .app > .hint:not(#lastExport) { display: none; }
-  .settings { min-height: 88px; }
+  details[open].settings { min-height: 88px; }
   .panel { min-height: clamp(60px, 10vh, 110px); }
 }
+
+/* The height floor only matters while the form is expanded. */
+details[open].settings { min-height: 96px; }
+/* Updates holds a title, a line of text and a button: keep room for all three. */
+#updatesBox { min-height: 104px; }
