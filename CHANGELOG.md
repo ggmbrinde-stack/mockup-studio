@@ -1,6 +1,16 @@
 # Changelog — Mockup Studio
 
-## Unreleased
+## 2.3.3 — 2026-11-11
+
+### UI
+- **Fluid panel:** the panel now fills whatever height it is docked at instead of always scrolling. The three sections share the space (`clamp(64px, 11vh, 150px)` each) with their own scroll areas, wide docks (≥ 820 px) switch to a two-column grid and short docks get a compact layout.
+- **Collapsible sections:** History, Log and Updates are `<details>` like Settings; each closes to a 30 px summary, and History's Refresh button no longer toggles the section.
+- **Updates shows the notes:** a check now prints the GitHub release notes ("What's new") under the version line, so the panel says what changed instead of only a number.
+
+### Installer
+- `install-online.ps1` is a 7-step guided setup: release lookup, SHA-256 verification, package validation, Node, daemon stop, backup, copy, unsigned-CEP enable and verification, with a byte-identical rollback on failure.
+- Installs a private Node.js LTS in `%LOCALAPPDATA%\Programs\nodejs` when the machine has no usable Node — no admin rights, no PATH change.
+- The one-line command works on PowerShell 5.1 (`irm` output is line-joined before `iex`).
 
 ### Fixes
 - **Parallel batches (Windows):** a 6-item run at `workers=4` ended 3/6 with `stuck: starting` and `Download link not found`.
