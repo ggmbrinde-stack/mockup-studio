@@ -450,11 +450,14 @@
       }
     });
   }
+
+  function init() {
     core.loadSettings();
     // queue↔vectorizer interface/events
     core.events.on('poll:tick', pollOnce);
     core.events.on('batch:finished', function () { try { refreshSvgHistory(); } catch (e) {} });
     bindUI();
+    initUpdateUI();
     core.renderLocale();
     core.applySettingsToUI();
     core.setStatus(core.t("statusReady"));
@@ -477,18 +480,25 @@
       core.updateButtons();
       core.setStatus(core.t("statusReady"));
       core.setDetail("");
-      bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
-      refreshDaemonStatus();
-      refreshSvgHistory();
-      if (core.state.settings.warmDaemon) ensureDaemonRunning();
-      bridge.evalJsx("VB.selfTest()", function (selfTest) {
-        var st = bridge.parseResult(selfTest);
-        core.log("Host self-test: " + selfTest);
-        if (!st.ok || !st.parsed) core.showError(core.t("errorJson") + " (" + selfTest + ")");
-      });
-      bridge.evalJsx("app.version", function (version) {
-        var el = core.$("versionText");
-        if (el && version) el.textContent = core.t("versionLabel") + " " + version;
+      // Apply pending update (staged on previous run) after host is ready
+      applyPendingUpdateOnStart(function () {
+        bridge.getLocalVersion(function (v) {
+          if (v) core.state.appVersion = v;
+          renderUpdateUI();
+        });
+        bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
+        refreshDaemonStatus();
+        refreshSvgHistory();
+        if (core.state.settings.warmDaemon) ensureDaemonRunning();
+        bridge.evalJsx("VB.selfTest()", function (selfTest) {
+          var st = bridge.parseResult(selfTest);
+          core.log("Host self-test: " + selfTest);
+          if (!st.ok || !st.parsed) core.showError(core.t("errorJson") + " (" + selfTest + ")");
+        });
+        bridge.evalJsx("app.version", function (version) {
+          var el = core.$("versionText");
+          if (el && version) el.textContent = core.t("versionLabel") + " " + version;
+        });
       });
     });
     core.schedulePoll(core.currentPollMs());

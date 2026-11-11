@@ -124,8 +124,16 @@
     });
   }
 
+  function fetchUrlText(url, callback) {
+    evalJsx('VB.fetchUrlText(' + core.jsxString(url || '') + ')', function (res) {
+      var r = parseResult(res);
+      if (callback) callback(r);
+    });
+  }
+
   bridge.getCS = getCS; bridge.setCS = setCS;
   bridge.logToHost = logToHost; bridge.evalJsx = evalJsx; bridge.parseResult = parseResult; bridge.friendlyError = friendlyError;
   bridge.loadHost = loadHost; bridge.openLogFolder = openLogFolder; bridge.openSvgsFolder = openSvgsFolder;
   bridge.getLocalVersion = getLocalVersion; bridge.getPendingUpdate = getPendingUpdate; bridge.stageUpdate = stageUpdate; bridge.applyPendingUpdate = applyPendingUpdate;
+  bridge.fetchUrlText = fetchUrlText;
 })();

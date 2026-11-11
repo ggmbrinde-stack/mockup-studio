@@ -344,6 +344,49 @@ VB.revealFile = function (path) {
 VB._updateStagingDir = function () {
   try { return VB.getBridgeFolderPath() + "/update-staging"; } catch (e) { return ""; }
 };
+VB.fetchUrlText = function (url) {
+  try {
+    url = String(url || "");
+    if (!url) return VB.toJSON({ ok: false, error: "noUrl" });
+    var work = VB.getBridgeFolderPath();
+    VB.ensureBridgeFolder();
+    var outPath = work + "/update-fetch.txt";
+    var resPath = work + "/update-fetch-result.json";
+    try { var oldOut = new File(outPath); if (oldOut.exists) oldOut.remove(); } catch (e0) {}
+    try { var oldRes = new File(resPath); if (oldRes.exists) oldRes.remove(); } catch (e1) {}
+    var ps1 = new File(work + "/update-fetch.ps1");
+    ps1.encoding = "UTF-8";
+    if (!ps1.open("w")) return VB.toJSON({ ok: false, error: "cannotWriteScript" });
+    ps1.writeln("$ErrorActionPreference = 'Stop'");
+    ps1.writeln("try {");
+    ps1.writeln("  $url = '" + url.replace(/'/g, "''") + "'");
+    ps1.writeln("  $out = '" + outPath.replace(/'/g, "''") + "'");
+    ps1.writeln("  $res = '" + resPath.replace(/'/g, "''") + "'");
+    ps1.writeln("  $r = Invoke-WebRequest -Uri $url -UseBasicParsing");
+    ps1.writeln("  [System.IO.File]::WriteAllText($out, [string]$r.Content, [System.Text.Encoding]::UTF8)");
+    ps1.writeln("  @{ ok = $true } | ConvertTo-Json -Compress | Set-Content -LiteralPath $res -Encoding UTF8");
+    ps1.writeln("} catch {");
+    ps1.writeln("  @{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress | Set-Content -LiteralPath '" + resPath.replace(/'/g, "''") + "' -Encoding UTF8");
+    ps1.writeln("}");
+    ps1.close();
+    var ex = VB._execPsFileHidden(ps1.fsName);
+    if (ex !== "ok") return VB.toJSON({ ok: false, error: ex });
+    var rtxt = VB.readTextFile(resPath);
+    if (rtxt && rtxt.indexOf('"ok":true') >= 0) {
+      var txt = VB.readTextFile(outPath);
+      try { var of = new File(outPath); if (of.exists) of.remove(); } catch (e2) {}
+      try { var rf = new File(resPath); if (rf.exists) rf.remove(); } catch (e3) {}
+      try { if (ps1.exists) ps1.remove(); } catch (e4) {}
+      return VB.toJSON({ ok: true, text: txt || "" });
+    }
+    if (rtxt && rtxt.indexOf('"ok":false') >= 0) {
+      var em = rtxt.match(/"error"\s*:\s*"([^"]*)"/);
+      return VB.toJSON({ ok: false, error: em && em[1] ? em[1] : "fetch failed" });
+    }
+    return VB.toJSON({ ok: false, error: "fetch incomplete" });
+  } catch (e) { return VB.toJSON({ ok: false, error: String(e) }); }
+};
+
 VB.getPendingUpdateInfo = function () {
   try {
     var dir = VB._updateStagingDir();

@@ -281,36 +281,53 @@
     setUpdateStatus('updateChecking', 'Verificando atualizações...');
     renderUpdateUI();
     var url = 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/CSXS/manifest.xml';
-    try {
-      if (typeof fetch !== 'function') throw new Error('fetch unavailable');
-      fetch(url, { cache: 'no-store' }).then(function(res){
-        if (!res || !res.ok) throw new Error('http ' + (res ? res.status : '')); 
-        return res.text();
-      }).then(function(text){
-        var remote = parseManifestVersion(text);
-        state.update.checking = false;
-        if (!remote) { setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.'); renderUpdateUI(); return; }
-        state.update.remoteVersion = remote;
-        if (compareVersions(remote, state.appVersion) > 0) {
-          state.update.available = true;
-          setUpdateStatus('updateAvailable', 'Nova versão disponível: {version}', remote);
-        } else {
-          state.update.available = false;
-          setUpdateStatus('updateUpToDate', 'Está atualizado.');
-        }
-        renderUpdateUI();
-      }).catch(function(err){
-        state.update.checking = false;
-        log('Update check failed: ' + (err && err.message ? err.message : err));
-        setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.');
-        renderUpdateUI();
-      });
-    } catch (e) {
+    function handleManifestText(text) {
+      var remote = parseManifestVersion(text);
       state.update.checking = false;
-      log('Update check error: ' + e);
+      if (!remote) { setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.'); renderUpdateUI(); return; }
+      state.update.remoteVersion = remote;
+      if (compareVersions(remote, state.appVersion) > 0) {
+        state.update.available = true;
+        setUpdateStatus('updateAvailable', 'Nova versão disponível: {version}', remote);
+      } else {
+        state.update.available = false;
+        setUpdateStatus('updateUpToDate', 'Está atualizado.');
+      }
+      renderUpdateUI();
+    }
+    function failCheck(err) {
+      state.update.checking = false;
+      log('Update check failed: ' + (err && err.message ? err.message : err));
       setUpdateStatus('updateCheckFailed', 'Não foi possível verificar.');
       renderUpdateUI();
     }
+    function tryHostFetch() {
+      try {
+        if (VB.bridge && typeof VB.bridge.fetchUrlText === 'function' && VB.bridge.hostOk) {
+          VB.bridge.fetchUrlText(url, function (r) {
+            if (r && r.ok && typeof r.text === 'string') handleManifestText(r.text);
+            else failCheck((r && r.error) || 'host fetch failed');
+          });
+          return true;
+        }
+      } catch (e) { }
+      return false;
+    }
+    try {
+      if (typeof fetch === 'function') {
+        fetch(url, { cache: 'no-store' }).then(function(res){
+          if (!res || !res.ok) throw new Error('http ' + (res ? res.status : ''));
+          return res.text();
+        }).then(handleManifestText).catch(function(err){
+          log('fetch update check failed, trying host fallback: ' + (err && err.message ? err.message : err));
+          if (!tryHostFetch()) failCheck(err);
+        });
+        return;
+      }
+    } catch (e) {
+      log('fetch unavailable/error, trying host fallback: ' + e);
+    }
+    if (!tryHostFetch()) failCheck('fetch unavailable');
   }
 
   core.state = state;
