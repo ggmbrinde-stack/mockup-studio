@@ -1,5 +1,27 @@
 # Changelog — Mockup Studio
 
+## 2.3.1 — 2026-11-11
+
+### UI
+- **Design tokens:** the panel palette now lives in one `:root` block instead of scattered hex values.
+- **Contrast:** muted text, version and attribution raised to WCAG AA (6.1:1 / 5.1:1); accent darkened from `#1a73e8` (4.3:1) to `#0b57d0` (6.1:1); success and error colours strengthened.
+- **Title:** now neutral instead of red — red is reserved for errors.
+- **Keyboard:** visible `:focus-visible` rings on every button, summary, input and select, plus hover/active states.
+- **Density:** 26 px / 24 px minimum button heights, upright 11.5 px hints, `overflow-wrap` instead of `word-break: break-all`.
+- **Scrolling:** long SVG/activity lists cap at 260 px and the log at 200 px, so the footer no longer drifts a screen away.
+- **Narrow panels:** the settings grid collapses to one column below 340 px and the primary button is full width.
+- **Details affordance:** `▸`/`▾` marker on the Settings summary.
+- **Accessibility:** status line is `role="status" aria-live="polite"`; history rows carry `✓`/`✕` so status is not colour-only.
+- **Copy:** "Recent activity" is localised (`recentActivity`); the SVG history button says "Show in folder" instead of "Open", matching `VB.revealFile`.
+- **Cleanup:** removed the hidden duplicate History title, moved inline styles (shortcut row, `#jsError`) into the stylesheet.
+
+### Fixes carried since 2.3.0
+- Installer: runtime-only copy, source==destination guard, real `-Force`, npm exit-code and `puppeteer-core` verification, stale-doc pruning.
+- Uninstaller: stops the warm daemon before deleting, `-RemoveDebugMode` clears CSXS 9–16.
+- Warm Chrome: `agent/daemon-ctl.js` now calls `main()` instead of silently doing nothing.
+- Agent: `fetchTimer` declared outside the `try`, so batch items no longer fail after download.
+- Updater: explicit confirm, SHA-256 verification, staged validation, backup and rollback, "Restore previous version".
+
 ## 2.3.0 — 2026-11-11
 
 ### Fixes
