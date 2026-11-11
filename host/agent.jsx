@@ -264,3 +264,67 @@ VB.agentStopAll = function () {
     return "ok";
   } catch (e) { VB.log("agentStopAll error: " + e); return VB._agentStopPath(""); }
 };
+
+/* --- Safe updater bridge -------------------------------------------------
+   Nothing here runs at startup. update.js checks GitHub over HTTPS, verifies
+   the release's SHA-256, stages and validates the archive, backs up the
+   current install, and swaps files only after the updater process exits. */
+VB.updatePaths = function () {
+  var p = VB.agentPaths();
+  return { script: p.agent + "/update.js", status: p.work + "/agent-update.json", backups: p.work + "/backups" };
+};
+
+VB.updateStatus = function () {
+  try { return VB.readTextFile(VB.updatePaths().status); } catch (e) { return ""; }
+};
+
+VB.updateBackups = function () {
+  try {
+    var d = new Folder(VB.updatePaths().backups);
+    if (!d.exists) return VB.toJSON({ ok: true, backups: [] });
+    var entries = d.getFiles(function (f) { try { return f instanceof Folder; } catch (e) { return false; } }) || [];
+    var out = [];
+    for (var i = 0; i < entries.length; i++) out.push(String(entries[i].name));
+    out.sort();
+    out.reverse();
+    return VB.toJSON({ ok: true, backups: out });
+  } catch (e) { return VB.toJSON({ ok: false, backups: [] }); }
+};
+
+/* action: "check" | "apply" | "restore". Returns "started" or "error: ...". */
+VB.startUpdate = function (action) {
+  try {
+    var a = String(action || "");
+    if (a !== "check" && a !== "apply" && a !== "restore") return "error: unknown action";
+    var p = VB.agentPaths();
+    var u = VB.updatePaths();
+    if (!(new File(u.script)).exists) return "error: update script not found: " + u.script;
+    VB.ensureFolder(p.work);
+    var node = VB.getNodeExe();
+    var cmdPath = p.work + "/agent-update.cmd";
+    var vbsPath = p.work + "/agent-update.vbs";
+    var updateArgs = [
+      VB.quote(u.script),
+      "--action " + a,
+      "--work " + VB.quote(p.work),
+      "--install " + VB.quote(String(VB.extensionPath).replace(/\\/g, "/")),
+      "--status " + VB.quote(u.status)
+    ].join(" ");
+    var cmd = new File(cmdPath); cmd.encoding = "ASCII";
+    if (!cmd.open("w")) return "error: cannot write " + cmdPath;
+    cmd.writeln("@echo off");
+    cmd.writeln("cd /d " + VB.quote(p.agent));
+    cmd.writeln(VB.quote(node) + " " + updateArgs + " >> " + VB.quote(p.log) + " 2>&1");
+    cmd.close();
+    var vbs = new File(vbsPath); vbs.encoding = "ASCII";
+    if (!vbs.open("w")) return "error: cannot write " + vbsPath;
+    var runLine = 'cmd /c "' + String(cmdPath).replace(/\//g, "\\") + '"';
+    vbs.writeln('Dim sh');
+    vbs.writeln('Set sh = CreateObject("WScript.Shell")');
+    vbs.writeln('sh.Run "' + runLine.replace(/"/g, '""') + '", 0, False');
+    vbs.close();
+    vbs.execute();
+    VB.log("update " + a + " started");
+    return "started";
+  } catch (e) { VB.log("startUpdate error: " + e); return "error: " + e; }
+};

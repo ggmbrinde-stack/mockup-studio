@@ -91,6 +91,17 @@
     <div id="panelLog" class="log"></div>
   </div>
 
+  <div class="panel" id="updatesBox">
+    <div class="panelTitle" data-i18n="updatesTitle">Updates</div>
+    <div class="hint" id="updateVersionText"></div>
+    <div class="actions">
+      <button id="checkUpdateBtn" class="btn small" data-i18n="checkUpdates">Check for updates</button>
+      <button id="applyUpdateBtn" class="btn small" data-i18n="updateNow" style="display:none;">Update now</button>
+      <button id="restoreUpdateBtn" class="btn small" data-i18n="restorePrevious" style="display:none;">Restore previous version</button>
+    </div>
+    <div class="hint" id="updateStatusText"></div>
+  </div>
+
   <div class="version" id="versionText"></div>
   <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
   <div id="jsError" class="error-box" style="display:none;padding:8px;background:#ffebee;border:1px solid #b71c1c;color:#b71c1c;font-size:11px;margin-top:8px;overflow:auto;max-height:150px;"></div>

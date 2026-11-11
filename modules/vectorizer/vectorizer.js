@@ -319,6 +319,9 @@
     core.on(core.$("refreshSvgsBtn"), "click", refreshSvgHistory);
     core.on(core.$("openLogBtn"), "click", bridge.openLogFolder);
     core.on(core.$("langBtn"), "click", core.toggleLanguage);
+    core.on(core.$("checkUpdateBtn"), "click", function () { startUpdate("check"); });
+    core.on(core.$("applyUpdateBtn"), "click", armOrApplyUpdate);
+    core.on(core.$("restoreUpdateBtn"), "click", function () { startUpdate("restore"); });
 
     var preset = core.$("settingsPngPreset");
     var png = core.$("settingsPngSize");
@@ -429,6 +432,7 @@
       bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
       refreshDaemonStatus();
       refreshSvgHistory();
+      refreshUpdateInfo();
       if (core.state.settings.warmDaemon) ensureDaemonRunning();
       bridge.evalJsx("VB.selfTest()", function (selfTest) {
         var st = bridge.parseResult(selfTest);
@@ -442,6 +446,96 @@
     });
     core.schedulePoll(core.currentPollMs());
     scheduleDaemonPoll();
+  }
+
+  /* --- Safe updater UI ---------------------------------------------------
+     Never starts on its own; the app is only replaced after the user clicks
+     "Update now" twice (the first click arms confirmation). */
+  var updatePollTimer = null;
+  var updateConfirmArmed = false;
+  var updateConfirmTimer = null;
+
+  function updateText(key, value) {
+    var s = core.t(key) || "";
+    return value ? s.replace("{version}", value) : s;
+  }
+
+  function renderUpdate(r) {
+    var statusEl = core.$("updateStatusText");
+    var versionEl = core.$("updateVersionText");
+    var applyBtn = core.$("applyUpdateBtn");
+    if (!r || !r.state) return;
+    if (versionEl) versionEl.textContent = r.current ? updateText("updatesCurrent", r.current) : "";
+    var text = "";
+    switch (String(r.state)) {
+      case "checking": text = updateText("updateChecking"); break;
+      case "available": text = updateText("updateAvailable", r.latest); break;
+      case "uptodate": text = updateText("updateUpToDate", r.latest || r.current); break;
+      case "downloading": text = updateText("updateDownloading"); break;
+      case "installing": text = updateText(r.restoring ? "updateRestoring" : "updateInstalling"); break;
+      case "done": text = updateText("updateDone", r.version); break;
+      case "restored": text = updateText("updateRestored", r.version); break;
+      case "error": text = updateText("updateFailed") + " " + (r.message || ""); break;
+      default: text = "";
+    }
+    if (statusEl) statusEl.textContent = text;
+    if (applyBtn) applyBtn.style.display = (r.state === "available") ? "" : "none";
+  }
+
+  function refreshUpdateInfo() {
+    if (!bridge.hostOk) return;
+    bridge.evalJsx("VB.updateStatus()", function (txt) {
+      var r = bridge.parseResult(txt);
+      if (r && r.state) renderUpdate(r);
+      bridge.evalJsx("VB.updateBackups()", function (txt2) {
+        var b = bridge.parseResult(txt2);
+        var btn = core.$("restoreUpdateBtn");
+        if (btn) btn.style.display = (b && b.backups && b.backups.length) ? "" : "none";
+      });
+    });
+  }
+
+  function pollUpdate(attempt) {
+    if (attempt > 180) return;
+    if (updatePollTimer) try { clearTimeout(updatePollTimer); } catch (e) {}
+    updatePollTimer = setTimeout(function () {
+      bridge.evalJsx("VB.updateStatus()", function (txt) {
+        var r = bridge.parseResult(txt);
+        if (r && r.state) {
+          renderUpdate(r);
+          if (r.state === "checking" || r.state === "downloading" || r.state === "installing") { pollUpdate(attempt + 1); return; }
+        }
+        refreshUpdateInfo();
+      });
+    }, 1000);
+  }
+
+  function startUpdate(action) {
+    if (!bridge.hostOk) { core.showError(core.t("errorHost")); return; }
+    bridge.evalJsx("VB.startUpdate('" + action + "')", function (res) {
+      var out = String(res || "");
+      if (out !== "started") { renderUpdate({ state: "error", message: out.replace(/^error:\s*/, "") }); return; }
+      renderUpdate({ state: action === "check" ? "checking" : "installing" });
+      pollUpdate(0);
+    });
+  }
+
+  function armOrApplyUpdate() {
+    var btn = core.$("applyUpdateBtn");
+    if (!updateConfirmArmed) {
+      updateConfirmArmed = true;
+      if (btn) btn.textContent = core.t("updateConfirm") || "Confirm update?";
+      if (updateConfirmTimer) try { clearTimeout(updateConfirmTimer); } catch (e) {}
+      updateConfirmTimer = setTimeout(function () {
+        updateConfirmArmed = false;
+        if (btn) btn.textContent = core.t("updateNow") || "Update now";
+      }, 8000);
+      return;
+    }
+    updateConfirmArmed = false;
+    if (updateConfirmTimer) try { clearTimeout(updateConfirmTimer); } catch (e) {}
+    if (btn) btn.textContent = core.t("updateNow") || "Update now";
+    startUpdate("apply");
   }
 
   vectorizer.init = init; vectorizer.pollOnce = pollOnce; vectorizer.refreshSvgHistory = refreshSvgHistory;
