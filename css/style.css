@@ -99,10 +99,16 @@ select:focus-visible {
 .actions .btn { flex: 0 1 auto; }
 
 /* Settings */
-.settings { border: 1px solid var(--border-soft); border-radius: 6px; overflow: hidden; background: var(--surface); }
+/* Settings can be taller than the whole panel. Cap it and let the form scroll inside,
+   keeping its summary row visible, so the sections below always get real space. */
+.settings {
+  border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface);
+  flex: 0 1 auto; min-height: 96px; max-height: 42vh; overflow-y: auto; overscroll-behavior: contain;
+}
 .settingsSummary {
   display: flex; align-items: center; gap: 6px;
   font-weight: 700; padding: 7px 10px; cursor: pointer; list-style: none;
+  position: sticky; top: 0; z-index: 1; background: var(--surface);
 }
 .settingsSummary::-webkit-details-marker { display: none; }
 .settingsSummary::before { content: "▸"; color: var(--muted); font-size: 10px; line-height: 1; }
@@ -127,20 +133,27 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 /* History / log panels */
 .panel {
   border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface);
-  flex: 1 1 auto; min-height: 96px;
-  display: flex; flex-direction: column; overflow: hidden;
+  /* basis 0 + grow: these are the only blocks that take spare height, so making the
+     panel taller really does give History/Log more room instead of leaving the page
+     scrollable at a fixed size. */
+  flex: 1 1 0%; min-height: clamp(64px, 11vh, 150px);
+  display: flex; flex-direction: column;
+  overflow: hidden auto; /* scroll the body instead of cutting content */
+  resize: none;
 }
 .panelTitleRow { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 6px var(--pad-sm); border-bottom: 1px solid #f0f0f0; }
 .panelTitle { font-weight: 700; font-size: 12px; padding: 6px var(--pad-sm); border-bottom: 1px solid #f0f0f0; color: #3f3f3f; }
 .panelTitleRow .panelTitle { padding: 0; border-bottom: 0; }
 .panelTitleRow .btn { flex: 0 0 auto; }
-.list, .log { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--pad-sm); font-size: 12px; }
+.list, .log { flex: 1 1 0%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--pad-sm); font-size: 12px; }
 .history-item { padding: 4px 0; border-bottom: 1px solid #f5f5f5; font-size: 11.5px; overflow-wrap: anywhere; }
 .history-item.ok { color: var(--success); }
 .history-item.bad { color: var(--danger); }
 .log div { padding: 2px 0; border-bottom: 1px solid #f5f5f5; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Consolas, monospace; font-size: 11px; }
 
-.version { font-size: 11px; color: var(--muted-2); margin-top: auto; }
+/* No margin-top:auto here: an auto margin would absorb the spare height and keep
+   History/Log at their minimum instead of letting them grow with the panel. */
+.version { font-size: 11px; color: var(--muted-2); }
 .attribution { font-size: 11px; color: var(--muted-2); text-align: center; overflow-wrap: anywhere; }
 
 .panelSubTitle { font-weight: 600; font-size: 11.5px; color: var(--muted); margin: 8px var(--pad-sm) 4px }
@@ -170,16 +183,44 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
   .statusDetail { max-height: 5.6em; overflow-y: auto; }
 }
 
-/* Wide panel: use the extra room instead of stretching one long column.
-   Controls keep a readable width, so a 900px-wide dock does not turn the form
-   into full-bleed bars. */
+/* Wide panel: the form and the lists spread out instead of staying a narrow column. */
 @media (min-width: 620px) {
   .app { padding: 14px 18px; }
   .btn { padding: 5px 12px; }
   .settingsGrid { grid-template-columns: 1fr 1fr; gap: 10px 18px; }
-  input[type=text], input[type=number], select { max-width: 420px; }
-  .btn.primary { max-width: 560px; }
-  .row { max-width: 560px; }
-  .field.full .hint { max-width: 640px; }
-  .status, .statusDetail, .hint { max-width: 900px; }
+}
+
+/* Very wide dock: controls on the left, History and Log side by side under the
+   header, so a dragged-out panel uses its width instead of one long scroll. */
+@media (min-width: 820px) {
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch; align-content: start;
+    column-gap: 14px;
+  }
+  .app > .toolbar,
+  .app > .status,
+  .app > .statusDetail,
+  .app > #vectorizeBtn,
+  .app > .hint,
+  .app > .actions,
+  .app > #lastExport,
+  .app > .error-box,
+  .app > .version,
+  .app > .attribution,
+  .app > .settings,
+  .app > #updatesBox { grid-column: 1 / -1; }
+  .app > #historyBox { grid-column: 1; }
+  .app > #logBox { grid-column: 2; }
+  .panel { min-height: 130px; }
+}
+
+/* Short panel: drop the long explanatory line and tighten spacing so the lists and the
+   action buttons fit without turning the whole panel into one long scroll area. */
+@media (max-height: 720px) {
+  .app { gap: 6px; }
+  .app > .hint:not(#lastExport) { display: none; }
+  .settings { min-height: 88px; }
+  .panel { min-height: clamp(60px, 10vh, 110px); }
 }
