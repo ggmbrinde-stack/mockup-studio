@@ -91,7 +91,7 @@
     j.phase = 'exporting'; j.startedAt = Date.now(); b.active = (b.active || 0) + 1;
     j.stageLabel = core.t('statusExporting'); updateBatchStatus();
     core.state.busy = (b.active > 0); core.state.waiting = (b.active > 0); core.updateButtons();
-    var size = parseInt(core.state.settings.pngLongSide, 10) || 1700;
+    var size = parseInt(core.state.settings.pngLongSide, 10); if (!isFinite(size)) size = 1700;
     var exportT0 = Date.now();
     bridge.evalJsx('VB.exportBatchItem(' + j.index + ',' + size + ')', function (result) {
       if (token !== core.state.runToken || !core.state.batch || core.state.batch.cancelled) return;
@@ -205,7 +205,7 @@
     core.updateButtons();
     core.setStatus(core.t('statusExporting'));
     core.setDetail('');
-    var size = parseInt(core.state.settings.pngLongSide, 10) || 1700;
+    var size = parseInt(core.state.settings.pngLongSide, 10); if (!isFinite(size)) size = 1700;
     bridge.evalJsx('VB.prepareBatch(' + size + ')', function (result) {
       if (token !== core.state.runToken) return;
       var r = bridge.parseResult(result);

@@ -1,4 +1,4 @@
-﻿# Mockup Studio — Adobe Illustrator panel (v2.2.0)
+# Mockup Studio — Adobe Illustrator panel (v2.3.0)
 
 > **Development frozen for UI/UX work.** Behavior/flow/contracts are stable; UI/UX changes only. Keep source and `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\` in sync.
 
@@ -26,7 +26,7 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 **Apply changes:** panel JS/HTML on panel reload; **`host/*.jsx` requires full Illustrator quit/reopen or full extension reload** (ExtendScript cache); `agent/*` changes require stopping/restarting the warm daemon if running. Shortcut changes take effect on panel reload.
 
 ## Usage
-2. Select artwork (one or many items) and click **Vectorize selection** (or use the configured keyboard shortcut, default `Ctrl+Shift+Ç`, panel must have focus).
+1. Select artwork (one or many items) and click **Vectorize selection** (or use the configured keyboard shortcut, default `Ctrl+Shift+Ç`, panel must have focus).
 2. Progress: exporting → uploading → vectorizing → downloading → placing. Cancel stops active runs/daemon-served work.
 3. Results: editable SVG(s) on `Vectorizer` layer, selected/fitted; originals optionally hidden per setting (batch/auto). History → Place works in any open document.
 
@@ -56,6 +56,6 @@ See `ARCHITECTURE.md` for details and `AGENTS.md` for AI-agent contracts/invaria
 ## Docs
 - `AGENTS.md` — AI agent context, contracts, invariants, freeze rules
 - `ARCHITECTURE.md` — layers, modules, interfaces
-- `CHANGELOG.md` — release notes (current: 2.2.0)
+- `CHANGELOG.md` — release notes (current: 2.3.0)
 - `PROJECT_STATE_2026-11-10.md` — current state snapshot
 - `CHANGES_2026-11-06.md`, `PROJECT_STATE_2026-11-06.md` — prior baseline history

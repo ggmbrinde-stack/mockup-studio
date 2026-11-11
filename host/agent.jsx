@@ -1,4 +1,4 @@
-﻿/* Vectorizer Bridge - launches the Node agent that drives vectorizer.ai.
+/* Vectorizer Bridge - launches the Node agent that drives vectorizer.ai.
    All shell work goes through a hidden VBScript because Illustrator's
    ExtendScript has no `system` object. v2: per-job status paths + unique
    launchers for bounded parallel batch (same profile; never concurrent Chrome). */
@@ -31,7 +31,8 @@ VB.daemonStatus = function () {
     var s = null; try { s = VB.fromJSON(text); } catch (e0) { s = null; }
     if (!s || !s.port) return VB.toJSON({ state: "stopped" });
     var age = new Date().getTime() - Number(s.time || 0);
-    if (!(age >= 0 && age < 30 * 60 * 1000)) return VB.toJSON({ state: "stale" });
+    // The daemon heartbeats agent-daemon.json every minute: 3 min of silence = gone.
+    if (!(age >= 0 && age < 3 * 60 * 1000)) return VB.toJSON({ state: "stale" });
     return VB.toJSON({ state: "running", port: s.port, pid: s.pid, browserPid: s.browserPid, workers: s.workers || 1 });
   } catch (e) { return VB.toJSON({ state: "stopped" }); }
 };

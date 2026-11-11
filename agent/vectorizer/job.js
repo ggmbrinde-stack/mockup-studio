@@ -1,4 +1,4 @@
-﻿/* Shared vectorization job used by one-shot run.js and the warm daemon.
+/* Shared vectorization job used by one-shot run.js and the warm daemon.
    Exports runJob(opts) which drives a single PNG->SVG flow and writes status.
 */
 const fs = require('fs');
@@ -202,10 +202,15 @@ async function runJob(opts) {
     writeStatus(statusPath, { state: 'downloading' });
     const svgPath = path.join(outDir, 'vectorizer_export_' + runStamp + '.svg');
     let fetchResolve;
+    let fetchTimer = null;
     const fetchPromise = new Promise((resolve, reject) => {
       fetchResolve = resolve;
-      setTimeout(() => reject(new Error('Fetch.requestPaused timeout')), 60000);
+      fetchTimer = setTimeout(() => reject(new Error('Fetch.requestPaused timeout')), 60000);
     });
+    // This run can return early (login bounce, site error) while the wait is still
+    // pending. Without a handler that becomes an unhandled rejection 60s later,
+    // which kills the warm daemon and can overwrite an already-written status.
+    fetchPromise.catch(() => {});
     onRequestPaused = async (ev) => {
       try {
         const result = await client.send('Fetch.getResponseBody', { requestId: ev.requestId });
@@ -270,6 +275,7 @@ async function runJob(opts) {
     writeStatus(statusPath, done);
     return done;
   } finally {
+    if (fetchTimer) { try { clearTimeout(fetchTimer); } catch (e) {} fetchTimer = null; }
     try { if (client) { try { await client.send('Fetch.disable'); } catch (e) {} try { client.detach(); } catch (e) {} } } catch (e) {}
     try { if (page && onResponse) page.removeListener('response', onResponse); } catch (e) {}
     try { if (page && onDialog) page.removeListener('dialog', onDialog); } catch (e) {}

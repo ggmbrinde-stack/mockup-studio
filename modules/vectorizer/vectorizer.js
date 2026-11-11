@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   "use strict";
   var VB = window.VBPanel = window.VBPanel || {};
   var core = VB.core || (VB.core = {});
@@ -97,6 +97,9 @@
       core.setDetail(elapsed ? ('⏱ ' + core.fmtElapsed(elapsed)) : '');
       core.addHistory('batchFailed', b.docName || '', false, 'cancelled at ' + (b.doneCount || 0) + '/' + (b.total || 0));
       core.state.batch = null;
+      // A cancelled batch never reaches finishBatch(), so emit here: listeners
+      // (SVG history refresh) must run for cancels too.
+      core.events.emit('batch:finished', { cancelled: true, ok: b.ok || 0, failed: b.failed || 0, skipped: b.skipped || 0, total: b.total || 0, docName: b.docName || '' });
     } else {
       core.setStatus(core.t('statusCancelled'));
       core.setDetail(elapsed ? ('⏱ ' + core.fmtElapsed(elapsed) + ' · ' + core.t('statusCancelled')) : core.t('statusCancelled'));
@@ -193,9 +196,12 @@
       try { s = JSON.parse(String(text || '{}')); } catch (e) { return; }
       if (!s || !s.state) {
         if (core.state.lastStatusAt === 0 && core.state.waitStartedAt && Date.now() - core.state.waitStartedAt > 60000) {
+          // core.state.login is cleared below, so capture the mode first.
+          var wasLogin = core.state.login;
           core.state.waiting = false; core.state.login = false; core.state.waitStartedAt = 0; core.state.shortcutStatusPath = ''; core.updateButtons();
           core.setStatus(core.t('statusAgentError') + ' ' + core.t('errorAgentStart'));
-          core.addHistory(core.state.login ? 'signedIn' : 'vectorizeFailed', '', false, 'no status');
+          if (wasLogin) core.addHistory('signedIn', '', true, 'window closed');
+          else core.addHistory('vectorizeFailed', '', false, 'no status');
         }
         return;
       }
@@ -392,73 +398,12 @@
     }, true);
   }
 
-  function renderUpdateUI() { if (core.renderUpdateUI) core.renderUpdateUI(); }
-  function initUpdateUI() {
-    var verEl = core.$("updateVersionText");
-    if (verEl) verEl.textContent = (core.t('updateCurrentVersion') || 'Versão: {version}').replace('{version}', core.state.appVersion || '2.2.0');
-    var checkBtn = core.$("checkUpdateBtn");
-    var dlBtn = core.$("downloadUpdateBtn");
-    core.on(checkBtn, "click", function () {
-      if (core.checkForUpdate) core.checkForUpdate();
-    });
-    core.on(dlBtn, "click", function () {
-      if (!core.state.update || core.state.update.downloading || core.state.update.staged) return;
-      var ver = core.state.update.remoteVersion || '';
-      core.state.update.downloading = true;
-      if (core.setUpdateStatus) core.setUpdateStatus('updateDownloading', 'Baixando e preparando atualização...');
-      renderUpdateUI();
-      bridge.stageUpdate(ver, function (r) {
-        core.state.update.downloading = false;
-        if (r && r.ok) {
-          core.state.update.staged = true;
-          core.state.update.available = false;
-          if (core.setUpdateStatus) core.setUpdateStatus('updateStaged', 'Atualização preparada ({version}). Feche o Illustrator para completar a atualização.', ver || r.version || '');
-          core.log('Update staged ' + (ver || r.version || '') + '. Close Illustrator to complete.');
-        } else {
-          var msg = (core.t && core.t('updateStageFailed')) || 'Falha ao baixar/preparar atualização.';
-          if (r && r.error) msg += ' (' + r.error + ')';
-          var el = core.$('updateStatusText'); if (el) el.textContent = msg;
-          core.log('Update stage failed: ' + (r && r.error ? r.error : 'unknown'));
-        }
-        renderUpdateUI();
-      });
-    });
-    renderUpdateUI();
-  }
-
-  function applyPendingUpdateOnStart(callback) {
-    if (!bridge.getPendingUpdate) { if (callback) callback(); return; }
-    bridge.getPendingUpdate(function (info) {
-      if (info && info.ok && info.pending) {
-        var ver = info.version || '';
-        core.log('Pending update found (' + ver + '), applying...');
-        bridge.applyPendingUpdate(function (res) {
-          if (res && res.ok && res.applied) {
-            core.state.update.staged = false;
-            core.state.update.available = false;
-            if (ver) core.state.appVersion = ver;
-            var el = core.$('updateStatusText');
-            if (el) el.textContent = (core.t('updateApplied') || 'Atualizado para {version}.').replace('{version}', ver || core.state.appVersion);
-            core.log('Update applied: ' + (ver || core.state.appVersion));
-            renderUpdateUI();
-          } else if (res && !res.ok) {
-            core.log('Pending update apply failed: ' + (res.error || 'unknown'));
-          }
-          if (callback) callback();
-        });
-      } else {
-        if (callback) callback();
-      }
-    });
-  }
-
   function init() {
     core.loadSettings();
     // queue↔vectorizer interface/events
     core.events.on('poll:tick', pollOnce);
     core.events.on('batch:finished', function () { try { refreshSvgHistory(); } catch (e) {} });
     bindUI();
-    initUpdateUI();
     core.renderLocale();
     core.applySettingsToUI();
     core.setStatus(core.t("statusReady"));
@@ -481,69 +426,27 @@
       core.updateButtons();
       core.setStatus(core.t("statusReady"));
       core.setDetail("");
-      // Apply pending update (staged on previous run) after host is ready
-      applyPendingUpdateOnStart(function () {
-        bridge.getLocalVersion(function (v) {
-          if (v) core.state.appVersion = v;
-          renderUpdateUI();
-        });
-        bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
-        refreshDaemonStatus();
-        refreshSvgHistory();
-        if (core.state.settings.warmDaemon) ensureDaemonRunning();
-        bridge.evalJsx("VB.selfTest()", function (selfTest) {
-          var st = bridge.parseResult(selfTest);
-          core.log("Host self-test: " + selfTest);
-          if (!st.ok || !st.parsed) core.showError(core.t("errorJson") + " (" + selfTest + ")");
-        });
-        bridge.evalJsx("app.version", function (version) {
-          var el = core.$("versionText");
-          if (el && version) el.textContent = core.t("versionLabel") + " " + version;
-        });
+      bridge.getLocalVersion(function (v) {
+        if (v) core.state.appVersion = v;
+      });
+      bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
+      refreshDaemonStatus();
+      refreshSvgHistory();
+      if (core.state.settings.warmDaemon) ensureDaemonRunning();
+      bridge.evalJsx("VB.selfTest()", function (selfTest) {
+        var st = bridge.parseResult(selfTest);
+        core.log("Host self-test: " + selfTest);
+        if (!st.ok || !st.parsed) core.showError(core.t("errorJson") + " (" + selfTest + ")");
+      });
+      bridge.evalJsx("app.version", function (version) {
+        var el = core.$("versionText");
+        if (el && version) el.textContent = core.t("versionLabel") + " " + version;
       });
     });
     core.schedulePoll(core.currentPollMs());
     scheduleDaemonPoll();
   }
 
-  function vectorizeShortcut() {
-    if (core.state.busy || core.state.waiting || core.state.login) return;
-    if (!bridge.hostOk) { core.showError(core.t('errorHost')); return; }
-    core.state.runToken = (core.state.runToken || 0) + 1;
-    core.state.lastStatusAt = 0;
-    core.state.waitStartedAt = Date.now();
-    core.setStatus(core.t('statusExporting'));
-    var size = parseInt(core.state.settings.pngLongSide, 10);
-    if (!isFinite(size)) size = 1700;
-    bridge.evalJsx('VB.vectorizeShortcut(' + core.jsxString(String(size)) + ')', function (result) {
-      var r = bridge.parseResult(result);
-      if (!r.ok) {
-        core.state.waiting = false; core.state.busy = false; core.state.shortcutStatusPath = ''; core.updateButtons();
-        var err = r.error || 'unknown';
-        core.setStatus(core.t('statusExportFailed') + ' ' + bridge.friendlyError(err));
-        core.setDetail(String(err));
-        core.addHistory('exportFailed', '', false, String(err));
-        return;
-      }
-      core.state.busy = false;
-      core.state.waiting = true;
-      core.state.login = false;
-      core.state.pngPath = r.pngPath || '';
-      core.state.union = r.union || null;
-      core.state.docFullName = r.docFullName || '';
-      core.state.docName = r.docName || '';
-      core.state.shortcutStatusPath = r.statusPath || '';
-      core.state.runStartedAt = Date.now();
-      core.state.exportMs = 0;
-      core.state.lastStatusAt = 0;
-      core.updateButtons();
-      core.setStatus(core.t('statusAgentLaunch'));
-      core.setDetail(core.t('statusAgentLoading'));
-      core.addHistory('sent', (core.state.pngPath || '').replace(/^.*[\\/]/, ''), true, 'shortcut');
-    });
-  }
-
   vectorizer.init = init; vectorizer.pollOnce = pollOnce; vectorizer.refreshSvgHistory = refreshSvgHistory;
-  vectorizer.renderDaemonStatus = renderDaemonStatus; vectorizer.ensureDaemonRunning = ensureDaemonRunning; vectorizer.signIn = signIn; vectorizer.cancel = cancel; vectorizer.vectorizeShortcut = vectorizeShortcut;
-  core.vectorizeShortcut = vectorizeShortcut;
+  vectorizer.renderDaemonStatus = renderDaemonStatus; vectorizer.ensureDaemonRunning = ensureDaemonRunning; vectorizer.signIn = signIn; vectorizer.cancel = cancel;
 })();

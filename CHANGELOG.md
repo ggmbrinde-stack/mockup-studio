@@ -1,4 +1,20 @@
-﻿# Changelog — Mockup Studio
+# Changelog — Mockup Studio
+
+## 2.3.0 — 2026-11-11
+
+### Fixes
+- **Manifest:** numeric `ExtensionBundleVersion` (2.3.0). CEP rejected `2.3.0-test` ("Wrong symbol '-' in version") and the panel never loaded.
+- **Warm daemon:** `agent/daemon/ctl.js` required a nonexistent `./lib`; now `../core/lib`. Start/stop/status work again.
+- **Agent:** an abandoned Fetch wait can no longer become an unhandled rejection; the daemon logs stray rejections instead of dying.
+- **Daemon liveness:** `agent-daemon.json` is heartbeated every minute and the host treats 3 min of silence as stale (was 30).
+- **Batch:** PNG files are per job+index (`vectorizer_export_batch_<jobId>_<index>.png`), so overlapping runs cannot overwrite an upload in flight.
+- **Placement:** file-busy retry checks `File.open()`'s return value, and only a 256-char header is read instead of the whole SVG.
+- **Original PNG preset:** `pngLongSide = 0` survives settings load and the batch path.
+- **i18n:** added the missing `pngLongSide` key; rewrote `pt.js` as clean UTF-8 (it was double-encoded mojibake).
+- **Cancelled batch:** emits `batch:finished`, so the SVG history refreshes after a cancel.
+- **Removed:** the self-updater (it downloaded a third-party GitHub zip and robocopied it over the installed extension at startup), the dead `host/vectorize-shortcut.jsx` path and the unused `js/core/namespace.js`.
+- **Installer:** sets `PlayerDebugMode` for CSXS 9-16 and runs `npm install --omit=dev` when `agent/node_modules` is missing.
+- **Tests:** `tools/verify-host.cjs` now covers the shipped modular host scripts (`core.jsx`, `batch.jsx`, `place.jsx`); removed the broken ESM `.js` duplicates.
 
 ## 2.2.0 — 2026-11-10 (development freeze for UI/UX)
 ### Modularization

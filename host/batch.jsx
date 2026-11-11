@@ -1,4 +1,4 @@
-﻿/* Vectorizer Bridge — batch prepare/export (per-item). Split from export.jsx for modularity. */
+/* Vectorizer Bridge — batch prepare/export (per-item). Split from export.jsx for modularity. */
 var VB = $.global.VB;
 
 VB.prepareBatch = function (pngLongSide) {
@@ -210,7 +210,9 @@ VB.exportBatchItem = function (index, pngLongSide) {
     VB.ensureBridgeFolder();
     var bf = new Folder(VB.getBridgeFolderPath());
     if (!bf.exists) bf.create();
-    var pngFile = new File(bf.fsName + "/vectorizer_export_batch_" + index + ".png");
+    // Unique per job+index: two batches in flight must never delete or overwrite the
+    // PNG another agent run is still uploading.
+    var pngFile = new File(bf.fsName + "/vectorizer_export_batch_" + String(batch.jobId || "job") + "_" + index + ".png");
     if (pngFile.exists) pngFile.remove();
 
     tempDoc = app.documents.add();

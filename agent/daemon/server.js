@@ -1,4 +1,4 @@
-﻿/* Warm Chrome daemon for Vectorizer Bridge (v2: bounded page pool).
+/* Warm Chrome daemon for Vectorizer Bridge (v2: bounded page pool).
    Keeps a headless browser and a pool of reusable pages on the signed-in
    profile so per-run cold launch/profile-attach cost is avoided, and batch
    jobs can run in parallel (bounded by --workers) without extra profile locks.
@@ -20,6 +20,11 @@ const fs = require('fs');
 const path = require('path');
 const { SITE, UA, writeStatus, parseArgs, launch, sanitizeProfile } = require('../core/lib');
 const { runJob, makeRunError } = require('../vectorizer/job');
+
+// One stray rejection must never take the warm daemon (and every parallel job) down.
+process.on('unhandledRejection', (e) => {
+  try { console.error('unhandledRejection:', e && e.stack ? e.stack : e); } catch (e2) {}
+});
 
 function readJson(req, max = 1024 * 1024) {
   return new Promise((resolve, reject) => {
@@ -188,6 +193,11 @@ async function main() {
   const port = server.address().port;
   writeInfo(port);
   bumpIdle();
+
+  // Heartbeat: the host treats an old agent-daemon.json timestamp as a dead daemon,
+  // so keep refreshing it while we are alive (it used to be written once at startup).
+  const heartbeat = setInterval(() => { if (!stopping) writeInfo(port); }, 60000);
+  try { if (heartbeat.unref) heartbeat.unref(); } catch (e) {}
 }
 
 main().catch(e => {

@@ -1,4 +1,4 @@
-﻿/* Vectorizer Bridge Ã¢â‚¬â€ place the downloaded SVG over the original artwork.
+/* Vectorizer Bridge Ã¢â‚¬â€ place the downloaded SVG over the original artwork.
    The SVG is placed on its own "Vectorizer" layer, fitted to the exported
    selection's bounds, and selected. Uses groupItems.createFromFile() since
    Illustrator cannot place SVGs as linked items via placedItems.add().
@@ -70,22 +70,23 @@ VB.placeSVG = function (encodedArgs) {
     // Short backoff: 10 x 150ms = 1.5s cap (was 5 x 500ms = 2.5s).
     var retryCount = 0;
     var retryMax = 10;
+    var openedForCheck = false;
     while (retryCount < retryMax) {
+      // File.open() returns a boolean; it does not throw, so the old try/catch loop
+      // "succeeded" on the first attempt even while the agent still held the file.
       try {
-        file.open("r");
-        file.close();
-        break;
-      } catch (e) {
-        retryCount++;
-        VB.log("placeSVG: file busy, retrying " + retryCount + "/" + retryMax);
-        $.sleep(150);
-      }
+        if (file.open("r")) { file.close(); openedForCheck = true; break; }
+      } catch (e) { }
+      retryCount++;
+      VB.log("placeSVG: file busy, retrying " + retryCount + "/" + retryMax);
+      $.sleep(150);
     }
+    if (!openedForCheck) VB.log("placeSVG: file still locked after " + retryMax + " attempts");
 
     // Pre-flight: the SVG must actually be an SVG.
     try {
-      file.open("r");
-      var head = file.read();
+      if (!file.open("r")) throw new Error("open failed");
+      var head = file.read(256); // header sniff only: never pull a whole SVG into memory
       file.close();
     } catch (readErr) {
       try { file.close(); } catch (e2) { }

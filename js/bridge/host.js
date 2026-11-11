@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   "use strict";
   var VB = window.VBPanel = window.VBPanel || {};
   var core = VB.core || (VB.core = {});
@@ -77,17 +77,36 @@
     ext = String(ext).replace(/\\/g, "/");
     // Modular host load order: json -> core (shared) -> batch -> export -> place -> agent.
     // common.jsx/import.jsx kept for compatibility; core.jsx/place.jsx are canonical splits.
-    var loader =
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/json.jsx") + "));" +
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/core.jsx") + "));" +
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/batch.jsx") + "));" +
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/export.jsx") + "));" +
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/place.jsx") + "));" +
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/agent.jsx") + "));" +
-      "$.evalFile(new File(" + core.jsxString(ext + "/host/vectorize-shortcut.jsx") + "));" +
-      "$.global.VB.extensionPath = " + core.jsxString(ext) + ";" +
-      "$.global.VB.ping();";
-    evalJsx(loader, callback);
+    // Each file is isolated so a single failing host script cannot prevent VB.ping()/host readiness.
+    var files = [
+      ext + "/host/json.jsx",
+      ext + "/host/core.jsx",
+      ext + "/host/batch.jsx",
+      ext + "/host/export.jsx",
+      ext + "/host/place.jsx",
+      ext + "/host/agent.jsx"
+    ];
+    var loader = "(function(){";
+    loader += "$.global.VB=$.global.VB||{};$.global.VB._loadErrors=[];";
+    loader += "function _ld(p){try{$.evalFile(new File(p));}catch(e){try{$.global.VB._loadErrors.push(String(p)+':'+String(e));}catch(e2){}}}";
+    for (var i = 0; i < files.length; i++) {
+      loader += "_ld(" + core.jsxString(files[i]) + ");";
+    }
+    loader += "$.global.VB.extensionPath=" + core.jsxString(ext) + ";";
+    loader += "try{return $.global.VB.ping();}catch(e){return 'error:ping:'+String(e);}";
+    loader += "})()";
+    evalJsx(loader, function (result) {
+      // Best-effort: surface isolated host load errors to panel log without breaking hostOk.
+      if (String(result) === "ok") {
+        try {
+          evalJsx("(function(){try{var e=$.global.VB&&$.global.VB._loadErrors;return (e&&e.length)?e.join(' | '):'';}catch(x){return '';}})()", function (errs) {
+            var msg = String(errs || "");
+            if (msg && msg !== "EvalScript error") core.log("Host load warnings: " + msg);
+          });
+        } catch (e2) {}
+      }
+      callback(result);
+    });
   }
 
   function openLogFolder() {
@@ -105,36 +124,8 @@
       if (callback) callback(v || (core.APP_VERSION_FALLBACK || '2.2.0'));
     });
   }
-  function getPendingUpdate(callback) {
-    evalJsx('VB.getPendingUpdateInfo()', function (res) {
-      var r = parseResult(res);
-      if (callback) callback(r);
-    });
-  }
-  function stageUpdate(version, callback) {
-    var url = 'https://github.com/ggmbrinde-stack/mockup-studio/archive/refs/heads/main.zip';
-    evalJsx('VB.stageUpdate(' + core.jsxString(url) + ',' + core.jsxString(version || '') + ')', function (res) {
-      var r = parseResult(res);
-      if (callback) callback(r);
-    });
-  }
-  function applyPendingUpdate(callback) {
-    evalJsx('VB.applyPendingUpdate()', function (res) {
-      var r = parseResult(res);
-      if (callback) callback(r);
-    });
-  }
-
-  function fetchUrlText(url, callback) {
-    evalJsx('VB.fetchUrlText(' + core.jsxString(url || '') + ')', function (res) {
-      var r = parseResult(res);
-      if (callback) callback(r);
-    });
-  }
-
   bridge.getCS = getCS; bridge.setCS = setCS;
   bridge.logToHost = logToHost; bridge.evalJsx = evalJsx; bridge.parseResult = parseResult; bridge.friendlyError = friendlyError;
   bridge.loadHost = loadHost; bridge.openLogFolder = openLogFolder; bridge.openSvgsFolder = openSvgsFolder;
-  bridge.getLocalVersion = getLocalVersion; bridge.getPendingUpdate = getPendingUpdate; bridge.stageUpdate = stageUpdate; bridge.applyPendingUpdate = applyPendingUpdate;
-  bridge.fetchUrlText = fetchUrlText;
+  bridge.getLocalVersion = getLocalVersion;
 })();

@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
-const { parseArgs } = require('./lib');
+const { parseArgs } = require('../core/lib');
 
 function infoPathFor(args) {
   if (args.info) return args.info;

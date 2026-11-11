@@ -89,8 +89,34 @@ $rc = $LASTEXITCODE
 if ($rc -ge 8) { throw "robocopy failed with exit code $rc." }
 Write-Log "Copy completed (robocopy exit code $rc)."
 
+# Agent dependencies are excluded from the copy, but the agent requires puppeteer-core.
+# Install them in the destination so a clean install can run without manual steps.
+$agentDir = Join-Path $Dest 'agent'
+$agentModules = Join-Path $agentDir 'node_modules'
+if (Test-Path $agentDir) {
+  if (Test-Path $agentModules) {
+    Write-Log "Agent dependencies already present."
+  } else {
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if (-not $npm) {
+      Write-Log "WARNING: npm not found. Run 'npm install' in $agentDir or the agent will not start."
+    } else {
+      try {
+        Write-Log "Installing agent dependencies (npm install) in $agentDir ..."
+        Push-Location $agentDir
+        & npm install --omit=dev --no-audit --no-fund 2>&1 | ForEach-Object { Write-Log "  $_" }
+        Pop-Location
+        Write-Log "Agent dependencies installed."
+      } catch {
+        try { Pop-Location } catch { }
+        Write-Log "WARNING: npm install failed: $($_.Exception.Message). Run 'npm install' in $agentDir manually."
+      }
+    }
+  }
+}
+
 # Enable PlayerDebugMode for CSXS 11 and 12 (Illustrator 2025/2026 unsigned CEP)
-$csxsVersions = @('11','12')
+$csxsVersions = @('9','10','11','12','13','14','15','16')
 foreach ($ver in $csxsVersions) {
   $keyPath = "HKCU:\Software\Adobe\CSXS.$ver"
   try {
