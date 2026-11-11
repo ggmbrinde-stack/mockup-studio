@@ -196,7 +196,7 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
   .app {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: stretch; align-content: start;
+    align-items: stretch; align-content: stretch;
     column-gap: 14px;
   }
   .app > .toolbar,
@@ -249,3 +249,7 @@ details[open].settings { min-height: 96px; }
 /* A collapsed section keeps only its header and hands its space to the open ones. */
 .panel:not([open]) { flex: 0 0 auto; min-height: 0; }
 .panel:not([open]) > summary { border-bottom: 0; }
+
+/* Header with a trailing button: the title takes the spare space so it stays left
+   aligned next to the chevron instead of being pushed to the middle. */
+.panel > summary.panelTitleRow .panelTitle { flex: 1 1 auto; }
