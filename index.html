@@ -77,21 +77,21 @@
     </div>
   </details>
 
-  <div class="panel" id="historyBox">
-    <div class="panelTitleRow"><div class="panelTitle" data-i18n="history">History</div><button id="refreshSvgsBtn" class="btn small" data-i18n="refreshSvgs">Refresh</button></div>
+  <details class="panel" id="historyBox" open>
+    <summary class="panelTitleRow"><span class="panelTitle" data-i18n="history">History</span><button id="refreshSvgsBtn" class="btn small" data-i18n="refreshSvgs">Refresh</button></summary>
     <div class="hint" data-i18n="svgHistoryHint">SVG files are saved in Documents/VectorizerBridge/agent-downloads.</div>
     <div id="svgHistoryList" class="list"></div>
     <div class="panelSubTitle" data-i18n="recentActivity">Recent activity</div>
     <div id="historyList" class="list"></div>
-  </div>
+  </details>
 
-  <div class="panel" id="logBox">
-    <div class="panelTitle" data-i18n="log">Log</div>
+  <details class="panel" id="logBox" open>
+    <summary class="panelTitle" data-i18n="log">Log</summary>
     <div id="panelLog" class="log"></div>
-  </div>
+  </details>
 
-  <div class="panel" id="updatesBox">
-    <div class="panelTitle" data-i18n="updatesTitle">Updates</div>
+  <details class="panel" id="updatesBox" open>
+    <summary class="panelTitle" data-i18n="updatesTitle">Updates</summary>
     <div class="hint" id="updateVersionText"></div>
     <div class="actions">
       <button id="checkUpdateBtn" class="btn small" data-i18n="checkUpdates">Check for updates</button>
@@ -99,7 +99,7 @@
       <button id="restoreUpdateBtn" class="btn small" data-i18n="restorePrevious" style="display:none;">Restore previous version</button>
     </div>
     <div class="hint" id="updateStatusText"></div>
-  </div>
+  </details>
 
   <div class="version" id="versionText"></div>
   <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>

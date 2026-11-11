@@ -228,4 +228,24 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 /* The height floor only matters while the form is expanded. */
 details[open].settings { min-height: 96px; }
 /* Updates holds a title, a line of text and a button: keep room for all three. */
-#updatesBox { min-height: 104px; }
+#updatesBox[open] { min-height: 104px; }
+
+/* Collapsible sections: History, Log and Updates behave like Settings. The whole
+   header row is the summary, so one click folds the section away and the open ones
+   take the freed height. */
+.panel > summary {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; list-style: none; user-select: none;
+  flex: 0 0 auto;
+}
+.panel > summary::-webkit-details-marker { display: none; }
+.panel > summary::before {
+  content: "▸"; color: var(--muted); font-size: 10px; line-height: 1; flex: 0 0 auto;
+}
+.panel[open] > summary::before { content: "▾"; }
+.panel > summary:hover { background: #f7f7f7; }
+.panel > summary.panelTitleRow { justify-content: space-between; }
+.panel > summary.panelTitle { display: flex; justify-content: flex-start; }
+/* A collapsed section keeps only its header and hands its space to the open ones. */
+.panel:not([open]) { flex: 0 0 auto; min-height: 0; }
+.panel:not([open]) > summary { border-bottom: 0; }
