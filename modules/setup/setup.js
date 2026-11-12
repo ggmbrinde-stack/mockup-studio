@@ -86,11 +86,15 @@
     showStep(1);
     var signInStatus = $("setupSignInStatus");
     if (signInStatus) signInStatus.textContent = "";
+    if (VB.vault && VB.vault.refresh) VB.vault.refresh();
   }
 
   function close() {
     var o = overlayEl();
     if (o) o.hidden = true;
+    // Leaving setup re-locks a saved password: an unlocked vault should never outlive the
+    // card that shows it.
+    if (VB.vault && VB.vault.lock) VB.vault.lock();
   }
 
   function finish() {
