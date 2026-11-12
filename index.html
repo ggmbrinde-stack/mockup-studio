@@ -67,6 +67,92 @@
         <div class="hint" data-i18n="batchWorkersHint">1 = safest (sequential). 2+ uses warm Chrome pages in parallel for faster batches.</div>
       </div>
       <div class="field full">
+        <div class="vxTitle" data-i18n="vxTitle">vectorizer.ai export</div>
+        <div class="hint" data-i18n="vxHint">Applied on vectorizer.ai before each download, so the SVG arrives already set up. Nothing is opened in your browser.</div>
+      </div>
+      <div class="field">
+        <label for="vxPreset" data-i18n="vxPreset">Preset</label>
+        <select id="vxPreset">
+          <option value="general" data-i18n="vxPresetGeneral">General purpose</option>
+          <option value="editing" data-i18n="vxPresetEditing">Easy editing (grouped by colour)</option>
+          <option value="cutting" data-i18n="vxPresetCutting">Cutting and engraving</option>
+          <option value="custom" data-i18n="vxPresetCustom">Custom</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxSvgVersion" data-i18n="vxSvgVersion">SVG version</label>
+        <select id="vxSvgVersion">
+          <option value="svg_1_1">SVG 1.1</option>
+          <option value="svg_1_0">SVG 1.0</option>
+          <option value="svg_tiny_1_2">SVG Tiny 1.2</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxGroup" data-i18n="vxGroup">Group by</label>
+        <select id="vxGroup">
+          <option value="none" data-i18n="vxGroupNone">Nothing</option>
+          <option value="color" data-i18n="vxGroupColor">Colour</option>
+          <option value="parent" data-i18n="vxGroupParent">Parent shape</option>
+          <option value="layer" data-i18n="vxGroupLayer">Layer</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxStack" data-i18n="vxStack">Shape stacking</label>
+        <select id="vxStack">
+          <option value="cutouts" data-i18n="vxStackCutouts">Cut-outs</option>
+          <option value="stacked" data-i18n="vxStackStacked">Stacked</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxDraw" data-i18n="vxDraw">Draw style</label>
+        <select id="vxDraw">
+          <option value="fill_shapes" data-i18n="vxDrawFill">Filled shapes</option>
+          <option value="stroke_shapes" data-i18n="vxDrawStroke">Outlined shapes</option>
+          <option value="stroke_edges" data-i18n="vxDrawEdges">Edges only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxCurves" data-i18n="vxCurves">Curves</label>
+        <select id="vxCurves">
+          <option value="all" data-i18n="vxCurvesAll">All</option>
+          <option value="cubic" data-i18n="vxCurvesCubic">Cubic only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxLineFit" data-i18n="vxLineFit">Line fit</label>
+        <select id="vxLineFit">
+          <option value="fine" data-i18n="vxLineFine">Fine</option>
+          <option value="medium" data-i18n="vxLineMedium">Medium</option>
+          <option value="coarse" data-i18n="vxLineCoarse">Coarse</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxStrokeWidth" data-i18n="vxStrokeWidth">Stroke width (px)</label>
+        <input id="vxStrokeWidth" type="number" min="0" max="5" step="0.5" value="1">
+      </div>
+      <div class="field full">
+        <label class="checkbox">
+          <input id="vxAdobe" type="checkbox">
+          <span data-i18n="vxAdobe">Adobe-compatible SVG (lines and cubic curves only)</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxNativeShapes" type="checkbox">
+          <span data-i18n="vxNativeShapes">Keep native shapes (circles, rectangles, stars)</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxGapFiller" type="checkbox">
+          <span data-i18n="vxGapFiller">Fill gaps between shapes</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxStrokeFixed" type="checkbox">
+          <span data-i18n="vxStrokeFixed">Fixed stroke width</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxFixedSize" type="checkbox">
+          <span data-i18n="vxFixedSize">Fix the SVG size</span>
+        </label>
+      </div>
+      <div class="field full">
         <label for="settingsVectorizeShortcut" data-i18n="vectorizeShortcut">Vectorize shortcut</label>
         <div class="row">
           <input id="settingsVectorizeShortcut" type="text" readonly value="Ctrl+Shift+Ç">
@@ -172,6 +258,7 @@
 <script src="js/admin-config.js"></script>
 <script src="js/locales/en.js"></script>
 <script src="js/locales/pt.js"></script>
+
 <script src="js/core/app.js"></script>
 <script src="js/bridge/host.js"></script>
 <script src="js/queue/batch.js"></script>

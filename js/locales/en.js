@@ -144,3 +144,43 @@ window.LOCALES.en = {
   setupRunAgain: "Run setup again",
   setupDoneLog: "Setup finished.",
 };
+
+/* vectorizer.ai export settings (settings block added in 2.3.11) */
+(function (dictionary) {
+  var extra = {
+    vxTitle: "vectorizer.ai export",
+    vxHint: "Applied on vectorizer.ai before each download, so the SVG arrives already set up. Nothing opens in your browser.",
+    vxPreset: "Preset",
+    vxPresetGeneral: "General purpose",
+    vxPresetEditing: "Easy editing (grouped by colour)",
+    vxPresetCutting: "Cutting and engraving",
+    vxPresetCustom: "Custom",
+    vxSvgVersion: "SVG version",
+    vxGroup: "Group by",
+    vxGroupNone: "Nothing",
+    vxGroupColor: "Colour",
+    vxGroupParent: "Parent shape",
+    vxGroupLayer: "Layer",
+    vxStack: "Shape stacking",
+    vxStackCutouts: "Cut-outs",
+    vxStackStacked: "Stacked",
+    vxDraw: "Draw style",
+    vxDrawFill: "Filled shapes",
+    vxDrawStroke: "Outlined shapes",
+    vxDrawEdges: "Edges only",
+    vxCurves: "Curves",
+    vxCurvesAll: "All",
+    vxCurvesCubic: "Cubic only",
+    vxLineFit: "Line fit",
+    vxLineFine: "Fine",
+    vxLineMedium: "Medium",
+    vxLineCoarse: "Coarse",
+    vxStrokeWidth: "Stroke width (px)",
+    vxAdobe: "Adobe-compatible SVG (lines and cubic curves only)",
+    vxNativeShapes: "Keep native shapes (circles, rectangles, stars)",
+    vxGapFiller: "Fill gaps between shapes",
+    vxStrokeFixed: "Fixed stroke width",
+    vxFixedSize: "Fix the SVG size"
+  };
+  for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
+})(window.LOCALES.en);

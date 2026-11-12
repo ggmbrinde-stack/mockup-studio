@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { SITE, UA, writeStatus, launch } = require('../core/lib');
+const exportOptions = require('./export-options');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -291,6 +292,23 @@ async function runJob(opts) {
       writeStatus(statusPath, err); return err;
     }
 
+    // Put the panel's export choices into the site's Download form before asking
+    // for the file: those fields are what the site serialises into the SVG. A
+    // failure here must not cost the item, so it is logged and the download goes
+    // ahead with the site's current settings.
+    let exportApplied = null;
+    try {
+      const vx = exportOptions.loadOptionsFile(opts);
+      if (vx) {
+        const r = await exportOptions.applyExportOptions(page, vx);
+        exportApplied = { preset: vx.preset, applied: r.applied.length, missing: r.missing, values: r.values };
+        writeStatus(statusPath, { state: 'downloading', exportApplied });
+        if (r.missing.length) console.error('Export options not on the page: ' + r.missing.join(', '));
+      }
+    } catch (e) {
+      console.error('Export options failed: ' + (e && e.message ? e.message : e));
+    }
+
     await page.evaluate(() => {
       const btn = document.querySelector('button.export_download_button') || document.querySelector('a.App-downloadLink');
       if (btn) btn.click();
@@ -330,6 +348,7 @@ async function runJob(opts) {
     }
 
     const done = { state: 'done', svgPath, elapsedMs: Date.now() - runT0, warm: !!opts.browser, viaDaemon: !!opts.viaDaemon };
+    if (exportApplied) done.exportApplied = exportApplied;
     writeStatus(statusPath, done);
     return done;
   } finally {

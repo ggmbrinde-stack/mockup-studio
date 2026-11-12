@@ -199,6 +199,18 @@ VB.savePanelSettings = function (json) {
   return VB.writeTextFile(p, String(json));
 };
 
+/* vectorizer.ai export choices. The agent reads this file before each download and
+   puts the values into the site's own Download form, so nothing has to be quoted
+   through the agent's command line. */
+VB.exportOptionsPath = function () {
+  try { return VB.getBridgeFolderPath() + "/export-options.json"; } catch (e) { return ""; }
+};
+VB.saveExportOptions = function (json) {
+  var p = VB.exportOptionsPath();
+  if (!p) return "error";
+  return VB.writeTextFile(p, String(json));
+};
+
 /* Open a URL in the system default browser (Windows). */
 VB.openUrl = function (url) {
   var safe = String(url).replace(/"/g, "");

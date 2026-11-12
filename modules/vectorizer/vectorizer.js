@@ -359,6 +359,60 @@
       renderDaemonStatus();
     });
 
+    /* vectorizer.ai export settings. A preset fills every field it stands for, and
+       any hand edit switches the preset to "Custom", exactly like the site does. */
+    function vxSelect(key, id) {
+      var el = core.$("vx" + id);
+      if (!el) return;
+      core.on(el, "change", function () {
+        core.state.settings.vx[key] = el.value;
+        if (key !== "preset") core.state.settings.vx.preset = "custom";
+        core.applySettingsToUI();
+        core.saveSettings();
+        core.log("vectorizer.ai export: " + key + " = " + el.value);
+      });
+    }
+    function vxFlag(key, id) {
+      var el = core.$("vx" + id);
+      if (!el) return;
+      core.on(el, "change", function () {
+        core.state.settings.vx[key] = !!el.checked;
+        core.state.settings.vx.preset = "custom";
+        core.applySettingsToUI();
+        core.saveSettings();
+      });
+    }
+    var vxPresetEl = core.$("vxPreset");
+    core.on(vxPresetEl, "change", function () {
+      core.state.settings.vx = core.normalizeVx({ preset: vxPresetEl.value });
+      core.applySettingsToUI();
+      core.saveSettings();
+      core.log("vectorizer.ai export preset: " + vxPresetEl.value);
+    });
+    vxSelect("svgVersion", "SvgVersion");
+    vxSelect("group", "Group");
+    vxSelect("stack", "Stack");
+    vxSelect("draw", "Draw");
+    vxSelect("curves", "Curves");
+    vxSelect("lineFit", "LineFit");
+    vxFlag("adobe", "Adobe");
+    vxFlag("fixedSize", "FixedSize");
+    vxFlag("nativeShapes", "NativeShapes");
+    vxFlag("gapFiller", "GapFiller");
+    vxFlag("strokeFixed", "StrokeFixed");
+    var vxStroke = core.$("vxStrokeWidth");
+    core.on(vxStroke, "change", function () {
+      var n = parseFloat(vxStroke.value);
+      if (!isFinite(n)) n = 1;
+      n = Math.max(0, Math.min(5, n));
+      core.state.settings.vx.strokeWidth = n;
+      core.state.settings.vx.preset = "custom";
+      core.applySettingsToUI();
+      core.saveSettings();
+    });
+    /* Write the choices out once at start-up so a fresh install already has them. */
+    try { if (core.pushExportOptionsToHost) core.pushExportOptionsToHost(); } catch (e0) { }
+
     var scInput = core.$("settingsVectorizeShortcut");
     var scSet = core.$("setVectorizeShortcutBtn");
     var scReset = core.$("resetVectorizeShortcutBtn");

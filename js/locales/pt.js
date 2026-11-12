@@ -143,3 +143,43 @@ window.LOCALES.pt = {
   setupRunAgain: "Correr a configuração outra vez",
   setupDoneLog: "Configuração concluída."
 };
+
+/* exportacao vectorizer.ai (bloco de definicoes adicionado na 2.3.11) */
+(function (dictionary) {
+  var extra = {
+    vxTitle: "Exportação vectorizer.ai",
+    vxHint: "Aplicado no vectorizer.ai antes de cada download, para o SVG chegar já configurado. Não abre nada no navegador.",
+    vxPreset: "Predefinição",
+    vxPresetGeneral: "Uso geral",
+    vxPresetEditing: "Edição fácil (agrupado por cor)",
+    vxPresetCutting: "Corte e gravação",
+    vxPresetCustom: "Personalizado",
+    vxSvgVersion: "Versão SVG",
+    vxGroup: "Agrupar por",
+    vxGroupNone: "Nada",
+    vxGroupColor: "Cor",
+    vxGroupParent: "Forma principal",
+    vxGroupLayer: "Camada",
+    vxStack: "Pilha de formas",
+    vxStackCutouts: "Recortes",
+    vxStackStacked: "Empilhado",
+    vxDraw: "Estilo de desenho",
+    vxDrawFill: "Formas preenchidas",
+    vxDrawStroke: "Formas contornadas",
+    vxDrawEdges: "Apenas contornos",
+    vxCurves: "Curvas",
+    vxCurvesAll: "Todas",
+    vxCurvesCubic: "Apenas cúbicas",
+    vxLineFit: "Ajuste de linha",
+    vxLineFine: "Fino",
+    vxLineMedium: "Médio",
+    vxLineCoarse: "Grosso",
+    vxStrokeWidth: "Espessura do traço (px)",
+    vxAdobe: "SVG compatível com Adobe (apenas linhas e curvas cúbicas)",
+    vxNativeShapes: "Manter formas nativas (círculos, retângulos, estrelas)",
+    vxGapFiller: "Preencher lacunas entre formas",
+    vxStrokeFixed: "Espessura do traço fixa",
+    vxFixedSize: "Fixar o tamanho do SVG"
+  };
+  for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
+})(window.LOCALES.pt);

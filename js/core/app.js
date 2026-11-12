@@ -61,7 +61,12 @@
       hideOriginal: false,
       warmDaemon: true,
       batchWorkers: 2,
-      vectorizeShortcut: { ctrl: true, shift: true, alt: false, key: 186, code: 'Semicolon', label: 'Ctrl+Shift+Ç' }
+      vectorizeShortcut: { ctrl: true, shift: true, alt: false, key: 186, code: 'Semicolon', label: 'Ctrl+Shift+Ç' },
+      vx: {
+        preset: "general", svgVersion: "svg_1_1", adobe: false, fixedSize: false,
+        draw: "fill_shapes", stack: "cutouts", group: "none", nativeShapes: true, gapFiller: true,
+        curves: "all", lineFit: "medium", strokeWidth: 1, strokeFixed: true
+      }
     }
   };
 
@@ -139,6 +144,66 @@
     if (admin.lang === "pt" || admin.lang === "en") state.lang = admin.lang;
   }
 
+  /* --- vectorizer.ai export settings --------------------------------------
+     These are written to export-options.json, and the agent puts them into the
+     site's own Download form before asking for the SVG. The preset names and
+     their values are the site's (General purpose / Easy editing / Cutting). */
+  var VX_PRESETS = {
+    general: { draw: "fill_shapes", stack: "cutouts", group: "none", nativeShapes: true, gapFiller: true },
+    editing: { draw: "fill_shapes", stack: "stacked", group: "color", nativeShapes: true, gapFiller: false },
+    cutting: { draw: "stroke_edges", stack: "cutouts", group: "none", nativeShapes: true, gapFiller: false }
+  };
+  var VX_DEFAULTS = {
+    preset: "general", svgVersion: "svg_1_1", adobe: false, fixedSize: false,
+    draw: "fill_shapes", stack: "cutouts", group: "none", nativeShapes: true, gapFiller: true,
+    curves: "all", lineFit: "medium", strokeWidth: 1, strokeFixed: true
+  };
+  var VX_ENUMS = {
+    preset: ["general", "editing", "cutting", "custom"],
+    svgVersion: ["svg_1_1", "svg_1_0", "svg_tiny_1_2"],
+    draw: ["fill_shapes", "stroke_shapes", "stroke_edges"],
+    stack: ["cutouts", "stacked"],
+    group: ["none", "color", "parent", "layer"],
+    curves: ["all", "cubic"],
+    lineFit: ["fine", "medium", "coarse"]
+  };
+  function vxEnum(key, value, fallback) {
+    return VX_ENUMS[key].indexOf(String(value)) >= 0 ? String(value) : fallback;
+  }
+  function normalizeVx(raw) {
+    var src = (raw && typeof raw === "object") ? raw : {};
+    var o = {};
+    for (var k in VX_DEFAULTS) { if (VX_DEFAULTS.hasOwnProperty(k)) o[k] = VX_DEFAULTS[k]; }
+    o.preset = vxEnum("preset", src.preset, VX_DEFAULTS.preset);
+    if (VX_PRESETS[o.preset]) {
+      for (var p in VX_PRESETS[o.preset]) { if (VX_PRESETS[o.preset].hasOwnProperty(p)) o[p] = VX_PRESETS[o.preset][p]; }
+    }
+    if (src.draw !== undefined) o.draw = vxEnum("draw", src.draw, o.draw);
+    if (src.stack !== undefined) o.stack = vxEnum("stack", src.stack, o.stack);
+    if (src.group !== undefined) o.group = vxEnum("group", src.group, o.group);
+    if (src.nativeShapes !== undefined) o.nativeShapes = !!src.nativeShapes;
+    if (src.gapFiller !== undefined) o.gapFiller = !!src.gapFiller;
+    o.svgVersion = vxEnum("svgVersion", src.svgVersion, VX_DEFAULTS.svgVersion);
+    o.adobe = src.adobe === undefined ? VX_DEFAULTS.adobe : !!src.adobe;
+    o.fixedSize = src.fixedSize === undefined ? VX_DEFAULTS.fixedSize : !!src.fixedSize;
+    o.curves = vxEnum("curves", src.curves, VX_DEFAULTS.curves);
+    o.lineFit = vxEnum("lineFit", src.lineFit, VX_DEFAULTS.lineFit);
+    var sw = parseFloat(src.strokeWidth);
+    o.strokeWidth = isFinite(sw) ? Math.max(0, Math.min(5, sw)) : VX_DEFAULTS.strokeWidth;
+    o.strokeFixed = src.strokeFixed === undefined ? VX_DEFAULTS.strokeFixed : !!src.strokeFixed;
+    /* Adobe compatibility emits only lines and cubic Béziers. */
+    if (o.adobe) o.curves = "cubic";
+    return o;
+  }
+  function setVxSelect(id, value) {
+    var el = $(id);
+    if (el) el.value = String(value);
+  }
+  function setVxCheck(id, value) {
+    var el = $(id);
+    if (el) el.checked = !!value;
+  }
+
   /* Shared by the localStorage copy and the file the floating window reads. */
   function applyStoredSettings(s) {
     if (!s || typeof s !== "object") return;
@@ -146,6 +211,7 @@
     if (s.hideOriginal !== undefined) state.settings.hideOriginal = !!s.hideOriginal;
     if (s.warmDaemon !== undefined) state.settings.warmDaemon = !!s.warmDaemon;
     if (s.batchWorkers !== undefined) { var bw = parseInt(s.batchWorkers, 10); if (isFinite(bw) && bw >= 1) state.settings.batchWorkers = bw; }
+    if (s.vx) state.settings.vx = normalizeVx(s.vx);
     if (s.vectorizeShortcut && typeof s.vectorizeShortcut === 'object') {
       state.settings.vectorizeShortcut = {
         ctrl: s.vectorizeShortcut.ctrl !== false,
@@ -199,6 +265,7 @@
       localStorage.setItem("vb_lang", state.lang);
     } catch (e) { }
     pushSettingsToHost();
+    pushExportOptionsToHost();
   }
   function syncPngPresetUI() {
     var preset = $("settingsPngPreset");
@@ -253,6 +320,21 @@
     if (bw) bw.value = String(Math.max(1, Math.min(4, parseInt(state.settings.batchWorkers, 10) || 1)));
     var scInput = $("settingsVectorizeShortcut");
     if (scInput) scInput.value = shortcutLabel(state.settings.vectorizeShortcut);
+    var vx = normalizeVx(state.settings.vx);
+    setVxSelect("vxPreset", vx.preset);
+    setVxSelect("vxSvgVersion", vx.svgVersion);
+    setVxSelect("vxGroup", vx.group);
+    setVxSelect("vxStack", vx.stack);
+    setVxSelect("vxDraw", vx.draw);
+    setVxSelect("vxCurves", vx.curves);
+    setVxSelect("vxLineFit", vx.lineFit);
+    setVxCheck("vxAdobe", vx.adobe);
+    setVxCheck("vxFixedSize", vx.fixedSize);
+    setVxCheck("vxNativeShapes", vx.nativeShapes);
+    setVxCheck("vxGapFiller", vx.gapFiller);
+    setVxCheck("vxStrokeFixed", vx.strokeFixed);
+    var swEl = $("vxStrokeWidth");
+    if (swEl) swEl.value = String(vx.strokeWidth);
   }
 
   /* Selection changes arrive from host/watch.jsx as CSXS events, so this only renders -
@@ -280,6 +362,17 @@
     try {
       var payload = JSON.stringify({ settings: state.settings, lang: state.lang });
       VB.bridge.evalJsx("VB.savePanelSettings(" + jsxString(payload) + ")", function () { });
+    } catch (e) { }
+  }
+
+  /* The agent reads this file before each download, so the settings never have to
+     be quoted through a command line. Both windows write the same choices. */
+  function pushExportOptionsToHost() {
+    if (!VB.bridge || !VB.bridge.hostOk || !VB.bridge.evalJsx) return;
+    try {
+      var vx = normalizeVx(state.settings.vx);
+      state.settings.vx = vx;
+      VB.bridge.evalJsx("VB.saveExportOptions(" + jsxString(JSON.stringify(vx)) + ")", function () { });
     } catch (e) { }
   }
 
@@ -374,6 +467,9 @@
   core.renderLocale = renderLocale; core.toggleLanguage = toggleLanguage;
   core.renderSelection = renderSelection; core.syncSettingsFromHost = syncSettingsFromHost;
   core.pushSettingsToHost = pushSettingsToHost;
+  core.pushExportOptionsToHost = pushExportOptionsToHost;
+  core.normalizeVx = normalizeVx;
+  core.VX_PRESETS = VX_PRESETS;
   core.addHistory = addHistory; core.renderHistory = renderHistory; core.updateButtons = updateButtons;
   core.schedulePoll = schedulePoll; core.currentPollMs = currentPollMs;
   core.events = { on: busOn, off: busOff, emit: busEmit };

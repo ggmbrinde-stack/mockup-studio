@@ -322,3 +322,6 @@ details[open].settings { min-height: 96px; }
   .setupCard { gap: 6px; }
 }
 
+
+/* vectorizer.ai export settings block */
+.vxTitle { font-weight: 600; font-size: 12px; margin: 4px 0 2px; opacity: .9; }
