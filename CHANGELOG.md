@@ -1,5 +1,15 @@
 # Changelog — Mockup Studio
 
+## 2.3.7 — 2026-11-12
+
+### Added
+- **A floating window.** The manifest now declares a second, modeless extension — *Window > Extensions > Vectorizer Bridge (floating)* — showing the same page in a compact layout (`index.html?view=window`): selection line, Vectorize, Cancel, status. It floats anywhere, resizes freely (260×160 up to 1400×1200) and stays open when the docked panel is closed.
+- **Live selection.** `host/watch.jsx` runs a scheduled ExtendScript check and dispatches a CSXS event only when the document or selection actually changes, so the panel shows “4 selected — poster.ai” straight away instead of being stale until the next click. The task is cancelled when the panel unloads.
+- **Shared settings.** Panel settings are mirrored to `Documents\VectorizerBridge\panel-settings.json`, because CEP keeps `localStorage` per extension id and the floating window is a separate extension. Both windows now agree on PNG size, hide-original, warm Chrome, workers and language.
+
+### Fixes
+- **The docked panel no longer overflows at narrow widths.** `MinSize`/`MaxSize` are declared (240×200 minimum), buttons stack under 280 px, the credit line hides there, and nothing exceeds the viewport at 240, 260, 300, 380 or 420 px (measured).
+
 ## 2.3.6 — 2026-11-12
 
 ### Fixes

@@ -3,6 +3,9 @@ window.LOCALES.pt = {
   appTitle: "Vectorizer Bridge",
 
   vectorizeBtn: "Vetorizar seleção",
+  selectionNoDoc: "Nenhum documento aberto",
+  selectionNothing: "Nada selecionado",
+  selectionCount: "{count} selecionados",
   vectorizeHint: "Tudo dentro do Illustrator: a seleção é exportada, vetorizada no vectorizer.ai em segundo plano e colocada na camada “Vectorizer”.",
   signInBtn: "Iniciar sessão no vectorizer.ai",
   openLog: "Abrir pasta do log",

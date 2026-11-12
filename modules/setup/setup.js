@@ -213,6 +213,8 @@
   function boot() {
     bind();
     if (isDone()) return;
+    // The floating companion window opens on top of the panel: never cover it with setup.
+    if (window.VBPanel && window.VBPanel.core && window.VBPanel.core.isWindowMode && window.VBPanel.core.isWindowMode()) return;
     // A configured install skips the card completely: its defaults are already applied.
     if (adminCfg().skipWizard) { markDone(); return; }
     // Let panel.js finish its own boot (locale text, host bridge) before covering it.

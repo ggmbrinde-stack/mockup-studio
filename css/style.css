@@ -90,6 +90,9 @@ select:focus-visible {
 /* Status */
 .status { font-weight: 600; color: var(--accent); padding: 2px 0; line-height: 1.35; overflow-wrap: anywhere; }
 .statusDetail { font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+/* Live selection line, fed by host/watch.jsx over CSXS events. */
+.selection { font-size: 11.5px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+.selection.on { color: var(--fg); font-weight: 600; }
 
 /* Hint */
 .hint { font-size: 11.5px; color: var(--muted); line-height: 1.4; overflow-wrap: anywhere; }
@@ -182,6 +185,26 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
   .actions .btn { flex: 1 1 auto; }
   .panel { min-height: 84px; }
   .svg-history-actions { flex: 1 1 100%; justify-content: flex-end; }
+}
+
+/* Floating window (?view=window): the same page, reduced to the controls that work
+   without the surrounding panel sections. */
+.windowMode .app { padding: 10px; gap: 8px; display: flex; flex-direction: column; }
+.windowMode #settingsBox,
+.windowMode #historyBox,
+.windowMode #updatesBox,
+.windowMode #logBox,
+.windowMode #setupOverlay,
+.windowMode .attribution,
+.windowMode .version { display: none !important; }
+.windowMode .app > .hint:not(#lastExport) { display: none !important; }
+.windowMode #vectorizeBtn { min-height: 32px; }
+
+/* Extremely narrow dock: nothing may push the layout wider than the panel. */
+@media (max-width: 280px) {
+  .attribution { display: none; }
+  .title { font-size: 13px; }
+  .actions .btn { flex: 1 1 100%; }
 }
 
 /* Short panel (docked in a shallow strip): keep the actionable parts visible */

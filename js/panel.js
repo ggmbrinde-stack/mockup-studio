@@ -95,9 +95,40 @@
       }, false);
     } catch (eKey) { }
 
+    // Selection changes are pushed from host/watch.jsx (CSXSEvent), so the UI follows the
+    // canvas instead of asking Illustrator on a timer. Stopped when this panel unloads so a
+    // closed panel leaves no scheduled task behind.
+    try {
+      if (cs.addEventListener) {
+        cs.addEventListener("vb.selectionChanged", function (event) {
+          var info = null;
+          try { info = typeof event.data === "string" ? JSON.parse(event.data) : event.data; } catch (e) { info = null; }
+          if (window.VBPanel && VBPanel.core && VBPanel.core.renderSelection) VBPanel.core.renderSelection(info);
+        });
+      }
+      cs.evalScript("VB.watch.start()", function () { });
+      window.addEventListener("beforeunload", function () {
+        try { cs.evalScript("VB.watch.stop()"); } catch (e) { }
+      }, false);
+    } catch (eWatch) { }
+
+    // Settings live in Documents\VectorizerBridge\panel-settings.json so the panel and the
+    // floating window (separate CEP extensions, separate localStorage) agree.
+    syncSettingsFromHostWhenReady(0);
+
     VB.integrations = VB.integrations || {};
     VB.integrations.refreshShortcut = function () { applyShortcutRegistration((VB.bridge.getCS && VB.bridge.getCS()) || cs); };
     try { if (VB.core && VB.core.events && VB.core.events.on) VB.core.events.on('shortcut:changed', VB.integrations.refreshShortcut); } catch (eEv) { }
+  }
+
+  function syncSettingsFromHostWhenReady(attempt) {
+    if (attempt > 40) return;
+    var VB = window.VBPanel;
+    if (VB && VB.core && VB.bridge && VB.bridge.hostOk) {
+      try { VB.core.syncSettingsFromHost(); } catch (e) { }
+      return;
+    }
+    setTimeout(function () { syncSettingsFromHostWhenReady(attempt + 1); }, 150);
   }
 
   function boot() {

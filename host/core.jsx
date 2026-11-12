@@ -171,6 +171,34 @@ VB.readTextFile = function (path) {
   }
 };
 
+VB.writeTextFile = function (path, text) {
+  try {
+    var f = new File(path);
+    f.encoding = "UTF-8";
+    if (!f.open("w")) return "error";
+    f.write(String(text));
+    f.close();
+    return "ok";
+  } catch (e) {
+    return "error: " + e;
+  }
+};
+
+/* Panel settings live in localStorage, and CEP keeps localStorage per extension id. The
+   panel and the floating window are two extensions, so they agree through this file. */
+VB.panelSettingsPath = function () {
+  try { return VB.getBridgeFolderPath() + "/panel-settings.json"; } catch (e) { return ""; }
+};
+VB.loadPanelSettings = function () {
+  var p = VB.panelSettingsPath();
+  return p ? VB.readTextFile(p) : "";
+};
+VB.savePanelSettings = function (json) {
+  var p = VB.panelSettingsPath();
+  if (!p) return "error";
+  return VB.writeTextFile(p, String(json));
+};
+
 /* Open a URL in the system default browser (Windows). */
 VB.openUrl = function (url) {
   var safe = String(url).replace(/"/g, "");

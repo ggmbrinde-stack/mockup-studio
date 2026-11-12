@@ -3,6 +3,16 @@
   var VB = window.VBPanel = window.VBPanel || {};
   var core = VB.core = VB.core || {};
 
+  /* The manifest opens this same page twice: once as the docked panel and once as a
+     modeless window with ?view=window. That flag switches to the compact layout, which is
+     applied here so the sections are hidden before first paint. */
+  var windowMode = false;
+  try {
+    windowMode = String(window.location.search || "").indexOf("view=window") >= 0;
+    if (windowMode) document.body.className = (document.body.className ? document.body.className + " " : "") + "windowMode";
+  } catch (eMode) { }
+  core.isWindowMode = function () { return windowMode; };
+
   var POLL_MS_IDLE = 1200;
   var POLL_MS_ACTIVE = 400;
   var pollTimer = null;
@@ -44,6 +54,7 @@
     runToken: 0,
     bridgeFolder: "",
     batch: null,
+    selection: null,
     shortcutStatusPath: "",
     settings: {
       pngLongSide: 1700,
@@ -128,26 +139,32 @@
     if (admin.lang === "pt" || admin.lang === "en") state.lang = admin.lang;
   }
 
+  /* Shared by the localStorage copy and the file the floating window reads. */
+  function applyStoredSettings(s) {
+    if (!s || typeof s !== "object") return;
+    if (s.pngLongSide !== undefined) state.settings.pngLongSide = isFinite(parseInt(s.pngLongSide, 10)) ? parseInt(s.pngLongSide, 10) : 1700;
+    if (s.hideOriginal !== undefined) state.settings.hideOriginal = !!s.hideOriginal;
+    if (s.warmDaemon !== undefined) state.settings.warmDaemon = !!s.warmDaemon;
+    if (s.batchWorkers !== undefined) { var bw = parseInt(s.batchWorkers, 10); if (isFinite(bw) && bw >= 1) state.settings.batchWorkers = bw; }
+    if (s.vectorizeShortcut && typeof s.vectorizeShortcut === 'object') {
+      state.settings.vectorizeShortcut = {
+        ctrl: s.vectorizeShortcut.ctrl !== false,
+        shift: !!s.vectorizeShortcut.shift,
+        alt: !!s.vectorizeShortcut.alt,
+        key: parseInt(s.vectorizeShortcut.key, 10) || 186,
+        code: s.vectorizeShortcut.code || 'Semicolon',
+        label: s.vectorizeShortcut.label || 'Ctrl+Shift+Ç'
+      };
+    }
+  }
+
   function loadSettings() {
     try {
       applyAdminDefaults();
       var raw = localStorage.getItem("vb_settings");
       if (raw) {
         var s = JSON.parse(raw);
-        if (s.pngLongSide !== undefined) state.settings.pngLongSide = isFinite(parseInt(s.pngLongSide, 10)) ? parseInt(s.pngLongSide, 10) : 1700;
-        if (s.hideOriginal !== undefined) state.settings.hideOriginal = !!s.hideOriginal;
-        if (s.warmDaemon !== undefined) state.settings.warmDaemon = !!s.warmDaemon;
-        if (s.batchWorkers !== undefined) { var bw = parseInt(s.batchWorkers, 10); if (isFinite(bw) && bw >= 1) state.settings.batchWorkers = bw; }
-        if (s.vectorizeShortcut && typeof s.vectorizeShortcut === 'object') {
-          state.settings.vectorizeShortcut = {
-            ctrl: s.vectorizeShortcut.ctrl !== false,
-            shift: !!s.vectorizeShortcut.shift,
-            alt: !!s.vectorizeShortcut.alt,
-            key: parseInt(s.vectorizeShortcut.key, 10) || 186,
-            code: s.vectorizeShortcut.code || 'Semicolon',
-            label: s.vectorizeShortcut.label || 'Ctrl+Shift+Ç'
-          };
-        }
+        applyStoredSettings(s);
         var lang = localStorage.getItem("vb_lang");
         if (lang === "pt" || lang === "en") state.lang = lang;
       }
@@ -165,6 +182,7 @@
       localStorage.setItem("vb_settings", JSON.stringify(state.settings));
       localStorage.setItem("vb_lang", state.lang);
     } catch (e) { }
+    pushSettingsToHost();
   }
   function syncPngPresetUI() {
     var preset = $("settingsPngPreset");
@@ -220,6 +238,53 @@
     var scInput = $("settingsVectorizeShortcut");
     if (scInput) scInput.value = shortcutLabel(state.settings.vectorizeShortcut);
   }
+
+  /* Selection changes arrive from host/watch.jsx as CSXS events, so this only renders -
+     nothing here asks Illustrator for state. */
+  function renderSelection(info) {
+    state.selection = info || null;
+    var el = $("selectionText");
+    if (!el) return;
+    var doc = (info && info.doc) ? String(info.doc) : "";
+    var n = (info && info.sel !== undefined && info.sel !== null) ? parseInt(info.sel, 10) : 0;
+    if (!isFinite(n) || n < 0) n = 0;
+    var text = "";
+    if (!info || !info.open) text = t("selectionNoDoc") || "No document open";
+    else if (n === 0) text = (t("selectionNothing") || "Nothing selected") + (doc ? " — " + doc : "");
+    else text = (t("selectionCount") || "{count} selected").replace("{count}", String(n)) + (doc ? " — " + doc : "");
+    el.textContent = text;
+    el.className = "selection" + ((info && info.open && n > 0) ? " on" : "");
+  }
+
+  /* The panel and the floating window are two CEP extensions, and CEP scopes localStorage
+     per extension, so their settings meet in Documents\VectorizerBridge\panel-settings.json
+     through these host calls. */
+  function pushSettingsToHost() {
+    if (!VB.bridge || !VB.bridge.hostOk || !VB.bridge.evalJsx) return;
+    try {
+      var payload = JSON.stringify({ settings: state.settings, lang: state.lang });
+      VB.bridge.evalJsx("VB.savePanelSettings(" + jsxString(payload) + ")", function () { });
+    } catch (e) { }
+  }
+
+  function syncSettingsFromHost(done) {
+    if (!VB.bridge || !VB.bridge.hostOk || !VB.bridge.evalJsx) { if (done) done(false); return; }
+    VB.bridge.evalJsx("VB.loadPanelSettings()", function (txt) {
+      var applied = false;
+      try {
+        var raw = String(txt || "");
+        if (raw && raw.charAt(0) === "{") {
+          var saved = JSON.parse(raw);
+          applyStoredSettings(saved && saved.settings ? saved.settings : saved);
+          if (saved && (saved.lang === "pt" || saved.lang === "en")) state.lang = saved.lang;
+          applySettingsToUI();
+          renderLocale();
+          applied = true;
+        }
+      } catch (e) { }
+      if (done) done(applied);
+    });
+  }
   function renderLocale() {
     var nodes = document.querySelectorAll("[data-i18n]");
     for (var i = 0; i < nodes.length; i++) {
@@ -270,6 +335,8 @@
   core.showError = showError; core.appendLogUI = appendLogUI; core.log = log;
   core.loadSettings = loadSettings; core.saveSettings = saveSettings; core.syncPngPresetUI = syncPngPresetUI; core.applySettingsToUI = applySettingsToUI;
   core.renderLocale = renderLocale; core.toggleLanguage = toggleLanguage;
+  core.renderSelection = renderSelection; core.syncSettingsFromHost = syncSettingsFromHost;
+  core.pushSettingsToHost = pushSettingsToHost;
   core.addHistory = addHistory; core.renderHistory = renderHistory; core.updateButtons = updateButtons;
   core.schedulePoll = schedulePoll; core.currentPollMs = currentPollMs;
   core.events = { on: busOn, off: busOff, emit: busEmit };

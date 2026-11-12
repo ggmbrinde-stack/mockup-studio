@@ -84,7 +84,8 @@
       ext + "/host/batch.jsx",
       ext + "/host/export.jsx",
       ext + "/host/place.jsx",
-      ext + "/host/agent.jsx"
+      ext + "/host/agent.jsx",
+      ext + "/host/watch.jsx"
     ];
     var loader = "(function(){";
     loader += "$.global.VB=$.global.VB||{};$.global.VB._loadErrors=[];";

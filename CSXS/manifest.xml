@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="2.3.6" ExtensionBundleName="Mockup Studio">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="2.3.7" ExtensionBundleName="Mockup Studio">
   <ExtensionList>
-    <Extension Id="com.bestofgifts.vectorizerbridge.panel" Version="2.3.6"/>
+    <Extension Id="com.bestofgifts.vectorizerbridge.panel" Version="2.3.7"/>
+    <Extension Id="com.bestofgifts.vectorizerbridge.window" Version="2.3.7"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -28,11 +29,52 @@
         <UI>
           <Type>Panel</Type>
           <Menu>Vectorizer Bridge</Menu>
+          <!-- Min/Max let the user drag a floating panel to any workable size; when the panel
+               is docked the host still decides the width. -->
           <Geometry>
             <Size>
               <Width>420</Width>
               <Height>640</Height>
             </Size>
+            <MinSize>
+              <Width>240</Width>
+              <Height>200</Height>
+            </MinSize>
+            <MaxSize>
+              <Width>1600</Width>
+              <Height>2000</Height>
+            </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <!-- Same panel, as a modeless window: it floats anywhere on screen, resizes freely and
+         survives the panel being closed. index.html switches to its compact layout through
+         the view=window flag. -->
+    <Extension Id="com.bestofgifts.vectorizerbridge.window">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html?view=window</MainPath>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Modeless</Type>
+          <Menu>Vectorizer Bridge (floating)</Menu>
+          <Geometry>
+            <Size>
+              <Width>380</Width>
+              <Height>260</Height>
+            </Size>
+            <MinSize>
+              <Width>260</Width>
+              <Height>160</Height>
+            </MinSize>
+            <MaxSize>
+              <Width>1400</Width>
+              <Height>1200</Height>
+            </MaxSize>
           </Geometry>
         </UI>
       </DispatchInfo>

@@ -3,6 +3,9 @@ window.LOCALES.en = {
   appTitle: "Vectorizer Bridge",
 
   vectorizeBtn: "Vectorize selection",
+  selectionNoDoc: "No document open",
+  selectionNothing: "Nothing selected",
+  selectionCount: "{count} selected",
   vectorizeHint: "All inside Illustrator: the selection is exported, vectorized on vectorizer.ai in the background, and placed on the “Vectorizer” layer.",
   signInBtn: "Sign in to vectorizer.ai",
   openLog: "Open log folder",
