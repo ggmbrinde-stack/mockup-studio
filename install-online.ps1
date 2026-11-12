@@ -55,24 +55,112 @@ $exitCode = & {
   $StaleRootFiles = @('*.md', '.gitignore', 'install.ps1', 'install-online.ps1', 'uninstall.ps1')
 
   # ------------------------------------------------------------------ presentation helpers
+  # A compact console UI: a short banner, one line per finished step, and ONE live line at
+  # the bottom (current step + progress bar) that is rewritten in place. No dependencies, no
+  # ANSI: colours come from Write-Host, positioning from a carriage return. When the output
+  # is redirected, the host is not the console (ISE/remote) or VB_NO_UI=1, it degrades to
+  # plain appended lines, so logs and the dry-run tests stay readable.
+  $script:UiPlain = $false
+  $script:UiUnicode = $false
+  $script:UiWidth = 78
+  $script:UiStep = $null
+  $script:UiDone = 0
+  $script:UiTotal = 7
+
+  function Initialize-Ui {
+    $redirected = $false
+    try { $redirected = [bool][Console]::IsOutputRedirected } catch { }
+    $hostName = ''
+    try { $hostName = [string]$Host.Name } catch { }
+    $script:UiPlain = ($redirected -or $env:VB_NO_UI -eq '1' -or $hostName -ne 'ConsoleHost')
+    try { $script:UiWidth = [int][Math]::Max(40, [Math]::Min(86, [Console]::BufferWidth - 1)) } catch { $script:UiWidth = 78 }
+    if ($script:UiPlain) { $script:UiUnicode = $false; return }
+    try {
+      # Box-drawing and check glyphs need a UTF-8 console. Windows Terminal is safe; a
+      # legacy CP850/437 console is not, so it keeps the ASCII fallback.
+      $script:UiUnicode = (([int][Console]::OutputEncoding.CodePage) -eq 65001) -or [bool]$env:WT_SESSION -or [bool]$env:TERM_PROGRAM
+    } catch { $script:UiUnicode = $false }
+  }
+  function Ui-Bar([int]$Done, [int]$Total) {
+    $slots = 16
+    if ($Total -le 0) { $Total = 1 }
+    $filled = [int][Math]::Round($slots * ($Done / [double]$Total))
+    if ($filled -gt $slots) { $filled = $slots }
+    if ($filled -lt 0) { $filled = 0 }
+    $on = '#'
+    $off = '-'
+    if ($script:UiUnicode) { $on = [string][char]0x2588; $off = [string][char]0x2591 }
+    return ($on * $filled) + ($off * ($slots - $filled))
+  }
+  function Write-UiLine([string]$Text, [string]$Color = 'Gray') {
+    if ($script:UiPlain) { return }
+    if ($null -eq $Text) { $Text = '' }
+    if ($Text.Length -gt $script:UiWidth) { $Text = $Text.Substring(0, $script:UiWidth) }
+    else { $Text = $Text + (' ' * ($script:UiWidth - $Text.Length)) }
+    Write-Host ("`r" + $Text) -NoNewline -ForegroundColor $Color
+  }
+  function Clear-UiLine {
+    if ($script:UiPlain) { return }
+    # Blank the row, then return to column 0: without the carriage return the next line
+    # starts at the end of the padded row and loses its leading spaces.
+    Write-UiLine '' 'Gray'
+    Write-Host "`r" -NoNewline
+  }
+  function Render-UiStep {
+    if ($script:UiPlain -or -not $script:UiStep) { return }
+    $line = '  > ' + $script:UiStep.Number + '  ' + $script:UiStep.Title
+    if ($script:UiStep.Detail) { $line = $line + '  -  ' + $script:UiStep.Detail }
+    $line = $line + '   [' + (Ui-Bar $script:UiDone $script:UiTotal) + '] ' + $script:UiDone + '/' + $script:UiTotal
+    Write-UiLine $line 'Cyan'
+  }
+  function Format-UiStep([string]$Mark, [int]$Number, [string]$Title, [string]$Detail) {
+    # Give the title as much room as the window allows, but never let it crowd out the
+    # detail: 34 columns of detail is what the longest results need.
+    $titleWidth = [int][Math]::Max(18, [Math]::Min(40, $script:UiWidth - 36))
+    $t = $Title
+    if ($t.Length -gt $titleWidth) {
+      $ellipsis = '.'
+      if ($script:UiUnicode) { $ellipsis = [string][char]0x2026 }
+      $t = $t.Substring(0, $titleWidth - 1) + $ellipsis
+    }
+    $line = '  ' + $Mark + ' ' + [string]$Number + '  ' + $t.PadRight($titleWidth + 2)
+    if ($Detail) { $line = $line + ' ' + $Detail }
+    return $line.TrimEnd()
+  }
+  function Complete-UiStep([string]$Kind, [string]$Detail, [string]$Color) {
+    if (-not $script:UiStep) { Write-Host ('        ' + $Detail) -ForegroundColor $Color; return }
+    $script:UiDone = [int][Math]::Max($script:UiDone, $script:UiStep.Number)
+    $mark = '+'
+    if ($Kind -eq 'skip') { $mark = '-' }
+    elseif ($script:UiUnicode) { $mark = [string][char]0x2713 }
+    if ($script:UiPlain) {
+      Write-Host ('        ' + $Kind + '  ' + $Detail) -ForegroundColor $Color
+    } else {
+      Clear-UiLine
+      Write-Host (Format-UiStep $mark $script:UiStep.Number $script:UiStep.Title $Detail) -ForegroundColor $Color
+    }
+    $script:UiStep = $null
+  }
   function Fail([string]$Message) { throw $Message }
   function Head([string]$Title, [string]$Color = 'White') {
+    Clear-UiLine
     Write-Host ''
     Write-Host ('  ' + $Title) -ForegroundColor $Color
   }
   function Say([string]$Message, [string]$Color = 'Gray') {
-    Write-Host ('        ' + $Message) -ForegroundColor $Color
+    if (-not $script:UiStep) { Write-Host ('  ' + $Message) -ForegroundColor $Color; return }
+    $script:UiStep.Detail = [string]$Message
+    if ($script:UiPlain) { Write-Host ('        ' + $Message) -ForegroundColor $Color; return }
+    Render-UiStep
   }
   function Start-Step([int]$Number, [int]$Total, [string]$Title) {
-    Write-Host ''
-    Write-Host ('  [{0}/{1}] {2}' -f $Number, $Total, $Title) -ForegroundColor White
+    $script:UiTotal = $Total
+    $script:UiStep = @{ Number = $Number; Title = $Title; Detail = '' }
+    if ($script:UiPlain) { Write-Host ''; Write-Host ('  [' + $Number + '/' + $Total + '] ' + $Title) -ForegroundColor White; return }
+    Render-UiStep
   }
-  function Step-Ok([string]$Detail = 'done') {
-    Write-Host ('        ok    ' + $Detail) -ForegroundColor Green
-  }
-  function Step-Skip([string]$Detail) {
-    Write-Host ('        skip  ' + $Detail) -ForegroundColor DarkGray
-  }
+  function Step-Ok([string]$Detail = 'done') { Complete-UiStep 'ok' $Detail 'Green' }
+  function Step-Skip([string]$Detail) { Complete-UiStep 'skip' $Detail 'DarkGray' }
 
   # ------------------------------------------------------------------ core helpers
   function Get-FullPath([string]$Path) { return [IO.Path]::GetFullPath($Path).TrimEnd('\') }
@@ -200,12 +288,11 @@ $exitCode = & {
     $currentVersion = ''
     if (Test-Path -LiteralPath $manifestDest) { $currentVersion = Get-ManifestVersion $manifestDest }
 
+    Initialize-Ui
     Write-Host ''
-    Write-Host '  ==================================================================' -ForegroundColor Cyan
-    Write-Host '        M O C K U P   S T U D I O' -ForegroundColor Cyan
-    Write-Host '        Vectorizer Bridge  -  setup for Adobe Illustrator' -ForegroundColor Cyan
-    Write-Host '  ==================================================================' -ForegroundColor Cyan
-    Write-Host ''
+    Write-Host '  MOCKUP STUDIO' -ForegroundColor Cyan -NoNewline
+    Write-Host '   Vectorizer Bridge for Illustrator' -ForegroundColor DarkGray
+    Write-Host ('  ' + ('-' * 62)) -ForegroundColor DarkGray
 
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
 
@@ -220,29 +307,27 @@ $exitCode = & {
 
     $destAgent = Join-Path $Dest 'agent'
     $hasDeps = Test-Path -LiteralPath (Join-Path $destAgent 'node_modules\puppeteer-core')
-    $needsNode = (-not $hasDeps) -and (-not $SkipDeps) -and (-not $nodeExe)
 
-    Head 'This is what setup found' 'White'
-    if ($currentVersion) { Say ("Panel installed   : " + $currentVersion) } else { Say 'Panel installed   : none (first install)' }
-    if ($nodeExe) { Say ("Node.js           : " + $nodeLabel) }
-    elseif ($SkipDeps) { Say 'Node.js           : not found (agent dependencies will be skipped)' }
-    else { Say 'Node.js           : not found (setup will install a private copy, no admin)' }
-    if ($aiPids.Count -gt 0) { Say ("Illustrator       : running (PID " + ($aiPids -join ', ') + ")") } else { Say 'Illustrator       : not running' }
-    Say ("Panel folder      : " + $Dest)
-    Say ("Your own files    : " + $Runtime)
-    Say '                    never written, moved or deleted by setup' 'DarkGray'
-
-    Head 'What setup will do' 'White'
-    Say '1. Download the newest release from GitHub and verify its SHA-256'
-    Say '2. Unpack it in a temp folder and check it and your Illustrator version first'
-    Say '3. Make sure Node.js is available (private copy in your AppData if missing)'
-    Say '4. Stop the background agent if it is running'
-    Say '5. Back up the version you have now (so a failure can be undone)'
-    Say '6. Copy the panel in and install agent dependencies if missing'
-    Say '7. Enable unsigned CEP and verify the result'
+    $panelState = 'first install'
+    if ($currentVersion) { $panelState = 'installed ' + $currentVersion }
+    $nodeState = 'not found - a private copy will be installed (no admin)'
+    if ($nodeExe) { $nodeState = [string]$nodeLabel }
+    if ($SkipDeps) { $nodeState = 'not needed (agent dependencies skipped)' }
+    $aiFound = @(Get-IllustratorInstalls)
+    $aiState = 'none detected'
+    if ($aiFound.Count -gt 0) {
+      $aiState = $aiFound[0].Name + ' (' + $aiFound[0].Version + ')'
+      if ($aiFound.Count -gt 1) { $aiState = $aiState + '  +' + [string]($aiFound.Count - 1) }
+    }
+    if ($aiPids.Count -gt 0) { $aiState = $aiState + '  - running' }
+    Write-Host ('  ' + 'Panel'.PadRight(13) + $panelState)
+    Write-Host ('  ' + 'Illustrator'.PadRight(13) + $aiState)
+    Write-Host ('  ' + 'Node.js'.PadRight(13) + $nodeState)
+    Write-Host ('  ' + 'Your files'.PadRight(13) + $Runtime) -ForegroundColor DarkGray
+    Write-Host ('  ' + ''.PadRight(13) + 'never written, moved or deleted by setup') -ForegroundColor DarkGray
     Write-Host ''
-    Write-Host '  Nothing outside the panel folder, its rollback copies, the private Node.js copy and' -ForegroundColor DarkGray
-    Write-Host '  HKCU\Software\Adobe\CSXS.9-16 is touched.' -ForegroundColor DarkGray
+    Write-Host '  Nothing outside the panel folder, its rollback copies, the private Node.js copy' -ForegroundColor DarkGray
+    Write-Host '  and HKCU\Software\Adobe\CSXS.9-16 is touched.' -ForegroundColor DarkGray
     Write-Host ''
 
     # ---------------------------------------------------------------- step 1: release
@@ -313,7 +398,6 @@ $exitCode = & {
     }
     $missing = @($Required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $root $_)) })
     if ($missing.Count -gt 0) { Fail ('The archive is missing: ' + ($missing -join ', ') + '. Nothing was changed.') }
-    Step-Ok "package is version $stagedVersion and contains every required file"
 
     # The release only loads in the Illustrator hosts its manifest lists. Name what was found
     # instead of installing into silence (an unsupported panel never appears in the menu).
@@ -321,24 +405,20 @@ $exitCode = & {
     $installs = @(Get-IllustratorInstalls)
     $supportedInstalls = @($installs | Where-Object { $_.Major -ge $hostRange[0] -and $_.Major -le $hostRange[1] })
     $unsupported = @($installs | Where-Object { $_.Major -lt $hostRange[0] -or $_.Major -gt $hostRange[1] })
+    $aiNote = 'no Illustrator detected'
     if ($supportedInstalls.Count -gt 0) {
       $primary = $supportedInstalls[0]
-      Say ("Illustrator found : " + $primary.Name + " (" + $primary.Version + ")")
-      $more = @($supportedInstalls | Select-Object -Skip 1 | ForEach-Object { $_.Name + ' (' + $_.Version + ')' })
-      if ($more.Count -gt 0) { Say ("also supported     : " + ($more -join ', ')) 'DarkGray' }
-      if ($unsupported.Count -gt 0) {
-        $older = @($unsupported | ForEach-Object { $_.Name + ' (' + $_.Version + ')' })
-        Say ("not supported      : " + ($older -join ', ') + ' - this build needs Illustrator ' + [string]$hostRange[0] + '+') 'Yellow'
-      }
-      Step-Ok ("this build supports Illustrator " + [string]$hostRange[0] + " and newer")
+      $aiNote = 'Illustrator ' + [string]$primary.Version + ' supported'
+      if ($supportedInstalls.Count -gt 1) { $aiNote = $aiNote + ' +' + [string]($supportedInstalls.Count - 1) }
+      if ($unsupported.Count -gt 0) { $aiNote = $aiNote + '; older versions ignored' }
     } elseif ($installs.Count -gt 0) {
       $list = ($installs | ForEach-Object { $_.Name + ' (' + $_.Version + ')' }) -join ', '
       $needYear = [int]$hostRange[0] + 1996
       Fail ("This release needs Illustrator " + [string]$needYear + " (" + [string]$hostRange[0] + ".0) or newer, but this computer has: " + $list + ".`n  Install Illustrator " + [string]$needYear + " or newer and run setup again. Nothing was changed.")
     } else {
-      Say 'Illustrator        : not detected' 'Yellow'
-      Say ('Setup continues. The panel appears in Window > Extensions once Illustrator ' + [string]([int]$hostRange[0] + 1996) + '+ is installed.') 'Yellow'
+      $aiNote = 'no Illustrator yet - the panel needs Illustrator ' + [string]([int]$hostRange[0] + 1996) + '+' 
     }
+    Step-Ok ('v' + $stagedVersion + ' - ' + $aiNote)
 
     if ($DryRun) {
       Write-Host ''
@@ -412,7 +492,10 @@ $exitCode = & {
     if (-not (Test-Path -LiteralPath $ctl) -or -not $nodeExe) {
       Step-Skip 'nothing to stop'
     } else {
-      try { & $nodeExe $ctl stop --work $Runtime 2>&1 | ForEach-Object { Say $_ } }
+      # The control script answers with JSON; that is noise in the status line, so only a
+      # failure is surfaced.
+      Say 'asking the agent to stop ...'
+      try { $null = & $nodeExe $ctl stop --work $Runtime 2>&1 }
       catch { Say ("warning: daemon stop failed: " + $_.Exception.Message) 'Yellow' }
       # Chrome needs a moment to flush its profile; ask a second time if it lingers.
       $daemonInfo = Join-Path $Runtime 'agent-daemon.json'
@@ -423,7 +506,7 @@ $exitCode = & {
         }
         if (-not (Test-Path -LiteralPath $daemonInfo)) { break }
         if ($round -eq 0) { Say 'still reporting, asking again ...' 'Yellow' }
-        try { & $nodeExe $ctl stop --work $Runtime 2>&1 | ForEach-Object { Say $_ } } catch { }
+        try { $null = & $nodeExe $ctl stop --work $Runtime 2>&1 } catch { }
       }
       if (Test-Path -LiteralPath $daemonInfo) { Say 'warning: the agent still looks active; files may be in use' 'Yellow' }
       else { Step-Ok 'agent is stopped' }
@@ -543,39 +626,39 @@ $exitCode = & {
       Where-Object { $_.Name -notlike '.*' }).Count
 
     # ---------------------------------------------------------------- done
+    Clear-UiLine
     Write-Host ''
-    Write-Host '  ==================================================================' -ForegroundColor Green
     $wasUpdate = [bool]($currentVersion -and $currentVersion -ne $version)
-    if ($wasUpdate) { Write-Host ('        SETUP COMPLETE   ' + $currentVersion + '  ->  ' + $version) -ForegroundColor Green }
-    else { Write-Host ('        SETUP COMPLETE   version ' + $version) -ForegroundColor Green }
-    Write-Host '  ==================================================================' -ForegroundColor Green
+    $headline = 'installed ' + $version
+    if ($wasUpdate) { $headline = 'updated ' + $currentVersion + ' -> ' + $version }
+    $summary = [string]$fileCount + ' files'
+    if ($depCount -gt 0) { $summary = $summary + ' - ' + [string]$depCount + ' agent packages' }
+    if ($nodeExe) { $summary = $summary + ' - Node.js ' + [string]$nodeVersion }
+    Write-Host ('  ' + $headline.Substring(0, 1).ToUpper() + $headline.Substring(1)) -ForegroundColor Green -NoNewline
+    Write-Host ('   ' + $summary) -ForegroundColor DarkGray
+    Write-Host ('  ' + $Dest) -ForegroundColor DarkGray
     Write-Host ''
-    Say ("Panel folder  : " + $Dest)
-    Say ("Files         : " + $fileCount)
-    Say ("Agent         : " + $depCount + " packages")
-    if ($nodeExe) { Say ("Node.js       : " + $nodeVersion) }
-    Say ("Your own files: " + $Runtime + "  (untouched)")
-    Write-Host ''
-    Head 'Open the panel' 'White'
     if ($aiPids.Count -gt 0) {
-      Say '1. Fully QUIT Illustrator (it caches panel scripts), then open it again.'
-      Say '2. Window > Extensions > Vectorizer Bridge.'
+      Write-Host '  Restart Illustrator, then Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
     } else {
-      Say '1. Open Adobe Illustrator.'
-      Say '2. Window > Extensions > Vectorizer Bridge.'
+      Write-Host '  Open Illustrator, then Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
     }
-    Say '3. Sign in to vectorizer.ai once, on first use.' 'DarkGray'
+    Write-Host '  The panel runs a short first-time setup: language, sign in, defaults.' -ForegroundColor DarkGray
     Write-Host ''
-    Write-Host '  Undo: re-run this setup with an older VB_INSTALL_VERSION, or use install.ps1 / uninstall.ps1 from the repo.' -ForegroundColor DarkGray
+    Write-Host '  Undo: set VB_INSTALL_VERSION to an older release and re-run, or use uninstall.ps1.' -ForegroundColor DarkGray
     Write-Host ''
     return 0
   } catch {
+    Clear-UiLine
     Write-Host ''
-    Write-Host '  ==================================================================' -ForegroundColor Red
-    Write-Host '        SETUP FAILED' -ForegroundColor Red
-    Write-Host '  ==================================================================' -ForegroundColor Red
-    Write-Host ''
-    foreach ($line in ([string]$_.Exception.Message -split "`n")) { Write-Host ('  ' + $line) -ForegroundColor Red }
+    Write-Host '  Setup failed' -ForegroundColor Red
+    Write-Host ('  ' + ('-' * 62)) -ForegroundColor DarkGray
+    foreach ($line in ([string]$_.Exception.Message -split "`n")) { Write-Host ('  ' + $line.TrimEnd()) -ForegroundColor Red }
+    if ($script:UiStep -and $script:UiStep.Detail) {
+      Write-Host ''
+      Write-Host ('  Last step: ' + $script:UiStep.Number + '  ' + $script:UiStep.Title) -ForegroundColor DarkGray
+      Write-Host ('             ' + $script:UiStep.Detail) -ForegroundColor DarkGray
+    }
     if ($backup -and (Test-Path -LiteralPath (Join-Path $backup 'CSXS\manifest.xml'))) {
       Write-Host ''
       Write-Host ('  A rollback copy is kept at ' + $backup) -ForegroundColor Yellow
