@@ -495,6 +495,15 @@
       default: text = "";
     }
     if (statusEl) statusEl.textContent = text;
+    /* "done" and "restored" only appear when Illustrator has to be restarted to load the new
+       panel, so warn before the user restarts and loses unsaved artwork. The panel's own
+       output is already written to Documents/VectorizerBridge at this point. */
+    var warnEl = core.$("updateRestartWarn");
+    if (warnEl) {
+      var needsRestart = (r.state === "done" || r.state === "restored");
+      warnEl.textContent = needsRestart ? (core.t("updateRestartWarn") || "") : "";
+      warnEl.hidden = !needsRestart;
+    }
     if (applyBtn) applyBtn.style.display = (r.state === "available") ? "" : "none";
     renderUpdateNotes(r);
   }

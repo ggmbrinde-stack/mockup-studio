@@ -18,6 +18,7 @@ window.LOCALES.en = {
   updateRestoring: "Restoring the previous version…",
   updateDone: "Updated to {version}. Restart Illustrator to finish.",
   updateRestored: "Restored version {version}. Restart Illustrator to finish.",
+  updateRestartWarn: "Save your open documents before restarting Illustrator: a restart closes every open file, and anything unsaved is lost. This panel's work is already saved in Documents/VectorizerBridge.",
   updateFailed: "Update failed:",
   checkUpdates: "Check for updates",
   updateNow: "Update now",

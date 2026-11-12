@@ -18,6 +18,7 @@ window.LOCALES.pt = {
   updateRestoring: "A restaurar a versão anterior…",
   updateDone: "Atualizado para {version}. Reinicie o Illustrator para concluir.",
   updateRestored: "Versão {version} restaurada. Reinicie o Illustrator para concluir.",
+  updateRestartWarn: "Guarde os ficheiros abertos antes de reiniciar o Illustrator: o reinício fecha todos os documentos e o que não estiver guardado perde-se. O trabalho deste painel já está guardado em Documentos/VectorizerBridge.",
   updateFailed: "A atualização falhou:",
   checkUpdates: "Verificar atualizações",
   updateNow: "Atualizar agora",

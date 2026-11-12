@@ -104,7 +104,7 @@ try {
 if ($aiPids.Count -gt 0) {
   $msg = "Adobe Illustrator is running (PID(s): $($aiPids -join ', ')). Close it before installing so cached host scripts reload."
   if (-not $Force) { throw "$msg Re-run with -Force to install anyway, then restart Illustrator." }
-  Write-Log "$msg Proceeding because -Force was passed; restart Illustrator afterwards."
+  Write-Log "$msg Proceeding because -Force was passed; save any unsaved documents, then restart Illustrator afterwards."
 } else {
   Write-Log "Illustrator process not detected."
 }
@@ -230,7 +230,7 @@ Write-Log "Verified install: version $installedVersion, $fileCount files copied,
 
 Write-Log "Install/update complete."
 Write-Log "Next steps:"
-if ($aiPids.Count -gt 0) { Write-Log "  1) Fully quit and reopen Illustrator (-Force was used; host scripts are cached)." }
+if ($aiPids.Count -gt 0) { Write-Log "  1) Save your open documents, then fully quit and reopen Illustrator (-Force was used; host scripts are cached)." }
 else { Write-Log "  1) Open Illustrator (restart it if it was already running)." }
 Write-Log "  2) Open Window > Extensions > Vectorizer Bridge."
 Write-Log "  3) Panel shortcut Ctrl+Shift+; (semicolon) and the flyout menu only work when the panel has focus."

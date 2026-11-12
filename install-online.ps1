@@ -639,7 +639,8 @@ $exitCode = & {
     Write-Host ('  ' + $Dest) -ForegroundColor DarkGray
     Write-Host ''
     if ($aiPids.Count -gt 0) {
-      Write-Host '  Restart Illustrator, then Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
+      Write-Host '  Save your open documents first: restarting Illustrator closes every open file.' -ForegroundColor Yellow
+      Write-Host '  Then restart Illustrator and open Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
     } else {
       Write-Host '  Open Illustrator, then Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
     }

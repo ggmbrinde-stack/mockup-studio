@@ -167,6 +167,9 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
    and scrolling instead of stretching the panel. */
 .updateNotes { display: none; margin: 6px 0 2px; padding: 6px 8px; border-left: 3px solid var(--border); background: #f7f7f7; border-radius: var(--radius); font-size: 11.5px; color: #3f3f3f; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 150px; overflow-y: auto; }
 .updateNotes.show { display: block; }
+/* Shown only when the update needs Illustrator to be restarted, which closes documents. */
+.updateWarn { margin: 6px 0 0; padding: 6px 8px; border-left: 3px solid #c47f00; background: #fff8e6; border-radius: var(--radius); font-size: 11.5px; color: #6b4500; line-height: 1.45; }
+.updateWarn[hidden] { display: none; }
 .updateNotes b, .updateNotes strong { font-weight: 600; }
 
 /* Inline JS error box (was inline styles in index.html) */
