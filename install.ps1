@@ -124,7 +124,8 @@ $excludeDirs = @(
   '.git',
   'agent-downloads',
   'agent-debug',
-  'vectorizer-profile'
+  'vectorizer-profile',
+  'tools'
 )
 # Runtime/user artifacts and development-only files are never copied.
 $excludeFiles = @(

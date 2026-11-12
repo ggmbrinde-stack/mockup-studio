@@ -319,21 +319,25 @@ $exitCode = & {
     # instead of installing into silence (an unsupported panel never appears in the menu).
     $hostRange = Get-ManifestHostRange (Join-Path $root 'CSXS\manifest.xml')
     $installs = @(Get-IllustratorInstalls)
-    $supported = $null
-    foreach ($item in $installs) {
-      if ($item.Major -ge $hostRange[0] -and $item.Major -le $hostRange[1]) { $supported = $item; break }
-    }
-    if ($supported) {
-      Say ("Illustrator found : " + $supported.Name + " (" + $supported.Version + ")")
-      $others = @($installs | Where-Object { $_.Major -ne $supported.Major } | ForEach-Object { $_.Name + ' (' + $_.Version + ')' })
-      if ($others.Count -gt 0) { Say ("also installed     : " + ($others -join ', ') + ' - this release does not load there') 'DarkGray' }
+    $supportedInstalls = @($installs | Where-Object { $_.Major -ge $hostRange[0] -and $_.Major -le $hostRange[1] })
+    $unsupported = @($installs | Where-Object { $_.Major -lt $hostRange[0] -or $_.Major -gt $hostRange[1] })
+    if ($supportedInstalls.Count -gt 0) {
+      $primary = $supportedInstalls[0]
+      Say ("Illustrator found : " + $primary.Name + " (" + $primary.Version + ")")
+      $more = @($supportedInstalls | Select-Object -Skip 1 | ForEach-Object { $_.Name + ' (' + $_.Version + ')' })
+      if ($more.Count -gt 0) { Say ("also supported     : " + ($more -join ', ')) 'DarkGray' }
+      if ($unsupported.Count -gt 0) {
+        $older = @($unsupported | ForEach-Object { $_.Name + ' (' + $_.Version + ')' })
+        Say ("not supported      : " + ($older -join ', ') + ' - this build needs Illustrator ' + [string]$hostRange[0] + '+') 'Yellow'
+      }
       Step-Ok ("this build supports Illustrator " + [string]$hostRange[0] + " and newer")
     } elseif ($installs.Count -gt 0) {
       $list = ($installs | ForEach-Object { $_.Name + ' (' + $_.Version + ')' }) -join ', '
-      Fail ("This release needs Illustrator " + [string]$hostRange[0] + " or newer, but this computer has: " + $list + ".`n  Install Illustrator 2025+ (or newer) and run setup again. Nothing was changed.")
+      $needYear = [int]$hostRange[0] + 1996
+      Fail ("This release needs Illustrator " + [string]$needYear + " (" + [string]$hostRange[0] + ".0) or newer, but this computer has: " + $list + ".`n  Install Illustrator " + [string]$needYear + " or newer and run setup again. Nothing was changed.")
     } else {
       Say 'Illustrator        : not detected' 'Yellow'
-      Say ('Setup continues. The panel appears in Window > Extensions once Illustrator ' + [string]$hostRange[0] + '+ is installed.') 'Yellow'
+      Say ('Setup continues. The panel appears in Window > Extensions once Illustrator ' + [string]([int]$hostRange[0] + 1996) + '+ is installed.') 'Yellow'
     }
 
     if ($DryRun) {
