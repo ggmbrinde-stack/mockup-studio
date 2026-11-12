@@ -1,5 +1,13 @@
 # Changelog — Mockup Studio
 
+## 2.3.5 — 2026-11-12
+
+### Fixes
+- **Every item after the first in a parallel batch stalled.** The wait for the vectorized result used puppeteer's default `requestAnimationFrame` polling, and Chrome throttles background renderers — in a batch only the active page gets frames, so the other items' waits never ran and each sat out its full 40 s timeout before falling through to the fallback. The wait now polls on a 250 ms timer, and the agent's Chrome is started with `--disable-background-timer-throttling`, `--disable-backgrounding-occluded-windows` and `--disable-renderer-backgrounding`. Measured against a local stand-in for the site: the second item took 41 s before, both items finish in ~2 s now.
+- **Two or more items with Warm Chrome off failed immediately.** Each one-shot job launches its own Chrome on the same profile, so the second was refused with a profile-in-use error. The batch now runs one item at a time unless Warm Chrome is on, and logs why.
+- **The warm daemon could run more jobs than it has workers.** The slot check ran before `await readJson()`, so two simultaneous `/run` requests both passed it and every later admission was off by one. The slot is reserved before the body is read (verified: `workers=1` with two simultaneous requests → one 202, one 503).
+- **One item's failed POST no longer deletes `agent-daemon.json`** unless `/health` also fails, so a transient error cannot make the other items launch competing Chromes on the same profile.
+
 ## 2.3.4 — 2026-11-11
 
 ### Added

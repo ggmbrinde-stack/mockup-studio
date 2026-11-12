@@ -79,7 +79,15 @@
   function scheduleBatch(token) {
     var b = core.state.batch;
     if (!b || b.cancelled || token !== core.state.runToken) return;
-    var limit = Math.max(1, Math.min(4, parseInt(core.state.settings.batchWorkers, 10) || 1));
+    var wanted = Math.max(1, Math.min(4, parseInt(core.state.settings.batchWorkers, 10) || 1));
+    // Each one-shot job launches its own Chrome on the same profile, so two at once
+    // is a guaranteed "profiles cannot be used at the same time" failure. Warm Chrome
+    // is the only mode where parallel items share one browser.
+    var limit = core.state.settings.warmDaemon ? wanted : 1;
+    if (!core.state.settings.warmDaemon && wanted > 1 && !b.warnedSequential) {
+      b.warnedSequential = true;
+      core.log('Parallel workers need Warm Chrome; running the batch one item at a time.');
+    }
     while ((b.active || 0) < limit && b.next < b.total) {
       var j = b.jobs[b.next++]; if (!j) continue;
       startBatchJob(j, token);

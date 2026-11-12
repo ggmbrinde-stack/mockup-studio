@@ -141,7 +141,12 @@ async function tryDaemon(args) {
       if (r && r.body && r.body.state) return r.body;
       return { state: 'error', message: 'Daemon returned an unexpected response.' };
     } catch (e) {
-      try { fs.unlinkSync(infoPath); } catch (e2) {}
+      // A failed POST is not proof the daemon is gone: it may be mid-start while a
+      // sibling item is already using it. Only drop the pointer when /health also
+      // fails, otherwise the next item in the batch would launch a second Chrome on
+      // the same profile (the profile-lock pile-up).
+      const stillUp = await waitForDaemonHealth(info, 4000);
+      if (!stillUp) { try { fs.unlinkSync(infoPath); } catch (e2) {} }
       return null;
     }
   }

@@ -134,6 +134,8 @@ async function runJob(opts) {
 
     writeStatus(statusPath, { state: 'vectorizing' });
     try {
+      // polling: background pages get no requestAnimationFrame, so the default
+      // rAF polling never fires for the second parallel item.
       await page.waitForFunction(() => {
         const progress = document.getElementById('App-Progress-Dialog');
         if (progress && progress.offsetParent !== null) return false;
@@ -141,13 +143,13 @@ async function runJob(opts) {
         if (lightbox && lightbox.offsetParent !== null) return false;
         const a = document.querySelector('.App-downloadLink');
         return !!a && /^\/images\/[^/#]+/.test((a.getAttribute('href') || '').split('#')[0]);
-      }, { timeout: Math.min(120000, Math.max(30000, timeout - 5000)) });
+      }, { timeout: Math.min(120000, Math.max(30000, timeout - 5000)), polling: 250 });
     } catch (e) {
       try {
         await page.waitForFunction(() => {
           const a = document.querySelector('.App-downloadLink');
           return !!a && a.getAttribute('aria-disabled') !== 'true';
-        }, { timeout: 30000 });
+        }, { timeout: 30000, polling: 250 });
       } catch (e2) { }
     }
 

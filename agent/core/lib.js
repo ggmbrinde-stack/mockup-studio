@@ -63,11 +63,19 @@ function parseArgs(argv) {
 /* Flags shared by every Chrome this extension starts. The translate bubble is
    switched off so it never covers the page, and the crash-restore bubble is
    suppressed because a cancelled run can leave the profile marked as crashed. */
+/* The batch opens several pages in one headless Chrome. Chrome throttles
+   background renderers (requestAnimationFrame stops, timers drop to once a
+   second), and puppeteer's waitForFunction polls with rAF by default - so every
+   page except the active one sat still until its wait timed out. That is the
+   "second item stalls while the first finishes" batch hang. */
 const COMMON_ARGS = [
   '--no-first-run',
   '--no-default-browser-check',
   '--hide-crash-restore-bubble',
-  '--disable-features=Translate,TranslateUI,MediaRouter'
+  '--disable-features=Translate,TranslateUI,MediaRouter',
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding'
 ];
 
 /* A hard-killed Chrome writes exit_type "Crashed" into the profile. Chrome then

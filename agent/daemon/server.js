@@ -151,15 +151,20 @@ async function main() {
       }
       if (req.method === 'POST' && url === '/run') {
         if (active >= maxWorkers) return send(res, 503, makeRunError('daemon busy'));
-        const job = await readJson(req);
-        const statusPath = job.status || job.statusPath;
-        if (!job.png || !job.out || !job.profile || !statusPath) {
+        // Reserve the slot BEFORE awaiting the body. Two items starting together both
+        // passed this check when it sat after the await, so a 2-worker daemon could run
+        // three jobs and every later admission decision was off by one.
+        active++;
+        let job;
+        try { job = await readJson(req); } catch (e) { active--; return send(res, 400, makeRunError('unreadable job body')); }
+        const statusPath = job && (job.status || job.statusPath);
+        if (!job || !job.png || !job.out || !job.profile || !statusPath) {
+          active--;
           return send(res, 400, makeRunError('missing --png/--out/--profile/--status'));
         }
-        // Claim a slot and acknowledge immediately. runJob runs in background and
-        // writes progress/result to statusPath (panel/run.js poll that file). This
-        // avoids long-held HTTP connections and stuck run.js processes in parallel batches.
-        active++;
+        // Acknowledge immediately. runJob runs in background and writes progress/result
+        // to statusPath (panel/run.js poll that file). This avoids long-held HTTP
+        // connections and stuck run.js processes in parallel batches.
         if (idleTimer) { try { clearTimeout(idleTimer); } catch (e) {} idleTimer = null; }
         try { writeStatus(statusPath, { state: 'launching', message: 'Accepted by warm Chrome daemon…', time: Date.now(), pid: process.pid, browserPid: browser && browser.process ? browser.process().pid : null, viaDaemon: true, warm: true }); } catch (e) {}
         send(res, 202, { state: 'accepted', accepted: true, viaDaemon: true, pid: process.pid });
