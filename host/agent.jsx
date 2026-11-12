@@ -12,6 +12,8 @@ VB.agentPaths = function () {
     agent: ext + "/agent",
     run: ext + "/agent/run.js",
     login: ext + "/agent/login.js",
+    autologin: ext + "/agent/autologin.js",
+    adminConfig: ext + "/js/admin-config.js",
     profile: bridge + "/vectorizer-profile",
     out: bridge + "/agent-downloads",
     status: bridge + "/agent-status.json",
@@ -89,7 +91,9 @@ VB.agentStart = function (mode, pngPath, extra) {
     VB.ensureFolder(p.profile); VB.ensureFolder(p.out); VB.ensureFolder(p.debug); VB.ensureFolder(p.work);
 
     var node = VB.getNodeExe();
-    var script = (mode === "login") ? p.login : p.run;
+    var script = p.run;
+    if (mode === "login") script = p.login;
+    else if (mode === "autologin") script = p.autologin;
     var scriptFile = new File(script);
     if (!scriptFile.exists) return "error: agent script not found: " + script;
 
@@ -121,12 +125,12 @@ VB.agentStart = function (mode, pngPath, extra) {
         if (statusFile.open("w")) { statusFile.write('{"time":' + (new Date().getTime()) + ',"state":"starting"}'); statusFile.close(); }
         else if (statusFile.exists) { statusFile.remove(); }
       } catch (eStatus) { try { if (statusFile.exists) statusFile.remove(); } catch (eStatus2) { } }
-    } else if (mode !== "login" && mode.indexOf("daemon-") !== 0) {
+    } else if (mode !== "login" && mode !== "autologin" && mode.indexOf("daemon-") !== 0) {
       var statusFile0 = new File(p.status);
       try { if (statusFile0.exists) statusFile0.remove(); } catch (eS0) {}
     }
 
-    if (mode === "login") {
+    if (mode === "login" || mode === "autologin") {
       try {
         var di = VB.readTextFile(p.work + "/agent-daemon.json");
         if (di) {
@@ -147,6 +151,9 @@ VB.agentStart = function (mode, pngPath, extra) {
     var args = [];
     if (mode === "login") {
       args.push(VB.quote(script)); args.push("--profile " + VB.quote(p.profile)); args.push("--status " + VB.quote(p.status)); args.push("--window app");
+    } else if (mode === "autologin") {
+      args.push(VB.quote(script)); args.push("--profile " + VB.quote(p.profile)); args.push("--status " + VB.quote(p.status));
+      args.push("--config " + VB.quote(p.adminConfig));
     } else if (mode === "daemon-start" || mode === "daemon-stop" || mode === "daemon-status") {
       var ctl = p.agent + "/daemon-ctl.js"; var ctlFile = new File(ctl);
       if (!ctlFile.exists) return "error: daemon-ctl not found: " + ctl;

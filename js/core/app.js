@@ -109,8 +109,28 @@
     if (VB.bridge && VB.bridge.logToHost) VB.bridge.logToHost(text);
   }
 
+  /* js/admin-config.js lets an installer pre-set the panel. Its defaults are applied first
+     and the user's own saved settings override them, so an untouched setting keeps following
+     the admin's file across updates while anything the user changed stays theirs. */
+  function applyAdminDefaults() {
+    var admin = window.VBADMIN && window.VBADMIN.defaults;
+    if (!admin || typeof admin !== "object") return;
+    if (admin.pngLongSide !== undefined) {
+      var png = parseInt(admin.pngLongSide, 10);
+      if (isFinite(png)) state.settings.pngLongSide = png;
+    }
+    if (admin.hideOriginal !== undefined) state.settings.hideOriginal = !!admin.hideOriginal;
+    if (admin.warmDaemon !== undefined) state.settings.warmDaemon = !!admin.warmDaemon;
+    if (admin.batchWorkers !== undefined) {
+      var bw = parseInt(admin.batchWorkers, 10);
+      if (isFinite(bw) && bw >= 1) state.settings.batchWorkers = bw;
+    }
+    if (admin.lang === "pt" || admin.lang === "en") state.lang = admin.lang;
+  }
+
   function loadSettings() {
     try {
+      applyAdminDefaults();
       var raw = localStorage.getItem("vb_settings");
       if (raw) {
         var s = JSON.parse(raw);

@@ -127,6 +127,9 @@ window.LOCALES.pt = {
   setupSignInText: "Abre-se uma janela normal do Chrome. Inicie sessão e feche-a. A sessão fica em Documents/VectorizerBridge, por isso só precisa de o fazer uma vez.",
   setupSignInStatus: "À espera da janela de sessão…",
 
+  setupAutoSignIn: "A iniciar sessão com a conta do estúdio…",
+  setupAutoOk: "Sessão iniciada. Não é preciso mais nada.",
+  setupAutoFailed: "O início de sessão automático não funcionou aqui. Use o botão acima para iniciar sessão uma vez.",
   setupDefaultsTitle: "Predefinições",
   setupDefaultsText: "Pode alterar tudo mais tarde em Ajustes.",
   setupBack: "Voltar",

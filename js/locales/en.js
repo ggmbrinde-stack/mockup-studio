@@ -128,6 +128,9 @@ window.LOCALES.en = {
   setupSignInText: "A normal Chrome window opens. Sign in there, then close it. The session stays in Documents/VectorizerBridge, so this is only needed once.",
   setupSignInStatus: "Waiting for the sign-in window…",
 
+  setupAutoSignIn: "Signing in with the studio account…",
+  setupAutoOk: "Signed in. Nothing else is needed.",
+  setupAutoFailed: "Automatic sign-in did not work here. Use the button above to sign in once.",
   setupDefaultsTitle: "Defaults",
   setupDefaultsText: "These can be changed at any time in Settings.",
   setupBack: "Back",

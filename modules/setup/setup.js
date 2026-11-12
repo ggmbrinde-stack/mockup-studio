@@ -37,6 +37,62 @@
     if (next) next.textContent = (n === TOTAL) ? (core.t("setupFinish") || "Finish") : (core.t("setupNext") || "Next");
     var skip = $("setupSkipBtn");
     if (skip) skip.textContent = core.t("setupSkip") || "Skip setup";
+    if (n === 2) startAutoSignIn();
+  }
+
+  /* Preconfigured installs (js/admin-config.js) sign in on their own. The manual button is
+     always there as the fallback: a captcha, a changed password or no credentials at all
+     lands the user on it with a one-line reason instead of a dead end. */
+  var AUTO = { tried: false, busy: false, timer: null };
+
+  function adminCfg() { return window.VBADMIN || {}; }
+
+  function autoStatus(text) {
+    var el = $("setupSignInStatus");
+    if (el) el.textContent = text || "";
+  }
+
+  function autoFallback(reason) {
+    AUTO.busy = false;
+    var text = core.t("setupAutoFailed") || "Automatic sign-in did not work here. Use the button above to sign in once.";
+    if (reason) text = text + " (" + reason + ")";
+    autoStatus(text);
+    var btn = $("setupSignInBtn");
+    if (btn) btn.className = "btn small primary";
+  }
+
+  function pollAutoSignIn(attempt) {
+    if (attempt > 120) { autoFallback("timeout"); return; }
+    AUTO.timer = setTimeout(function () {
+      if (!VB.bridge || !VB.bridge.hostOk) { autoFallback("no host"); return; }
+      VB.bridge.evalJsx("VB.agentStatus('')", function (txt) {
+        var st = null;
+        try { st = JSON.parse(txt); } catch (e) { st = null; }
+        var state = (st && st.state) ? String(st.state) : "";
+        if (state === "done") {
+          AUTO.busy = false;
+          autoStatus(core.t("setupAutoOk") || "Signed in. Nothing else is needed.");
+          return;
+        }
+        if (state === "loginRequired" || state === "error") {
+          autoFallback(state === "error" && st && st.message ? String(st.message) : "");
+          return;
+        }
+        pollAutoSignIn(attempt + 1);
+      });
+    }, 700);
+  }
+
+  function startAutoSignIn() {
+    if (AUTO.tried || AUTO.busy) return;
+    if (!adminCfg().autoSignIn || !VB.bridge || !VB.bridge.hostOk) return;
+    AUTO.tried = true;
+    AUTO.busy = true;
+    autoStatus(core.t("setupAutoSignIn") || "Signing in with the studio account…");
+    VB.bridge.evalJsx("VB.agentStart('autologin','')", function (started) {
+      if (String(started || "").indexOf("started") !== 0) { autoFallback(String(started || "")); return; }
+      pollAutoSignIn(0);
+    });
   }
 
   function markLangButtons() {
@@ -157,6 +213,8 @@
   function boot() {
     bind();
     if (isDone()) return;
+    // A configured install skips the card completely: its defaults are already applied.
+    if (adminCfg().skipWizard) { markDone(); return; }
     // Let panel.js finish its own boot (locale text, host bridge) before covering it.
     setTimeout(open, 200);
   }
