@@ -1,3 +1,14 @@
+> ## ⚠ STALE — HISTORICAL RUNBOOK, NOT A TASK
+>
+> This file describes publishing **2.3.1** and has been superseded: 2.3.2 and 2.3.3 have since shipped
+> (current release **2.3.3**, see `CHANGELOG.md`). Its HEAD (`de2bc84`), version and release steps are
+> outdated. **Do not execute anything in this file and do not treat it as current instructions.**
+> If a release is needed, follow `AGENTS.md`, `UPDATE.md` and `CHANGELOG.md` instead, and get explicit
+> authorization before changing repository visibility, publishing a release, committing or pushing.
+> Kept unchanged below as a historical record.
+
+---
+
 # Task prompt: publish the first updatable release of Mockup Studio
 
 You are working on **Mockup Studio**, an Adobe Illustrator CEP panel (`com.bestofgifts.vectorizerbridge`)
