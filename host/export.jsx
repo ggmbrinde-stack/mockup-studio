@@ -72,19 +72,18 @@ VB.exportSelection = function (pngLongSide) {
 
     var exportOpts = new ExportOptionsPNG24();
     exportOpts.antiAliasing = true; exportOpts.transparency = true; exportOpts.artBoardClipping = true;
-    var longSidePts = Math.max(tempUnion.width, tempUnion.height);
-    var resolution = (pngLongSide === 0) ? 72 : Math.round(pngLongSide / Math.max(longSidePts / 72, 0.01));
-    if (!isFinite(resolution) || resolution < 1) resolution = 72;
-    if (resolution > 2400) resolution = 2400;
-    exportOpts.resolution = resolution;
+    // Same pixel budget as the batch export: never hand vectorizer.ai more than it accepts.
+    var fit = VB.exportResolution(pngLongSide, tempUnion.width, tempUnion.height);
+    exportOpts.resolution = fit.resolution;
     tempDoc.exportFile(pngFile, ExportType.PNG24, exportOpts);
     if (!pngFile.exists || pngFile.length < 10) return VB.toJSON({ ok: false, error: "exportFailed" });
+    VB.log("exportSelection resolution=" + fit.resolution + " px=" + fit.pixels + (fit.capped ? " (capped)" : ""));
 
     VB._originalItems = sel;
     VB._exportDocFullName = docFullName;
     VB._exportDocName = docName;
     VB.log("exportSelection done: " + pngFile.fsName);
-    return VB.toJSON({ ok: true, pngPath: pngFile.fsName, bounds: bounds, union: union, docFullName: docFullName, docName: docName, width: union.width, height: union.height, resolution: resolution });
+    return VB.toJSON({ ok: true, pngPath: pngFile.fsName, bounds: bounds, union: union, docFullName: docFullName, docName: docName, width: union.width, height: union.height, resolution: fit.resolution, megapixels: fit.megapixels || 0, pixelCapped: !!fit.capped });
   } catch (e) {
     VB.log("exportSelection error: " + e);
     return VB.toJSON({ ok: false, error: String(e) });

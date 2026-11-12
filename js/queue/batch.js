@@ -106,6 +106,7 @@
       var r = bridge.parseResult(result);
       j.exportMs = Date.now() - exportT0;
       if (!r.ok) return batchFailJob(j, (r.error || '') + ' - ' + bridge.friendlyError(r.error), token);
+      if (r.pixelCapped) core.log('Item #' + (j.index + 1) + ': PNG reduced to ' + (r.megapixels || '?') + ' MP to fit the site input limit.');
       j.union = r.union || null; j.pngPath = r.pngPath || '';
       j.docFullName = r.docFullName || b.docFullName || ''; j.docName = r.docName || b.docName || '';
       j.jobId = r.jobId || b.jobId || '';

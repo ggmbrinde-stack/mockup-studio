@@ -1,5 +1,15 @@
 # Changelog — Mockup Studio
 
+## 2.3.10 — 2026-11-12
+
+### Fixed
+- **Oversized artwork no longer dead-ends a run.** With PNG size on *Original (1 px/pt)*, a large canvas was exported at one pixel per point: a 10 631 × 10 715 pt artwork became a **108.6 MP** PNG. vectorizer.ai stops at 3 megapixels and 30 MB and answers a bigger upload with its pre-crop dialog instead of vectorizing, so the panel waited out its timeout and reported “Download link not found”. The export is now budgeted in **pixels**: 2,097,252 px (the engine's own default, below the 3,145,728 hard limit), still under the 2400 dpi ceiling, and the PNG is re-exported smaller if it lands above 28 MB. The panel logs when an item was reduced, and to what.
+- **A pre-crop dialog is accepted** if it still appears (an older PNG, unusual art), so the run continues with the reduced image rather than hanging. If no download follows, the error now says the image was above the limit instead of “Download link not found”.
+- **The result wait is 240 s instead of 120 s.** vectorizer.ai asks clients for an idle timeout of at least 180 s, so the old cap could abandon a trace that was still running.
+
+### Changed
+- The host test suite loads `core.jsx` for the export tests, matching the order the panel actually uses.
+
 ## 2.3.9 — 2026-11-12
 
 ### Fixed

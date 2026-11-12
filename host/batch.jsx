@@ -238,21 +238,30 @@ VB.exportBatchItem = function (index, pngLongSide) {
     exportOpts.antiAliasing = true;
     exportOpts.transparency = true;
     exportOpts.artBoardClipping = true;
-    var longSidePts = Math.max(tempUnion.width, tempUnion.height);
-    var resolution = 72;
-    if (size === 0) resolution = 72;
-    else { var longSideInches = longSidePts / 72; resolution = longSideInches > 0 ? Math.round(size / longSideInches) : 72; }
-    if (!isFinite(resolution) || resolution < 1) resolution = 72;
-    if (resolution > 2400) resolution = 2400;
-    exportOpts.resolution = resolution;
+    // Budget the export in pixels, not only in long side: "Original (1 px/pt)" on a large
+    // artboard used to produce a 100+ megapixel PNG that vectorizer.ai will not vectorize
+    // (it opens its pre-crop size dialog instead, and the item ends as "no download").
+    var fit = VB.exportResolution(size, tempUnion.width, tempUnion.height);
+    exportOpts.resolution = fit.resolution;
     tempDoc.exportFile(pngFile, ExportType.PNG24, exportOpts);
     if (!pngFile.exists || pngFile.length < 10) return VB.toJSON({ ok: false, error: "exportFailed" });
+    // A 3 megapixel PNG can still be large if it is noisy; the site's limit is 30 MB.
+    var byteGuard = 0;
+    while (pngFile.length > VB.MAX_INPUT_BYTES && fit.resolution > 8 && byteGuard < 3) {
+      byteGuard++;
+      fit.resolution = Math.max(8, Math.floor(fit.resolution * 0.7));
+      exportOpts.resolution = fit.resolution;
+      try { pngFile.remove(); } catch (rmE) { }
+      tempDoc.exportFile(pngFile, ExportType.PNG24, exportOpts);
+    }
+    if (!pngFile.exists || pngFile.length < 10) return VB.toJSON({ ok: false, error: "exportFailed" });
+    VB.log("exportBatchItem " + index + " resolution=" + fit.resolution + " px=" + fit.pixels + (fit.capped ? " (capped by " + VB.MAX_INPUT_PIXELS + " px budget)" : ""));
 
     VB._currentOriginalItem = src;
     VB._exportDocFullName = docFullName;
     VB._exportDocName = docName;
     VB.log("exportBatchItem " + index + " done (" + src.typename + "): " + pngFile.fsName);
-    return VB.toJSON({ ok: true, pngPath: pngFile.fsName, union: union, docFullName: docFullName, docName: docName, index: index, jobId: String(batch.jobId||""), resolution: resolution });
+    return VB.toJSON({ ok: true, pngPath: pngFile.fsName, union: union, docFullName: docFullName, docName: docName, index: index, jobId: String(batch.jobId||""), resolution: fit.resolution, megapixels: fit.megapixels || 0, pixelCapped: !!fit.capped });
   } catch (e) {
     VB.log("exportBatchItem error: " + e);
     return VB.toJSON({ ok: false, error: String(e) });

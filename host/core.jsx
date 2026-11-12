@@ -288,6 +288,47 @@ VB.unionBounds = function (bounds) {
   return { left: minL, top: maxT, width: maxR - minL, height: maxT - minB };
 };
 
+/* vectorizer.ai hard-stops at 3 megapixels (3,145,728 px) and 30 MB per file: a larger
+   upload opens its pre-crop "image too large" dialog instead of vectorizing, which looks
+   like a hang and ends as "Download link not found". It also resamples anything above its
+   engine default of 2,097,252 px before tracing, so exporting more than that costs time
+   and bytes for pixels that are thrown away. Budget for the 2 MP default. */
+VB.MAX_INPUT_PIXELS = 2097252;
+VB.SITE_HARD_MAX_PIXELS = 3145728;
+VB.MAX_INPUT_BYTES = 28 * 1024 * 1024;
+
+/* Resolution (dpi) for an artboard of widthPts x heightPts, for a requested
+   long-side size in pixels (0 = one pixel per point, i.e. "original").
+   Returns the dpi to export at plus what it will cost, and whether the pixel
+   budget - not the requested size - is what decided it. */
+VB.exportResolution = function (size, widthPts, heightPts) {
+  var w = Number(widthPts);
+  var h = Number(heightPts);
+  if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) {
+    return { resolution: 72, pixels: 0, capped: false, requestedDpi: 72 };
+  }
+  var longPts = Math.max(w, h);
+  var requested = Number(size);
+  var targetLong = (requested === 0 || !isFinite(requested) || requested <= 0) ? longPts : requested;
+  var pxPerPt = targetLong / longPts;
+  var dpiCeiling = 2400 / 72;
+  if (pxPerPt > dpiCeiling) pxPerPt = dpiCeiling;
+  var requestedDpi = Math.floor(pxPerPt * 72);
+  var byPixels = Math.sqrt(VB.MAX_INPUT_PIXELS / (w * h));
+  var capped = false;
+  if (pxPerPt > byPixels) { pxPerPt = byPixels; capped = true; }
+  var resolution = Math.floor(pxPerPt * 72);
+  if (!isFinite(resolution) || resolution < 1) resolution = 1;
+  var pixels = Math.round(w * resolution / 72) * Math.round(h * resolution / 72);
+  return {
+    resolution: resolution,
+    pixels: pixels,
+    megapixels: Math.round((pixels / 1000000) * 100) / 100,
+    capped: capped,
+    requestedDpi: requestedDpi
+  };
+};
+
 /* Fit a temporary document's artboard to a rect (no padding).
    Returns true on success so the caller can abort instead of exporting a
    PNG clipped to the wrong (default) artboard. */

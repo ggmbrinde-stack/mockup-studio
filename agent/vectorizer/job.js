@@ -62,6 +62,28 @@ function makeRunError(message) {
   return { state: 'error', message: String(message || 'unknown error') };
 }
 
+/* vectorizer.ai answers an upload above its input limit (3 megapixels / 30 MB) with a
+   pre-crop dialog offering to reduce the image, not with a vectorization. Left alone it
+   blocks forever, which is how a run ends as "Download link not found" minutes later.
+   Accept the reduction: a reduced result beats a dead run. */
+async function acceptSizeDialog(page) {
+  try {
+    return await page.evaluate(() => {
+      const text = el => (el && el.innerText) ? el.innerText : '';
+      const boxes = Array.from(document.querySelectorAll('div,section,aside,form'))
+        .filter(el => el.offsetParent && /megapixel|megapíxel|size limit|limite de tamanho/i.test(text(el)));
+      for (const box of boxes) {
+        const buttons = Array.from(box.querySelectorAll('button,[role="button"]'));
+        const ok = buttons.find(b => /^\s*(ok|okay|confirm|confirmar)\s*$/i.test((b.innerText || b.textContent || '').trim()));
+        if (ok) { ok.click(); return true; }
+      }
+      return false;
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
 async function runJob(opts) {
   const png = opts.png;
   const outDir = opts.out;
@@ -132,6 +154,17 @@ async function runJob(opts) {
     const input = await page.$('#FileInput-Field');
     await input.uploadFile(png);
 
+    // Give the site a moment to complain about the size and accept its reduction.
+    let sizeDialog = false;
+    for (let i = 0; i < 10 && !sizeDialog; i++) {
+      sizeDialog = await acceptSizeDialog(page);
+      if (!sizeDialog) await sleep(300);
+    }
+    if (sizeDialog) {
+      console.error('accepted the site size dialog: the upload was above its input limit');
+      await saveShot(page, debugDir, 'size-dialog.png');
+    }
+
     writeStatus(statusPath, { state: 'vectorizing' });
     try {
       // polling: background pages get no requestAnimationFrame, so the default
@@ -143,7 +176,9 @@ async function runJob(opts) {
         if (lightbox && lightbox.offsetParent !== null) return false;
         const a = document.querySelector('.App-downloadLink');
         return !!a && /^\/images\/[^/#]+/.test((a.getAttribute('href') || '').split('#')[0]);
-      }, { timeout: Math.min(120000, Math.max(30000, timeout - 5000)), polling: 250 });
+        // vectorizer.ai asks clients for an idle timeout of at least 180s; 120s used to
+        // abort traces that were still running (reported afterwards as "no download").
+      }, { timeout: Math.min(240000, Math.max(60000, timeout - 5000)), polling: 250 });
     } catch (e) {
       try {
         await page.waitForFunction(() => {
@@ -184,7 +219,15 @@ async function runJob(opts) {
         });
       } catch (e) { link = null; }
     }
-    if (!link) { const err = { state: 'error', message: 'Download link not found.' }; writeStatus(statusPath, err); return err; }
+    if (!link) {
+      const err = {
+        state: 'error',
+        message: sizeDialog
+          ? 'The image was above vectorizer.ai\'s size limit. It was reduced to fit, but no download appeared - try a smaller PNG size in Settings.'
+          : 'Download link not found.'
+      };
+      writeStatus(statusPath, err); return err;
+    }
 
     let target = link;
     try { target = new URL(link, SITE).href; } catch (e) { }
