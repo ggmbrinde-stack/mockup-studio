@@ -2,6 +2,11 @@
    The email is stored as-is (it is not a secret and should be copyable straight away);
    the password is encrypted with AES-GCM under a key derived from a passcode the user
    chooses, so reading it requires the passcode. The passcode itself is never stored.
+
+   The passcode never leaves this panel: it is typed here, stretched with PBKDF2 and used
+   to open the blob. Repeated wrong passcodes are throttled, and the throttle survives a
+   panel reload, so guessing at the keyboard is slow as well as offline guessing.
+
    Only WebCrypto is used, no dependencies: CEP loads the panel from file://, which
    Chromium treats as a secure context. */
 (function () {
@@ -11,14 +16,25 @@
   var vault = VB.vault = VB.vault || {};
 
   var STORE = "vb_login_vault";
-  var ITERATIONS = 200000;
-  var MIN_PASSCODE = 4;
+  var GUARD = "vb_login_vault_guard";
+  var ITERATIONS = 600000;     // stored per blob, so raising it later keeps old saves readable
+  var LEGACY_ITERATIONS = 200000;
+  var MIN_PASSCODE = 8;
+  var FREE_TRIES = 3;          // wrong passcodes before a wait
+  var BASE_WAIT = 5;           // seconds for the first wait, doubling up to MAX_WAIT
+  var MAX_WAIT = 300;
 
   var secret = null;   // { password: "..." } while unlocked, memory only
   var editing = false;
   var busy = false;
+  var ticker = null;
 
   function $(id) { return document.getElementById(id); }
+  function fmt(key, vars) {
+    var s = core.t(key) || "";
+    for (var k in vars) if (vars.hasOwnProperty(k)) s = s.replace("{" + k + "}", String(vars[k]));
+    return s;
+  }
   function msg(text, bad) {
     var el = $("vaultMsg");
     if (!el) return;
@@ -56,14 +72,32 @@
     catch (e) { return false; }
   }
 
+  /* Wrong-passcode throttle, persisted so closing the panel does not reset it. */
+  function readGuard() {
+    try {
+      var d = JSON.parse(localStorage.getItem(GUARD) || "null");
+      if (!d || typeof d !== "object") return { fail: 0, until: 0 };
+      return { fail: parseInt(d.fail, 10) || 0, until: parseInt(d.until, 10) || 0 };
+    } catch (e) { return { fail: 0, until: 0 }; }
+  }
+  function writeGuard(g) {
+    try { localStorage.setItem(GUARD, JSON.stringify(g)); } catch (e) { }
+  }
+  function clearGuard() {
+    try { localStorage.removeItem(GUARD); } catch (e) { }
+  }
+  function waitSeconds(g) {
+    return Math.max(0, Math.ceil((g.until - Date.now()) / 1000));
+  }
+
   /* PBKDF2-SHA256 -> AES-GCM 256. The salt is random per save, so two users with the
      same passcode never share a key. */
-  function deriveKey(passcode, salt) {
+  function deriveKey(passcode, salt, iterations) {
     var enc = new TextEncoder();
     return window.crypto.subtle.importKey("raw", enc.encode(passcode), "PBKDF2", false, ["deriveKey"])
       .then(function (base) {
         return window.crypto.subtle.deriveKey(
-          { name: "PBKDF2", salt: salt, iterations: ITERATIONS, hash: "SHA-256" },
+          { name: "PBKDF2", salt: salt, iterations: iterations, hash: "SHA-256" },
           base,
           { name: "AES-GCM", length: 256 },
           false,
@@ -75,17 +109,45 @@
   function encryptPassword(passcode, password) {
     var salt = window.crypto.getRandomValues(new Uint8Array(16));
     var iv = window.crypto.getRandomValues(new Uint8Array(12));
-    return deriveKey(passcode, salt).then(function (key) {
+    return deriveKey(passcode, salt, ITERATIONS).then(function (key) {
       return window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, new TextEncoder().encode(password));
     }).then(function (ct) {
-      return { salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+      return { salt: b64(salt), iv: b64(iv), ct: b64(ct), iter: ITERATIONS };
     });
   }
 
   function decryptPassword(passcode, data) {
-    return deriveKey(passcode, unb64(data.salt)).then(function (key) {
+    var iterations = parseInt(data.iter, 10) || LEGACY_ITERATIONS;
+    return deriveKey(passcode, unb64(data.salt), iterations).then(function (key) {
       return window.crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(data.iv) }, key, unb64(data.ct));
     }).then(function (plain) { return new TextDecoder().decode(plain); });
+  }
+
+  /* While a wait is running the unlock controls stay disabled and count down, so the
+     throttle is visible instead of just a message that can be ignored. */
+  function stopTicker() {
+    if (ticker) { clearInterval(ticker); ticker = null; }
+  }
+  function applyCooldown() {
+    var btn = $("vaultUnlockBtn");
+    var input = $("vaultPasscode");
+    var g = readGuard();
+    var left = waitSeconds(g);
+    if (left <= 0) {
+      stopTicker();
+      if (btn) { btn.disabled = false; btn.textContent = core.t("vaultUnlock") || "Unlock"; }
+      if (input) input.disabled = false;
+      return false;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = fmt("vaultWaitBtn", { seconds: left }); }
+    if (input) input.disabled = true;
+    if (!ticker) {
+      ticker = setInterval(function () {
+        if (waitSeconds(readGuard()) <= 0) { stopTicker(); applyCooldown(); render(); }
+        else applyCooldown();
+      }, 500);
+    }
+    return true;
   }
 
   function render() {
@@ -129,6 +191,7 @@
     if (passSet) passSet.placeholder = core.t(has ? "vaultPasscodeChange" : "vaultPasscodePlaceholder") || "";
     var copyPass = $("vaultCopyPassBtn");
     if (copyPass) copyPass.disabled = !has;
+    if (!secret && unlockRow && !unlockRow.hidden) applyCooldown();
     if (!cryptoOk() && !has) {
       msg(core.t("vaultUnavailable") || "This panel cannot store a login securely (no WebCrypto).", true);
     }
@@ -176,7 +239,7 @@
       return;
     }
     if (passcode.length < MIN_PASSCODE) {
-      msg((core.t("vaultPassShort") || "Use at least 4 characters."), true);
+      msg(fmt("vaultPassShort", { min: MIN_PASSCODE }), true);
       return;
     }
     var has = !!readStore();
@@ -186,7 +249,7 @@
     }
     busy = true;
     encryptPassword(passcode, password).then(function (blob) {
-      var ok = writeStore({ v: 1, email: email, salt: blob.salt, iv: blob.iv, ct: blob.ct });
+      var ok = writeStore({ v: 1, email: email, salt: blob.salt, iv: blob.iv, ct: blob.ct, iter: blob.iter });
       busy = false;
       if (!ok) {
         msg(core.t("vaultStoreFailed") || "Could not save: panel storage is disabled.", true);
@@ -196,6 +259,7 @@
       // even the person who just typed it has to enter the passcode to read it back.
       secret = null;
       editing = false;
+      clearGuard();
       clearInputs();
       render();
       msg(core.t("vaultSavedMsg") || "Login saved. The password stays locked until you type the passcode.", false);
@@ -208,6 +272,13 @@
   function unlock() {
     var data = readStore();
     if (!data) return;
+    var guard = readGuard();
+    var left = waitSeconds(guard);
+    if (left > 0) {
+      msg(fmt("vaultCool", { seconds: left }), true);
+      applyCooldown();
+      return;
+    }
     var passcode = ($("vaultPasscode") || {}).value || "";
     if (!passcode) {
       msg(core.t("vaultNeedPasscode") || "Type the passcode to unlock the password.", true);
@@ -217,6 +288,7 @@
     busy = true;
     decryptPassword(passcode, data).then(function (password) {
       busy = false;
+      clearGuard();
       secret = { password: password };
       var input = $("vaultPasscode");
       if (input) input.value = "";
@@ -225,7 +297,20 @@
     }, function () {
       busy = false;
       // AES-GCM authenticates, so a wrong passcode and a tampered blob look the same.
-      msg(core.t("vaultWrong") || "Wrong passcode.", true);
+      var g = readGuard();
+      g.fail = (g.fail || 0) + 1;
+      if (g.fail >= FREE_TRIES) {
+        var wait = Math.min(MAX_WAIT, BASE_WAIT * Math.pow(2, g.fail - FREE_TRIES));
+        g.until = Date.now() + wait * 1000;
+        writeGuard(g);
+        var input = $("vaultPasscode");
+        if (input) input.value = "";
+        applyCooldown();
+        msg(fmt("vaultCool", { seconds: waitSeconds(g) }), true);
+        return;
+      }
+      writeGuard(g);
+      msg(fmt("vaultWrongLeft", { tries: FREE_TRIES - g.fail, s: (FREE_TRIES - g.fail) === 1 ? "" : "s" }), true);
     });
   }
 
@@ -241,6 +326,7 @@
     try { localStorage.removeItem(STORE); } catch (e) { }
     secret = null;
     editing = false;
+    clearGuard();
     clearInputs();
     render();
     msg(core.t("vaultForgot") || "Saved login deleted.", false);
