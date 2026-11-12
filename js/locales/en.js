@@ -180,7 +180,9 @@ window.LOCALES.en = {
     vxNativeShapes: "Keep native shapes (circles, rectangles, stars)",
     vxGapFiller: "Fill gaps between shapes",
     vxStrokeFixed: "Fixed stroke width",
-    vxFixedSize: "Fix the SVG size"
+    vxFixedSize: "Fix the SVG size",
+    errorBatchChanged: "Another window started a batch. Run this one again.",
+    errorBatchItemInvalid: "That object is gone from the document; it was skipped."
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.en);

@@ -10,6 +10,10 @@ VB.prepareBatch = function (pngLongSide) {
       if (pngLongSide > 5000) pngLongSide = 5000;
     }
     if (app.documents.length === 0) return VB.toJSON({ ok: false, error: "noDocument" });
+    /* Clear markers left by a previous run before tagging this one: a cancelled or
+       crashed batch never reached the end, and its notes would otherwise stay
+       prefixed (and pile up) forever. */
+    try { VB.restoreBatchNotes(); } catch (rbE) { }
     var doc = app.activeDocument;
     if (!VB.isDocEditable(doc)) return VB.toJSON({ ok: false, error: "documentLocked" });
     var sel = doc.selection;
@@ -39,9 +43,21 @@ VB.prepareBatch = function (pngLongSide) {
         var marker = "VB_BATCH=" + jobId + ":" + refs.length;
         var oldNote = "";
         try { oldNote = String(it.note || ""); } catch (nE) { oldNote = ""; }
-        if (oldNote.indexOf("VB_BATCH=" + jobId + ":") === 0) marker = oldNote;
-        else {
-          try { it.note = marker + (oldNote && oldNote.indexOf("VB_BATCH=") !== 0 ? ("|" + oldNote) : ""); } catch (snE) {}
+        /* Peel off markers from earlier batches so the note neither grows one
+           "VB_BATCH=job:i|" prefix per run nor leaks our bookkeeping into a field
+           the user and other scripts own. The clean text is put back by
+           VB.restoreBatchNotes(). */
+        var originalNote = oldNote;
+        while (originalNote.indexOf("VB_BATCH=") === 0) {
+          var pipe = originalNote.indexOf("|");
+          if (pipe < 0) { originalNote = ""; break; }
+          originalNote = originalNote.substring(pipe + 1);
+        }
+        if (oldNote.indexOf("VB_BATCH=" + jobId + ":") === 0) {
+          var headEnd = oldNote.indexOf("|");
+          marker = headEnd >= 0 ? oldNote.substring(0, headEnd) : oldNote;
+        } else {
+          try { it.note = marker + (originalNote ? ("|" + originalNote) : ""); } catch (snE) {}
           try { var tg = it.tags.add(); tg.name = "VB_BATCH"; tg.value = marker; } catch (tgE) {}
         }
         if (seen[marker]) { if (VB.debug) VB.log("prepareBatch: item " + i + " dup marker"); continue; }
@@ -53,7 +69,7 @@ VB.prepareBatch = function (pngLongSide) {
           continue;
         }
         refs.push(it);
-        meta.push({ marker: marker, noteHad: (oldNote.indexOf("VB_BATCH=") !== 0) ? oldNote : "" });
+        meta.push({ marker: marker, noteHad: originalNote });
         items.push({ index: refs.length - 1, typename: it.typename, width: box.width, height: box.height, id: marker });
       } catch (e) { VB.log("prepareBatch skip item " + i + ": " + e); }
     }
@@ -109,6 +125,49 @@ VB._findBatchItemByTag = function (doc, jobId, index) {
   return null;
 };
 
+/* Put the user's own note text back once a batch is over. Called when the panel
+   finishes a batch and before the next one tags anything, so no run leaves its
+   bookkeeping in the document. */
+VB.restoreBatchNotes = function (jobId) {
+  var restored = 0;
+  try {
+    var jid = (jobId != null) ? String(jobId) : "";
+    var batch = VB._batch || {};
+    var meta = batch.meta || [];
+    var sameJob = !jid || String(batch.jobId || "") === jid;
+    var refs = VB._batchItems || [];
+    for (var i = 0; i < refs.length; i++) {
+      try {
+        var it = refs[i];
+        if (!it) continue;
+        var note = String(it.note || "");
+        if (note.indexOf("VB_BATCH=") !== 0) continue;
+        var pipe = note.indexOf("|");
+        var rest = pipe >= 0 ? note.substring(pipe + 1) : "";
+        var wanted = (sameJob && meta[i] && typeof meta[i].noteHad === "string") ? meta[i].noteHad : rest;
+        it.note = wanted;
+        restored++;
+      } catch (e) { }
+    }
+    /* After a panel reload _batchItems is gone but the document keeps the markers. */
+    if (app.documents.length > 0) {
+      var doc = app.activeDocument;
+      var all = doc.pageItems;
+      for (var k = 0; k < all.length; k++) {
+        try {
+          var p = all[k];
+          var pn = String(p.note || "");
+          if (pn.indexOf("VB_BATCH=") !== 0) continue;
+          var bar = pn.indexOf("|");
+          p.note = bar >= 0 ? pn.substring(bar + 1) : "";
+          restored++;
+        } catch (e2) { }
+      }
+    }
+  } catch (e3) { }
+  return VB.toJSON({ ok: true, restored: restored });
+};
+
 VB._usableBatchItem = function (it) {
   if (!it) return false;
   try { if (typeof it.isValid !== "undefined" && !it.isValid) { /* probe typename */ } } catch (e) {}
@@ -147,7 +206,10 @@ VB.resolveBatchOriginal = function (index, jobId, docFullName, docName) {
     return VB.toJSON({ ok: false, error: String(e) });
   }
 };
-VB.exportBatchItem = function (index, pngLongSide) {
+/* jobId is optional and comes from prepareBatch's reply. When the panel sends it,
+   an export belonging to another window's batch is refused instead of exporting
+   whatever that other batch happened to select. */
+VB.exportBatchItem = function (index, pngLongSide, jobId) {
   var tempDoc = null;
   var doc = null;
   var src = null;
@@ -156,6 +218,10 @@ VB.exportBatchItem = function (index, pngLongSide) {
     if (!isFinite(index) || index < 0) return VB.toJSON({ ok: false, error: "badArgs" });
     var batch = VB._batch || {};
     var refs = VB._batchItems || [];
+    if (jobId != null && String(jobId) !== "" && String(batch.jobId || "") !== String(jobId)) {
+      VB.log("exportBatchItem " + index + " refused: another batch started (" + batch.jobId + " != " + jobId + ")");
+      return VB.toJSON({ ok: false, error: "batchChanged" });
+    }
     src = refs[index] || null;
     if (app.documents.length === 0) return VB.toJSON({ ok: false, error: "noDocument" });
     doc = app.activeDocument;
@@ -192,9 +258,8 @@ VB.exportBatchItem = function (index, pngLongSide) {
         if (tagged[index] && usable(tagged[index])) src = tagged[index];
       } catch (te) {}
     }
-    if (!usable(src)) {
-      try { if (doc.selection && doc.selection.length === 1 && usable(doc.selection[0])) src = doc.selection[0]; } catch (se) {}
-    }
+    /* No "whatever is selected now" fallback: during a parallel batch that
+       exported an unrelated object and placed it over a different one, silently. */
     if (!usable(src)) {
       VB.log("exportBatchItem " + index + " cannot resolve source (job=" + batch.jobId + ")");
       return VB.toJSON({ ok: false, error: "batchItemInvalid" });

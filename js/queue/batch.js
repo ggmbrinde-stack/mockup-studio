@@ -48,6 +48,8 @@
     core.setDetail(detail || ('ok ' + b.ok + '/' + b.total + (b.failed ? (', failed ' + b.failed) : '') + (b.skipped ? (', skipped ' + b.skipped) : '')));
     core.addHistory(b.cancelled ? 'batchFailed' : 'batchPlaced', b.docName || '', !b.cancelled && b.failed === 0, msg);
     core.events.emit('batch:finished', { cancelled: !!b.cancelled, ok: b.ok, failed: b.failed, skipped: b.skipped, total: b.total, docName: b.docName || '' });
+    /* Give the document its own note text back; the batch markers were only for us. */
+    try { bridge.evalJsx('VB.restoreBatchNotes()', function () { }); } catch (e) { }
     core.state.batch = null;
     core.state.busy = false; core.state.waiting = false; core.state.runStartedAt = 0; core.state.exportMs = 0;
     core.updateButtons();
@@ -101,7 +103,8 @@
     core.state.busy = (b.active > 0); core.state.waiting = (b.active > 0); core.updateButtons();
     var size = parseInt(core.state.settings.pngLongSide, 10); if (!isFinite(size)) size = 1700;
     var exportT0 = Date.now();
-    bridge.evalJsx('VB.exportBatchItem(' + j.index + ',' + size + ')', function (result) {
+    /* The job id goes along so an export cannot be served from another window's batch. */
+    bridge.evalJsx('VB.exportBatchItem(' + j.index + ',' + size + ',' + core.jsxString(b.jobId || '') + ')', function (result) {
       if (token !== core.state.runToken || !core.state.batch || core.state.batch.cancelled) return;
       var r = bridge.parseResult(result);
       j.exportMs = Date.now() - exportT0;

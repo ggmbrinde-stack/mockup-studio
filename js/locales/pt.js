@@ -179,7 +179,9 @@ window.LOCALES.pt = {
     vxNativeShapes: "Manter formas nativas (círculos, retângulos, estrelas)",
     vxGapFiller: "Preencher lacunas entre formas",
     vxStrokeFixed: "Espessura do traço fixa",
-    vxFixedSize: "Fixar o tamanho do SVG"
+    vxFixedSize: "Fixar o tamanho do SVG",
+    errorBatchChanged: "Outra janela iniciou um lote. Execute este novamente.",
+    errorBatchItemInvalid: "Esse objeto já não existe no documento; foi ignorado."
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.pt);

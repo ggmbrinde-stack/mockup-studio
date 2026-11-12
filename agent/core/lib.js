@@ -2,6 +2,7 @@
    driven by the CEP panel. No network calls of its own: it only drives Chrome. */
 
 const fs = require('fs');
+const net = require('net');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 
@@ -95,11 +96,46 @@ function sanitizeProfile(profile) {
   } catch (e) { /* a missing or locked profile is not fatal */ }
 }
 
+/* A Chrome that was killed mid-run leaves its DevToolsActivePort behind, and puppeteer
+   then refuses to start with "The browser is already running for <profile>" - the whole
+   panel looked broken until that file was deleted by hand. If nothing is listening on
+   that port the file is stale, so clear it. A live browser is never touched. */
+function clearStaleBrowserLock(profile) {
+  return new Promise((resolve) => {
+    try {
+      const portFile = path.join(profile, 'DevToolsActivePort');
+      if (!fs.existsSync(portFile)) return resolve(false);
+      const port = parseInt(String(fs.readFileSync(portFile, 'utf8')).split(/\r?\n/)[0], 10);
+      if (!(port > 0)) {
+        try { fs.unlinkSync(portFile); } catch (e) { }
+        return resolve(true);
+      }
+      let settled = false;
+      const finish = (alive) => {
+        if (settled) return;
+        settled = true;
+        if (alive) return resolve(false);
+        try { fs.unlinkSync(portFile); } catch (e) { }
+        try { fs.unlinkSync(path.join(profile, 'lockfile')); } catch (e) { }
+        resolve(true);
+      };
+      const sock = net.connect({ host: '127.0.0.1', port });
+      sock.setTimeout(800);
+      sock.on('connect', () => { try { sock.destroy(); } catch (e) { } finish(true); });
+      sock.on('timeout', () => { try { sock.destroy(); } catch (e) { } finish(false); });
+      sock.on('error', () => finish(false));
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
 async function launch({ profile, headless }) {
   const executablePath = findBrowser();
   if (!executablePath) throw new Error('Chrome or Edge was not found');
 
   sanitizeProfile(profile);
+  await clearStaleBrowserLock(profile);
 
   const args = COMMON_ARGS.concat([
     '--disable-blink-features=AutomationControlled',
@@ -139,6 +175,7 @@ module.exports = {
   SITE,
   UA,
   findBrowser,
+  clearStaleBrowserLock,
   writeStatus,
   fail,
   parseArgs,

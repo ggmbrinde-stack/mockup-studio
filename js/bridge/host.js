@@ -59,6 +59,8 @@
       case "badBounds": return core.t("errorBadBounds");
       case "placeFailed": return core.t("errorPlaceFailed");
       case "docChanged": return core.t("errorDocChanged");
+      case "batchChanged": return core.t("errorBatchChanged");
+      case "batchItemInvalid": return core.t("errorBatchItemInvalid");
       case "svgImportFailed": return core.t("errorSvgImportFailed");
       case "noAgent": return core.t("errorNoAgent");
       default: return String(code || "unknown error");

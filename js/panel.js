@@ -87,6 +87,12 @@
       window.addEventListener("keydown", function (ev) {
         try {
           if (window._vbCapturingShortcut) return;
+          /* Typing in a field must never start a run: the shortcut ends in a printable
+             key, so editing the PNG size or a palette value could fire it. */
+          var target = ev.target;
+          var tag = target && target.tagName ? String(target.tagName).toLowerCase() : "";
+          if (tag === "input" || tag === "textarea" || tag === "select") return;
+          if (target && target.isContentEditable) return;
           if (matchesShortcut(ev)) {
             if (ev.preventDefault) ev.preventDefault();
             triggerVectorize();

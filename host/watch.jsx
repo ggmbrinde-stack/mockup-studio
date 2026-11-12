@@ -10,6 +10,10 @@ VB.watch = VB.watch || {};
 VB.watch._task = null;
 VB.watch._plugin = null;
 VB.watch._last = null;
+/* The panel and the floating window are two CEP extensions sharing this script engine,
+   so they share one scheduled task. Counting the listeners stops the last window to
+   close from cancelling the updates the other window still needs. */
+VB.watch._refs = 0;
 
 /* PlugPlugExternalObject is what gives ExtendScript the CSXSEvent class. It is created once
    because constructing it per tick is measurably slow. */
@@ -54,18 +58,23 @@ VB.watch.tick = function () {
    two of that, and the task itself is a couple of property reads, not a document scan. */
 VB.watch.start = function () {
   try {
+    VB.watch._refs = (VB.watch._refs || 0) + 1;
     if (VB.watch._task) return 'ok';
     VB.watch._last = null;
     VB.watch._task = app.scheduleTask('VB.watch.tick()', 500, true);
     VB.watch.tick();
     return 'ok';
   } catch (e) {
+    VB.watch._refs = Math.max(0, (VB.watch._refs || 1) - 1);
     VB.watch._task = null;
     return 'error: ' + e;
   }
 };
 
 VB.watch.stop = function () {
+  VB.watch._refs = Math.max(0, (VB.watch._refs || 0) - 1);
+  /* Another window is still listening: keep the task running. */
+  if (VB.watch._refs > 0) return 'ok';
   try { if (VB.watch._task) app.cancelTask(VB.watch._task); } catch (e) { }
   VB.watch._task = null;
   VB.watch._last = null;
@@ -73,5 +82,5 @@ VB.watch.stop = function () {
 };
 
 VB.watch.status = function () {
-  return VB.toJSON({ running: !!VB.watch._task, last: VB.watch._last });
+  return VB.toJSON({ running: !!VB.watch._task, last: VB.watch._last, refs: VB.watch._refs || 0 });
 };
