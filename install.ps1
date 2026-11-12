@@ -44,6 +44,56 @@ if (-not (Test-Path (Join-Path $Source 'CSXS\manifest.xml'))) {
   throw "Source manifest not found: $(Join-Path $Source 'CSXS\manifest.xml'). Run install.ps1 from the extension source folder."
 }
 
+# The manifest lists the Illustrator hosts this build loads in (2025 = ILST 29.0). Report
+# the installed Illustrator versions so an unsupported one is explained before, not after.
+$manifestText = Get-Content -LiteralPath (Join-Path $Source 'CSXS\manifest.xml') -Raw
+$hostMin = 0; $hostMax = 999
+$rangeMatch = [regex]::Match($manifestText, 'Name="ILST"\s+Version="\[([0-9.]+),\s*([0-9.]+)\]"')
+if ($rangeMatch.Success) {
+  $hostMin = [double]$rangeMatch.Groups[1].Value
+  $hostMax = [double]$rangeMatch.Groups[2].Value
+}
+$aiVersions = @()
+$aiSupported = @()
+foreach ($key in @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*')) {
+  try {
+    $items = @(Get-ItemProperty -Path $key -ErrorAction SilentlyContinue)
+  } catch { $items = @() }
+  foreach ($item in $items) {
+    $name = ''
+    try { $name = [string]$item.DisplayName } catch { }
+    if ($name -notmatch '^Adobe Illustrator') { continue }
+    $raw = ''
+    try { $raw = [string]$item.DisplayVersion } catch { }
+    $major = 0
+    try { $major = [int](([string]$raw) -split '\.')[0] } catch { $major = 0 }
+    if ($major -le 0) { continue }
+    $label = $name + ' (' + $raw + ')'
+    if ($aiVersions -notcontains $label) { $aiVersions += $label }
+    if ($major -ge $hostMin -and $major -le $hostMax) { if ($aiSupported -notcontains $label) { $aiSupported += $label } }
+  }
+}
+# Side-loaded installs and removed uninstall entries only show up as program folders;
+# the folder name carries the year (Illustrator 2025 = host 29).
+foreach ($base in @((Join-Path $env:ProgramFiles 'Adobe'), (Join-Path ${env:ProgramFiles(x86)} 'Adobe'))) {
+  if (-not $base -or -not (Test-Path -LiteralPath $base)) { continue }
+  foreach ($dir in @(Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue)) {
+    if ($dir.Name -notmatch '^Adobe Illustrator (\d{4})$') { continue }
+    $majorFromYear = [int]$Matches[1] - 1996
+    if ($majorFromYear -le 0) { continue }
+    $label = $dir.Name + ' (' + [string]$majorFromYear + '.x)'
+    if ($aiVersions -notcontains $label) { $aiVersions += $label }
+    if ($majorFromYear -ge $hostMin -and $majorFromYear -le $hostMax) { if ($aiSupported -notcontains $label) { $aiSupported += $label } }
+  }
+}
+if ($aiSupported.Count -gt 0) {
+  Write-Log ("Illustrator supported: " + ($aiSupported -join ', ') + " (this build targets ILST $hostMin+).")
+} elseif ($aiVersions.Count -gt 0) {
+  Write-Log ("WARNING: Illustrator found, but none is supported by this build (needs $hostMin+): " + ($aiVersions -join ', ') + ". The panel will not appear in those versions.")
+} else {
+  Write-Log "WARNING: no Illustrator installation detected. The panel only appears in Illustrator $hostMin+."
+}
+
 # Illustrator caches host scripts and panel files, so a live install is only allowed with -Force.
 $aiPids = @()
 try {

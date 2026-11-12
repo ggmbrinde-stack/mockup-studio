@@ -117,6 +117,62 @@ $exitCode = & {
     return (($major -gt 22) -or ($major -eq 22 -and $minor -ge 12))
   }
 
+  # Which Illustrator will actually load this panel? CEP reports a host version
+  # (Illustrator 2025 = 29.0, 2026 = 30.0), not the marketing year, so compare the
+  # major version against the range the release's manifest lists.
+  function Get-IllustratorInstalls {
+    $found = @()
+    $keys = @(
+      'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+      'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+      'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    foreach ($key in $keys) {
+      $items = @()
+      try { $items = @(Get-ItemProperty -Path $key -ErrorAction SilentlyContinue) } catch { $items = @() }
+      foreach ($item in $items) {
+        $name = ''
+        try { $name = [string]$item.DisplayName } catch { }
+        if ($name -notmatch '^Adobe Illustrator') { continue }
+        $raw = ''
+        try { $raw = [string]$item.DisplayVersion } catch { }
+        $major = 0
+        try { $major = [int](([string]$raw) -split '\.')[0] } catch { $major = 0 }
+        if ($major -le 0) { continue }
+        $found += [pscustomobject]@{ Name = $name; Version = $raw; Major = $major }
+      }
+    }
+    # The registry misses installs that were side-loaded or whose uninstall entry was
+    # removed; the program folder name carries the year (Illustrator 2025 = host 29).
+    foreach ($base in @((Join-Path $env:ProgramFiles 'Adobe'), (Join-Path ${env:ProgramFiles(x86)} 'Adobe'))) {
+      if (-not $base -or -not (Test-Path -LiteralPath $base)) { continue }
+      foreach ($dir in @(Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue)) {
+        if ($dir.Name -notmatch '^Adobe Illustrator (\d{4})$') { continue }
+        $majorFromYear = [int]$Matches[1] - 1996
+        if ($majorFromYear -le 0) { continue }
+        $found += [pscustomobject]@{ Name = $dir.Name; Version = ([string]$Matches[1]); Major = $majorFromYear }
+      }
+    }
+    # The same release is listed under the 64-bit and 32-bit keys; report it once.
+    $seen = @{}
+    $unique = @()
+    foreach ($item in $found) {
+      $key = [string]$item.Major
+      if ($seen.ContainsKey($key)) { continue }
+      $seen[$key] = $true
+      $unique += $item
+    }
+    return @($unique | Sort-Object Major -Descending)
+  }
+  function Get-ManifestHostRange([string]$ManifestPath) {
+    try {
+      $text = [IO.File]::ReadAllText($ManifestPath)
+      $m = [regex]::Match($text, 'Name="ILST"\s+Version="\[([0-9.]+),\s*([0-9.]+)\]"')
+      if ($m.Success) { return @([double]$m.Groups[1].Value, [double]$m.Groups[2].Value) }
+    } catch { }
+    return @(0, 999)
+  }
+
   $tmp = $null
   $backup = $null
   $depsExisted = $false
@@ -178,7 +234,7 @@ $exitCode = & {
 
     Head 'What setup will do' 'White'
     Say '1. Download the newest release from GitHub and verify its SHA-256'
-    Say '2. Unpack it in a temp folder and check it before touching your install'
+    Say '2. Unpack it in a temp folder and check it and your Illustrator version first'
     Say '3. Make sure Node.js is available (private copy in your AppData if missing)'
     Say '4. Stop the background agent if it is running'
     Say '5. Back up the version you have now (so a failure can be undone)'
@@ -258,6 +314,27 @@ $exitCode = & {
     $missing = @($Required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $root $_)) })
     if ($missing.Count -gt 0) { Fail ('The archive is missing: ' + ($missing -join ', ') + '. Nothing was changed.') }
     Step-Ok "package is version $stagedVersion and contains every required file"
+
+    # The release only loads in the Illustrator hosts its manifest lists. Name what was found
+    # instead of installing into silence (an unsupported panel never appears in the menu).
+    $hostRange = Get-ManifestHostRange (Join-Path $root 'CSXS\manifest.xml')
+    $installs = @(Get-IllustratorInstalls)
+    $supported = $null
+    foreach ($item in $installs) {
+      if ($item.Major -ge $hostRange[0] -and $item.Major -le $hostRange[1]) { $supported = $item; break }
+    }
+    if ($supported) {
+      Say ("Illustrator found : " + $supported.Name + " (" + $supported.Version + ")")
+      $others = @($installs | Where-Object { $_.Major -ne $supported.Major } | ForEach-Object { $_.Name + ' (' + $_.Version + ')' })
+      if ($others.Count -gt 0) { Say ("also installed     : " + ($others -join ', ') + ' - this release does not load there') 'DarkGray' }
+      Step-Ok ("this build supports Illustrator " + [string]$hostRange[0] + " and newer")
+    } elseif ($installs.Count -gt 0) {
+      $list = ($installs | ForEach-Object { $_.Name + ' (' + $_.Version + ')' }) -join ', '
+      Fail ("This release needs Illustrator " + [string]$hostRange[0] + " or newer, but this computer has: " + $list + ".`n  Install Illustrator 2025+ (or newer) and run setup again. Nothing was changed.")
+    } else {
+      Say 'Illustrator        : not detected' 'Yellow'
+      Say ('Setup continues. The panel appears in Window > Extensions once Illustrator ' + [string]$hostRange[0] + '+ is installed.') 'Yellow'
+    }
 
     if ($DryRun) {
       Write-Host ''

@@ -114,5 +114,23 @@ window.LOCALES.pt = {
   placeSvg: "Colocar",
   recentActivity: "Atividade recente",
   openSvgsFolder: "Abrir pasta dos SVGs",
-  openSvgFolder: "Mostrar na pasta"
+  openSvgFolder: "Mostrar na pasta",
+
+  setupWelcomeTitle: "Bem-vindo ao Mockup Studio",
+  setupWelcomeText: "O Vectorizer Bridge transforma a arte selecionada num SVG vetorial com o vectorizer.ai e coloca-a por cima do original na camada “Vectorizer”. Uma configuração rápida, cerca de um minuto.",
+  setupLanguage: "Idioma",
+  setupStepVectorize: "Selecione a arte e clique em “Vetorizar seleção”.",
+  setupStepSignIn: "Inicie sessão uma vez no vectorizer.ai; a sessão fica guardada para as próximas vezes.",
+  setupStepBatch: "Selecione vários objetos para os vetorizar um a um.",
+  setupSignInTitle: "Iniciar sessão no vectorizer.ai",
+  setupSignInText: "Abre-se uma janela normal do Chrome. Inicie sessão e feche-a. A sessão fica em Documents/VectorizerBridge, por isso só precisa de o fazer uma vez.",
+  setupSignInStatus: "À espera da janela de sessão…",
+  setupDefaultsTitle: "Predefinições",
+  setupDefaultsText: "Pode alterar tudo mais tarde em Ajustes.",
+  setupBack: "Voltar",
+  setupNext: "Seguinte",
+  setupSkip: "Saltar configuração",
+  setupFinish: "Concluir",
+  setupRunAgain: "Correr a configuração outra vez",
+  setupDoneLog: "Configuração concluída."
 };

@@ -1,5 +1,11 @@
 # Changelog — Mockup Studio
 
+## 2.3.4 — 2026-11-11
+
+### Added
+- **First-run setup in the panel:** the first time it opens, the panel shows a three-step intro — language, a one-time sign-in to vectorizer.ai, and the defaults that matter (PNG size, hide original, warm Chrome). It is stored per CEP profile and can be replayed from Settings → “Run setup again”.
+- **Installer checks your Illustrator:** setup now reads the Illustrator versions installed on the computer and compares them with the range the release's manifest lists (this build: ILST 29.0+, i.e. Illustrator 2025 or newer). A supported version is named on screen; if Illustrator is installed but too old, setup stops before changing anything and says which version is needed; if no Illustrator is found it warns and continues.
+
 ## 2.3.3 — 2026-11-11
 
 ### UI

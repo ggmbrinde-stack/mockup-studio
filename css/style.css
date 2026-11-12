@@ -259,3 +259,39 @@ details[open].settings { min-height: 96px; }
 /* Header with a trailing button: the title takes the spare space so it stays left
    aligned next to the chevron instead of being pushed to the middle. */
 .panel > summary.panelTitleRow .panelTitle { flex: 1 1 auto; }
+
+/* First-run setup --------------------------------------------------------
+   A modal over the panel: on a docked, narrow panel the card is full width and
+   scrolls internally, so the Finish/Skip buttons stay reachable at any height. */
+.setupOverlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--pad);
+  background: rgba(20, 20, 20, 0.55);
+}
+.setupOverlay[hidden] { display: none; }
+.setupCard {
+  width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: var(--pad);
+  background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.setupStep[hidden] { display: none; }
+.setupStep { display: flex; flex-direction: column; gap: 8px; }
+.setupTitle { font-weight: 700; font-size: clamp(14px, 3.6vw, 16px); }
+.setupText { margin: 0; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+.setupList { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.5; }
+.setupRow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.setupLabel { font-weight: 600; }
+.setupLang[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.setupActions {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding-top: 8px; margin-top: 2px; border-top: 1px solid var(--border-soft);
+}
+.setupActions .spacer { flex: 1 1 auto; }
+@media (max-height: 520px) {
+  .setupOverlay { align-items: flex-start; }
+  .setupCard { gap: 6px; }
+}
