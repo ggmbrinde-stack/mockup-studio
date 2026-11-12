@@ -78,6 +78,7 @@ window.LOCALES.en = {
   statusPlaceFailed: "Could not place the SVG.",
   statusExportFailed: "Export failed.",
   statusAgentLaunch: "Starting the background vectorizer…",
+  statusWaitingSlot: "Waiting for a free worker…",
   statusAgentLoading: "Opening vectorizer.ai in the background…",
   statusAgentError: "Vectorizer failed.",
   statusLoginRequired: "Sign in to vectorizer.ai to download results.",

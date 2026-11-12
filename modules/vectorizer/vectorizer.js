@@ -566,4 +566,5 @@
 
   vectorizer.init = init; vectorizer.pollOnce = pollOnce; vectorizer.refreshSvgHistory = refreshSvgHistory;
   vectorizer.renderDaemonStatus = renderDaemonStatus; vectorizer.ensureDaemonRunning = ensureDaemonRunning; vectorizer.signIn = signIn; vectorizer.cancel = cancel;
+  vectorizer.stopWarmDaemon = stopWarmDaemon;
 })();

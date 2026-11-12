@@ -35,7 +35,7 @@ VB.daemonStatus = function () {
     var age = new Date().getTime() - Number(s.time || 0);
     // The daemon heartbeats agent-daemon.json every minute: 3 min of silence = gone.
     if (!(age >= 0 && age < 3 * 60 * 1000)) return VB.toJSON({ state: "stale" });
-    return VB.toJSON({ state: "running", port: s.port, pid: s.pid, browserPid: s.browserPid, workers: s.workers || 1 });
+    return VB.toJSON({ state: "running", port: s.port, pid: s.pid, browserPid: s.browserPid, workers: s.workers || 1, token: s.token || "" });
   } catch (e) { return VB.toJSON({ state: "stopped" }); }
 };
 
@@ -167,13 +167,20 @@ VB.agentStart = function (mode, pngPath, extra) {
     }
 
     var launchKey = (mode === "run" && customStatus) ? VB._statusKey(statusPath) : "run";
-    var cmdPath = p.work + "/agent-" + launchKey + ".cmd";
-    var vbsPath = p.work + "/agent-" + launchKey + ".vbs";
+    // Every attempt gets its own launcher files. Rewriting the same .vbs while Windows
+    // is still opening the previous copy is one of the ways a launch disappears with
+    // no trace at all, which is what a batch item stuck at "starting" means.
+    VB._launchSeq = (VB._launchSeq || 0) + 1;
+    var attempt = String(VB._launchSeq);
+    var cmdPath = p.work + "/agent-" + launchKey + "-" + attempt + ".cmd";
+    var vbsPath = p.work + "/agent-" + launchKey + "-" + attempt + ".vbs";
     var cmd = new File(cmdPath); cmd.encoding = "ASCII";
     if (!cmd.open("w")) return "error: cannot write " + cmdPath;
     cmd.writeln("@echo off"); cmd.writeln("cd /d " + VB.quote(p.agent));
     cmd.writeln(VB.quote(node) + " " + args.join(" ") + " >> " + VB.quote(p.log) + " 2>&1");
     cmd.close();
+    var cmdCheck = new File(cmdPath);
+    if (!cmdCheck.exists || cmdCheck.length < 10) return "error: launcher not written: " + cmdPath;
     var vbs = new File(vbsPath); vbs.encoding = "ASCII";
     if (!vbs.open("w")) return "error: cannot write " + vbsPath;
     // VBScript: double quotes inside a string literal are escaped by doubling them.
@@ -330,6 +337,8 @@ VB.startUpdate = function (action) {
     vbs.writeln('Set sh = CreateObject("WScript.Shell")');
     vbs.writeln('sh.Run "' + runLine.replace(/"/g, '""') + '", 0, False');
     vbs.close();
+    var vbsCheck = new File(vbsPath);
+    if (!vbsCheck.exists || vbsCheck.length < 10) return "error: launcher not written: " + vbsPath;
     vbs.execute();
     VB.log("update " + a + " started");
     return "started";

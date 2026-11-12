@@ -286,7 +286,7 @@ async function runJob(opts) {
       writeStatus(statusPath, err); return err;
     }
 
-    const done = { state: 'done', svgPath, elapsedMs: Date.now() - runT0, warm: !!opts.browser };
+    const done = { state: 'done', svgPath, elapsedMs: Date.now() - runT0, warm: !!opts.browser, viaDaemon: !!opts.viaDaemon };
     writeStatus(statusPath, done);
     return done;
   } finally {

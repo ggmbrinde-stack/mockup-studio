@@ -77,6 +77,7 @@ window.LOCALES.pt = {
   statusPlaceFailed: "Não foi possível colocar o SVG.",
   statusExportFailed: "Falha na exportação.",
   statusAgentLaunch: "Iniciando o vetorizador em segundo plano…",
+  statusWaitingSlot: "À espera de um trabalhador livre…",
   statusAgentLoading: "Abrindo o vectorizer.ai em segundo plano…",
   statusAgentError: "O vetorizador falhou.",
   statusLoginRequired: "Inicie sessão no vectorizer.ai para baixar resultados.",

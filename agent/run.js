@@ -122,7 +122,8 @@ async function tryDaemon(args) {
   }
   const job = {
     png: args.png, out: args.out, profile: args.profile, status: args.status,
-    timeout: parseInt(args.timeout, 10) || 300000, debug: args.debug || '', work
+    timeout: parseInt(args.timeout, 10) || 300000, debug: args.debug || '', work,
+    token: info.token || ''
   };
   const jobTimeout = Math.max(60000, (parseInt(args.timeout, 10) || 300000) + 30000);
   const deadline = Date.now() + 120000; // wait for a slot
@@ -130,6 +131,9 @@ async function tryDaemon(args) {
     try {
       // Short request timeout: daemon should ack quickly (async /run v2) or reply 503.
       const r = await httpJson('POST', info.port, '/run', job, 8000);
+      // 401 means the daemon was restarted since we read its file; fall back to a
+      // one-shot run rather than reporting a job failure.
+      if (r && r.status === 401) return null;
       if (r && (r.status === 409 || r.status === 503)) {
         try { writeStatus(args.status, { state: 'launching', message: 'Waiting for a warm Chrome slot...', time: Date.now() }); } catch (e) {}
         await new Promise(res => setTimeout(res, 900));

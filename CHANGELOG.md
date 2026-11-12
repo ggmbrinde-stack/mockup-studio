@@ -1,5 +1,15 @@
 # Changelog — Mockup Studio
 
+## 2.3.9 — 2026-11-12
+
+### Fixed
+- **Batch items are no longer lost at “Starting the background vectorizer…”.** With warm Chrome on, the panel now posts each job straight to the daemon over localhost HTTP: no VBS, no cmd, no second node process per image. The old launcher is kept only for a batch without a warm browser, where it now writes uniquely named files per attempt and checks they exist on disk before running them, so a launch can no longer vanish silently.
+- Successful batches no longer report `viaDaemon: false` on jobs the daemon served.
+- **`panel-settings.json` no longer overrides the speed defaults.** It is re-seeded with them once (like localStorage was), and settings that arrive from that file now start or stop warm Chrome to match instead of leaving a daemon running while the box says it is off.
+
+### Changed
+- The daemon requires a token (from `agent-daemon.json`) on every job, so an ordinary web page cannot make it read local files, and answers the CORS preflight the panel needs. When every worker is busy it waits for a free one and shows “Waiting for a free worker…” instead of failing the item.
+
 ## 2.3.8 — 2026-11-12
 
 Speed pass. No change to what gets vectorized — the same PNG goes to the same site — but less time is spent waiting for things that were already known.

@@ -287,17 +287,38 @@
     if (!VB.bridge || !VB.bridge.hostOk || !VB.bridge.evalJsx) { if (done) done(false); return; }
     VB.bridge.evalJsx("VB.loadPanelSettings()", function (txt) {
       var applied = false;
+      var wasWarm = !!state.settings.warmDaemon;
+      var wasWorkers = state.settings.batchWorkers;
       try {
         var raw = String(txt || "");
         if (raw && raw.charAt(0) === "{") {
           var saved = JSON.parse(raw);
-          applyStoredSettings(saved && saved.settings ? saved.settings : saved);
+          var fileSettings = (saved && saved.settings) ? saved.settings : saved;
+          applyStoredSettings(fileSettings);
+          /* The file is the copy both windows agree on, so the one-time re-seed of the
+             speed defaults has to reach it too. Without this an older panel-settings.json
+             keeps warm Chrome and parallel workers off forever, no matter what the
+             defaults or localStorage say. */
+          var fileVersion = parseInt(fileSettings && fileSettings.settingsVersion, 10) || 1;
+          if (fileVersion < SETTINGS_VERSION) {
+            applyPerfDefaultsOnce({ settingsVersion: 0 });
+            state.settings.settingsVersion = SETTINGS_VERSION;
+            pushSettingsToHost();
+          }
           if (saved && (saved.lang === "pt" || saved.lang === "en")) state.lang = saved.lang;
           applySettingsToUI();
           renderLocale();
           applied = true;
         }
       } catch (e) { }
+      /* Settings can arrive after the panel already started a daemon from its own
+         defaults; follow whatever they say now instead of leaving the two apart. */
+      if (wasWarm !== !!state.settings.warmDaemon || wasWorkers !== state.settings.batchWorkers) {
+        try {
+          if (state.settings.warmDaemon) { if (VB.vectorizer && VB.vectorizer.ensureDaemonRunning) VB.vectorizer.ensureDaemonRunning(); }
+          else if (VB.vectorizer && VB.vectorizer.stopWarmDaemon) VB.vectorizer.stopWarmDaemon();
+        } catch (e2) { }
+      }
       if (done) done(applied);
     });
   }

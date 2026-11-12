@@ -134,7 +134,107 @@
   }
   function enqueueLaunch(task) { launchQueue.push(task); runLaunchQueue(); }
 
+  /* Warm Chrome takes jobs over localhost HTTP: no wscript, no cmd, no second node
+     process per item. Spawning that chain was where items silently stayed at
+     "starting" - the launch produced nothing and could not say why. The VBS
+     launcher remains only for a batch without a warm browser. */
+  var daemonTries = {};
+
+  function refreshDaemon() {
+    if (!bridge.hostOk) return;
+    bridge.evalJsx('VB.daemonStatus()', function (txt) {
+      var s = bridge.parseResult(txt);
+      if (s && (s.port || s.state)) core.state.daemon = s;
+    });
+  }
+
+  function daemonTarget() {
+    var d = core.state.daemon || {};
+    var port = parseInt(d.port, 10);
+    var key = d.token ? String(d.token) : '';
+    if (!(port > 0) || !key) return null;
+    return { port: port, token: key };
+  }
+
+  /* out/profile/work are what the daemon needs for a job body. */
+  function ensureAgentPaths(cb) {
+    var p = core.state.agentPaths;
+    if (p && p.run && p.profile && p.out) return cb();
+    bridge.evalJsx('VB.toJSON(VB.agentPaths())', function (txt) {
+      var r = bridge.parseResult(txt);
+      if (r && r.run && r.profile && r.out) core.state.agentPaths = r;
+      cb();
+    });
+  }
+
+  function tryDaemonSubmit(j, token) {
+    if (!core.state.settings.warmDaemon) return false;
+    var target = daemonTarget();
+    var paths = core.state.agentPaths;
+    if (!target || !paths || !paths.out || !paths.profile) return false;
+    var tries = daemonTries[j.index] || 0;
+    if (tries > 30) {
+      core.log('Warm Chrome had no free slot for item ' + (j.index + 1) + '; running it separately.');
+      return false;
+    }
+    var xhr;
+    try { xhr = new XMLHttpRequest(); } catch (e0) { return false; }
+    daemonTries[j.index] = tries + 1;
+    j.phase = 'agent';
+    j.stageLabel = tries ? core.t('statusWaitingSlot') : core.t('statusUploading');
+    j.agentStartedAt = j.agentStartedAt || Date.now();
+    updateBatchStatus();
+    try {
+      xhr.open('POST', 'http://127.0.0.1:' + target.port + '/run', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('X-VB-Token', target.token);
+      xhr.timeout = 8000;
+    } catch (e1) { return false; }
+
+    function alive() {
+      return token === core.state.runToken && !!core.state.batch && !core.state.batch.cancelled && !j.done;
+    }
+    xhr.onload = function () {
+      if (!alive()) return;
+      var code = xhr.status;
+      if (code === 200 || code === 202) {
+        core.addHistory('batchSent', '#' + (j.index + 1), true, 'warm Chrome');
+        pollBatchJob(j, token);
+        return;
+      }
+      // Every worker busy is not a failure: wait for a slot to free up.
+      if (code === 503 || code === 409) {
+        j.stageLabel = core.t('statusWaitingSlot');
+        updateBatchStatus();
+        setTimeout(function () { if (alive()) launchBatchAgent(j, token); }, 800);
+        return;
+      }
+      if (code === 401) refreshDaemon();
+      core.log('Warm Chrome refused item ' + (j.index + 1) + ' (HTTP ' + code + '); running it separately.');
+      launchAgentProcess(j, token);
+    };
+    xhr.onerror = xhr.ontimeout = function () {
+      if (!alive()) return;
+      core.log('Warm Chrome is not answering on port ' + target.port + '; running item ' + (j.index + 1) + ' separately.');
+      core.state.daemon = {};
+      launchAgentProcess(j, token);
+    };
+    try {
+      xhr.send(JSON.stringify({
+        png: j.pngPath, out: paths.out, profile: paths.profile, debug: paths.debug,
+        work: paths.work, status: j.statusPath, timeout: 300000
+      }));
+    } catch (e2) { return false; }
+    return true;
+  }
+
   function launchBatchAgent(j, token) {
+    var b = core.state.batch; if (!b || b.cancelled || token !== core.state.runToken || j.done) return;
+    if (tryDaemonSubmit(j, token)) return;
+    launchAgentProcess(j, token);
+  }
+
+  function launchAgentProcess(j, token) {
     var b = core.state.batch; if (!b || b.cancelled || token !== core.state.runToken || j.done) return;
     j.agentStartedAt = Date.now();
     var spArg = j.statusPath ? (', ' + core.jsxString(j.statusPath)) : '';
@@ -241,6 +341,7 @@
       bridge.evalJsx('VB.daemonStatus()', function (text) {
         if (token !== core.state.runToken || !core.state.batch) return;
         var s = bridge.parseResult(text) || {};
+        if (s && (s.port || s.state)) core.state.daemon = s;
         var running = (s.state === 'running' || s.state === 'ready');
         var cur = parseInt(s.workers, 10);
         if (running && (!isFinite(cur) || cur >= workers)) return done();
@@ -290,6 +391,7 @@
         docFullName: r.docFullName || '', docName: r.docName || '', jobId: r.jobId || String(Date.now()), jobs: jobs
       };
       core.state.waiting = true; core.state.runStartedAt = Date.now();
+      daemonTries = {}; // per batch: a spent retry budget must not follow the next run
       var workers = Math.max(1, Math.min(4, parseInt(core.state.settings.batchWorkers, 10) || 1));
       core.log('Batch start: ' + count + ' item(s), workers=' + workers);
       function beginParallelBatch() {
@@ -298,7 +400,10 @@
         // Warm Chrome is worth having even for a single worker: without it every
         // item pays a cold Chrome launch and a cold page. Only skip when it is off.
         if (!core.state.settings.warmDaemon) return scheduleBatch(token);
-        waitForWarmDaemon(workers, token, function () { scheduleBatch(token); });
+        ensureAgentPaths(function () {
+          if (token !== core.state.runToken || !core.state.batch) return;
+          waitForWarmDaemon(workers, token, function () { scheduleBatch(token); });
+        });
       }
       if (!core.state.bridgeFolder && bridge.hostOk) {
         bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) {

@@ -18,6 +18,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { SITE, UA, writeStatus, parseArgs, launch, sanitizeProfile } = require('../core/lib');
 const { runJob, makeRunError } = require('../vectorizer/job');
 
@@ -38,9 +39,19 @@ function readJson(req, max = 1024 * 1024) {
   });
 }
 
+/* The panel submits jobs straight to this process over localhost HTTP instead of
+   spawning a VBS -> cmd -> node chain per item, so the responses have to be
+   readable from a CEP page (file:// origin sends Origin: null). */
 function send(res, code, obj) {
   const data = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  res.writeHead(code, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-VB-Token',
+    'Access-Control-Max-Age': '600'
+  });
   res.end(data);
 }
 
@@ -65,6 +76,20 @@ async function main() {
   if (!isFinite(maxWorkers) || maxWorkers < 1) maxWorkers = 1;
   if (maxWorkers > 4) maxWorkers = 4;
   if (!profile || !work || !infoPath) throw new Error('missing --profile/--work/--info');
+
+  /* Any page the user has open can reach 127.0.0.1, and /run takes a local file
+     path to upload. Demand a token that only exists in agent-daemon.json, which a
+     web page cannot read. */
+  const token = crypto.randomBytes(16).toString('hex');
+  function authorized(req, job) {
+    try {
+      const fromHeader = String(req.headers['x-vb-token'] || '');
+      const fromBody = job && job.token ? String(job.token) : '';
+      return fromHeader === token || fromBody === token;
+    } catch (e) {
+      return false;
+    }
+  }
 
   let browser = null;
   let active = 0;
@@ -95,7 +120,7 @@ async function main() {
         time: Date.now(),
         pid: process.pid,
         browserPid: browser && browser.process ? browser.process().pid : null,
-        port, profile, workers: maxWorkers, state: 'ready'
+        port, profile, workers: maxWorkers, state: 'ready', token
       }), 'utf8');
       fs.renameSync(tmp, infoPath);
     } catch (e) {}
@@ -145,6 +170,7 @@ async function main() {
   const server = http.createServer(async (req, res) => {
     try {
       const url = (req.url || '').split('?')[0];
+      if (req.method === 'OPTIONS') return send(res, 204, { ok: true });
       if (req.method === 'GET' && url === '/health') {
         return send(res, 200, { ok: true, pid: process.pid, browserPid: browser && browser.process ? browser.process().pid : null, active, busy: active, workers: maxWorkers, profile, state: 'ready' });
       }
@@ -165,6 +191,10 @@ async function main() {
           active--;
           return send(res, 400, makeRunError('missing --png/--out/--profile/--status'));
         }
+        if (!authorized(req, job)) {
+          active--;
+          return send(res, 401, makeRunError('missing or wrong daemon token'));
+        }
         // Acknowledge immediately. runJob runs in background and writes progress/result
         // to statusPath (panel/run.js poll that file). This avoids long-held HTTP
         // connections and stuck run.js processes in parallel batches.
@@ -175,7 +205,7 @@ async function main() {
           let page = null;
           try {
             page = await acquirePage();
-            await runJob(Object.assign({}, job, { statusPath, browser, page, reuse: true, _ensurePage: async () => page, _resetPageForReuse: resetPageForReuse }));
+            await runJob(Object.assign({}, job, { statusPath, browser, page, reuse: true, viaDaemon: true, _ensurePage: async () => page, _resetPageForReuse: resetPageForReuse }));
           } catch (e) {
             const msg = e && e.message ? e.message : String(e);
             try { writeStatus(statusPath, { state: 'error', message: msg, time: Date.now(), pid: process.pid, viaDaemon: true }); } catch (e2) {}
