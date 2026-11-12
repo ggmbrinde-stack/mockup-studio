@@ -133,54 +133,6 @@
       <p class="setupText" data-i18n="setupSignInText">A normal Chrome window opens. Sign in there, then close it. The session stays in Documents/VectorizerBridge, so this is only needed once.</p>
       <button type="button" class="btn small" id="setupSignInBtn" data-i18n="signInBtn">Sign in to vectorizer.ai</button>
       <div class="hint" id="setupSignInStatus"></div>
-
-      <!-- The login kept for copy & paste: the email copies freely, the password only
-           after the access passcode is typed. See modules/setup/vault.js. -->
-      <div class="vault" id="vaultBox">
-        <div class="vaultHead">
-          <span class="vaultTitle" data-i18n="vaultTitle">Your login, for copy &amp; paste</span>
-          <span class="vaultBadge" id="vaultBadge" hidden>Locked</span>
-        </div>
-
-        <div id="vaultSaved" hidden>
-          <div class="vaultLine">
-            <span class="vaultKey" data-i18n="vaultEmail">Email</span>
-            <span class="vaultValue" id="vaultSavedEmail"></span>
-            <button type="button" class="btn small vaultBtn" id="vaultCopyEmailBtn" data-i18n="vaultCopy">Copy</button>
-          </div>
-          <div class="vaultLine">
-            <span class="vaultKey" data-i18n="vaultPassword">Password</span>
-            <span class="vaultValue mono" id="vaultSavedPass">••••••••••••</span>
-            <button type="button" class="btn small vaultBtn" id="vaultCopyPassBtn" data-i18n="vaultCopy">Copy</button>
-          </div>
-          <div class="vaultRow" id="vaultUnlockRow" hidden>
-            <input type="password" class="vaultInput" id="vaultPasscode" autocomplete="off" spellcheck="false" data-i18n-placeholder="vaultPasscodePlaceholder" placeholder="Access passcode">
-            <button type="button" class="btn small" id="vaultUnlockBtn" data-i18n="vaultUnlock">Unlock</button>
-          </div>
-          <div class="vaultRow">
-            <button type="button" class="btn small" id="vaultChangeBtn" data-i18n="vaultChange" hidden>Replace</button>
-            <button type="button" class="btn small" id="vaultLockBtn" data-i18n="vaultLock" hidden>Lock</button>
-            <button type="button" class="btn small" id="vaultForgetBtn" data-i18n="vaultForget">Forget</button>
-          </div>
-        </div>
-
-        <div id="vaultEdit">
-          <label class="vaultField"><span data-i18n="vaultEmail">Email</span>
-            <input type="email" class="vaultInput" id="vaultEmailInput" autocomplete="off" spellcheck="false" placeholder="you@example.com"></label>
-          <label class="vaultField"><span data-i18n="vaultPassword">Password</span>
-            <input type="password" class="vaultInput" id="vaultPassInput" autocomplete="off"></label>
-          <label class="vaultField"><span data-i18n="vaultPasscode">Access passcode</span>
-            <input type="password" class="vaultInput" id="vaultPassSet" autocomplete="off" data-i18n-placeholder="vaultPasscodePlaceholder" placeholder="Access passcode"></label>
-          <label class="vaultField" id="vaultConfirmField"><span data-i18n="vaultPasscodeConfirm">Repeat passcode</span>
-            <input type="password" class="vaultInput" id="vaultPassConfirm" autocomplete="off"></label>
-          <div class="vaultRow">
-            <button type="button" class="btn small primary" id="vaultSaveBtn" data-i18n="vaultSave">Save login</button>
-            <button type="button" class="btn small" id="vaultCancelBtn" data-i18n="vaultCancel" hidden>Cancel</button>
-          </div>
-          <div class="hint" data-i18n="vaultHint">Stored in this panel, encrypted with your passcode. The passcode itself is never saved, and without it the password cannot be read.</div>
-        </div>
-        <div class="hint vaultMsg" id="vaultMsg"></div>
-      </div>
     </div>
     <div class="setupStep" data-setup-step="3" hidden>
       <div class="setupTitle" data-i18n="setupDefaultsTitle">Defaults</div>
@@ -222,7 +174,6 @@
 <script src="js/bridge/host.js"></script>
 <script src="js/queue/batch.js"></script>
 <script src="modules/vectorizer/vectorizer.js"></script>
-<script src="modules/setup/vault.js"></script>
 <script src="modules/setup/setup.js"></script>
 <script src="js/panel.js"></script>
 </body>
