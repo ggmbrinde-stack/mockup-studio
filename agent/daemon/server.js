@@ -136,8 +136,11 @@ async function main() {
     } catch (e) { try { if (!page.isClosed()) freePages.push(page); } catch (e2) {} }
   }
 
-  // Pre-warm one page to keep first-run latency low (matches prior behavior).
-  try { freePages.push(await newWorkerPage()); } catch (e) {}
+  // Pre-warm one page per worker. With a single warm page the items that start
+  // at the same time still paid a page create + cold navigation each.
+  for (let i = 0; i < maxWorkers; i++) {
+    try { freePages.push(await newWorkerPage()); } catch (e) { break; }
+  }
 
   const server = http.createServer(async (req, res) => {
     try {

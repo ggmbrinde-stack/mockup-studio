@@ -253,28 +253,32 @@ async function runJob(opts) {
       if (btn) btn.click();
     });
 
+    // Watch for the login bounce and for the download at the same time. This used
+    // to be a fixed 1.2s wait for a redirect that almost never happens, paid by
+    // every successful item on top of the download's own latency.
+    let raced;
     try {
-      await page.waitForFunction(() => {
-        const u = location.pathname;
-        return /^\/(pricing|support|login|signin|sign-in)\/?$/.test(u);
-      }, { timeout: 1200, polling: 100 });
-    } catch (e) { }
+      raced = await Promise.race([
+        fetchPromise.then(p => ({ kind: 'file', path: p })),
+        page.waitForFunction(() => {
+          return /^\/(pricing|support|login|signin|sign-in)\/?$/.test(location.pathname);
+        }, { timeout: 120000, polling: 150 }).then(() => ({ kind: 'login' }), () => ({ kind: 'timeout' }))
+      ]);
+    } catch (e) {
+      raced = { kind: 'error' };
+    }
+    try { await client.send('Fetch.disable'); } catch (e) {}
 
-    if (isLoginPage(page.url()) || /\/support|\/pricing/i.test(page.url())) {
-      try { await client.send('Fetch.disable'); } catch (e) {}
+    if (raced.kind === 'login' || isLoginPage(page.url()) || /\/support|\/pricing/i.test(page.url())) {
       await saveShot(page, debugDir, 'login-required.png');
       const err = { state: 'loginRequired', message: 'vectorizer.ai needs a signed-in account with downloads. Use "Sign in" once.' };
       writeStatus(statusPath, err); return err;
     }
-
-    let result;
-    try { result = await fetchPromise; }
-    catch (e) {
-      try { await client.send('Fetch.disable'); } catch (e2) {}
+    if (raced.kind !== 'file') {
       const err = { state: 'error', message: 'No download started. The site layout may have changed.' };
       writeStatus(statusPath, err); return err;
     }
-    try { await client.send('Fetch.disable'); } catch (e) {}
+    const result = raced.path;
 
     if (!result || !fs.existsSync(svgPath) || fs.statSync(svgPath).size === 0) {
       await saveShot(page, debugDir, 'no-download.png');

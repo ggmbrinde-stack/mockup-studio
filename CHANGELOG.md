@@ -1,5 +1,16 @@
 # Changelog — Mockup Studio
 
+## 2.3.8 — 2026-11-12
+
+Speed pass. No change to what gets vectorized — the same PNG goes to the same site — but less time is spent waiting for things that were already known.
+
+### Added
+- **Warm Chrome and two parallel workers are now the default.** Both existed but were off, so a fresh install took the slowest path: a cold Chrome launch and a cold page per item, one item at a time. An existing install's saved settings are re-seeded for these two keys once, then left alone.
+- **The daemon is started whenever warm Chrome is on, including for a single worker.** It used to be started only for two or more workers, so after the ten-minute idle shutdown a batch quietly reverted to cold launches for every item. The daemon also pre-warms one page per worker instead of one, so items that start together no longer each pay a page create and a cold navigation.
+
+### Fixed
+- **1.2 s of dead time per item.** After clicking the site's download button the agent waited a fixed 1.2 s for a possible login redirect before reading the download. That wait now runs alongside the download itself and ends as soon as the file arrives.
+
 ## 2.3.7 — 2026-11-12
 
 ### Added

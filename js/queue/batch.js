@@ -227,10 +227,11 @@
     });
   }
 
-  /* Wait until the warm Chrome daemon is actually serving before a parallel batch
-     starts, so the items share it instead of each launching a browser on the same
-     profile. Falls through after 20s so a missing browser still produces per-item
-     errors rather than a hung batch. */
+  /* Wait until the warm Chrome daemon is actually serving before the batch starts,
+     so the items share it instead of each launching a browser on the same profile.
+     This also restarts a daemon that idled out, which otherwise turned every item
+     of the batch back into a cold launch. Falls through after 20s so a missing
+     browser still produces per-item errors rather than a hung batch. */
   function waitForWarmDaemon(workers, token, done) {
     var deadline = Date.now() + 20000;
     var started = false;
@@ -294,7 +295,9 @@
       function beginParallelBatch() {
         if (token !== core.state.runToken || !core.state.batch) return;
         updateBatchStatus();
-        if (!core.state.settings.warmDaemon || workers < 2) return scheduleBatch(token);
+        // Warm Chrome is worth having even for a single worker: without it every
+        // item pays a cold Chrome launch and a cold page. Only skip when it is off.
+        if (!core.state.settings.warmDaemon) return scheduleBatch(token);
         waitForWarmDaemon(workers, token, function () { scheduleBatch(token); });
       }
       if (!core.state.bridgeFolder && bridge.hostOk) {

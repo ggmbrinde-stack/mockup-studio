@@ -59,8 +59,8 @@
     settings: {
       pngLongSide: 1700,
       hideOriginal: false,
-      warmDaemon: false,
-      batchWorkers: 1,
+      warmDaemon: true,
+      batchWorkers: 2,
       vectorizeShortcut: { ctrl: true, shift: true, alt: false, key: 186, code: 'Semicolon', label: 'Ctrl+Shift+Ç' }
     }
   };
@@ -158,6 +158,20 @@
     }
   }
 
+  /* v2.3.8 made warm Chrome and parallel pages the default. A settings copy saved
+     by an older install would otherwise keep the old slow pair (cold Chrome, one
+     item at a time) forever, so those two keys are re-seeded once. Anything the
+     user changes afterwards is saved with the new version and never re-seeded. */
+  var SETTINGS_VERSION = 2;
+  function applyPerfDefaultsOnce(s) {
+    var stored = parseInt(s && s.settingsVersion, 10) || 1;
+    if (stored >= SETTINGS_VERSION) return;
+    var admin = (window.VBADMIN && window.VBADMIN.defaults) || {};
+    state.settings.warmDaemon = admin.warmDaemon !== undefined ? !!admin.warmDaemon : true;
+    var bw = admin.batchWorkers !== undefined ? parseInt(admin.batchWorkers, 10) : 2;
+    state.settings.batchWorkers = (isFinite(bw) && bw >= 1) ? bw : 2;
+  }
+
   function loadSettings() {
     try {
       applyAdminDefaults();
@@ -165,6 +179,7 @@
       if (raw) {
         var s = JSON.parse(raw);
         applyStoredSettings(s);
+        applyPerfDefaultsOnce(s);
         var lang = localStorage.getItem("vb_lang");
         if (lang === "pt" || lang === "en") state.lang = lang;
       }
@@ -179,6 +194,7 @@
   }
   function saveSettings() {
     try {
+      state.settings.settingsVersion = SETTINGS_VERSION;
       localStorage.setItem("vb_settings", JSON.stringify(state.settings));
       localStorage.setItem("vb_lang", state.lang);
     } catch (e) { }
