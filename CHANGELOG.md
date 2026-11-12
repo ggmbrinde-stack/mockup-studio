@@ -1,5 +1,13 @@
 # Changelog — Mockup Studio
 
+## 2.3.6 — 2026-11-12
+
+### Fixes
+- **The online installer could not install the agent's dependencies on machines where `npm` resolves to a PowerShell shim** (scoop, nvm and some Node installers provide `npm.ps1`). The installer ran `npm` through `cmd.exe`, which cannot execute a `.ps1`: it did nothing and exited 0, so setup copied the panel and then failed at "npm reported success but puppeteer-core is missing" — on a machine where running `npm install` by hand worked fine. The installer now maps a `.ps1` result to the sibling `npm.cmd` (or the bare command name), and a failure prints the npm output instead of only its verdict. Verified against a clean install: 23 agent packages installed, `puppeteer-core` present.
+
+### Added
+- **Admin configuration for every new install.** `js/admin-config.js` sets the defaults a fresh panel starts with, can skip the first-run card entirely, and can carry studio credentials so `agent/autologin.js` signs in on its own — falling back to the normal one-click sign-in when there are no credentials, the password is rejected, or a captcha appears.
+
 ## 2.3.5 — 2026-11-12
 
 ### Fixes

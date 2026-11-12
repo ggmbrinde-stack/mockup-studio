@@ -177,6 +177,19 @@ $exitCode = & {
     } catch { }
     return ''
   }
+  # Get-Command npm can resolve to npm.ps1 (scoop, nvm, some Node installers). cmd.exe cannot
+  # run a PowerShell script: it does nothing and still exits 0, which looked exactly like a
+  # successful dependency install. Map that case to the sibling npm.cmd, or to the bare name so
+  # cmd resolves the shim itself.
+  function Get-RunnableNpm([string]$Source) {
+    if (-not $Source) { return 'npm' }
+    if ($Source.ToLowerInvariant().EndsWith('.ps1')) {
+      $candidate = [IO.Path]::ChangeExtension($Source, '.cmd')
+      if (Test-Path -LiteralPath $candidate) { return $candidate }
+      return 'npm'
+    }
+    return $Source
+  }
   function Get-HttpsText([string]$Url) {
     $headers = @{ 'User-Agent' = 'MockupStudio-Installer'; 'Accept' = 'application/vnd.github+json' }
     return (Invoke-WebRequest -Uri $Url -UseBasicParsing -Headers $headers -TimeoutSec 60).Content
@@ -300,7 +313,7 @@ $exitCode = & {
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
     $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
     if ($nodeCmd) { $nodeExe = $nodeCmd.Source }
-    if ($npmCmd) { $npmExe = $npmCmd.Source }
+    if ($npmCmd) { $npmExe = Get-RunnableNpm $npmCmd.Source }
     $nodeLabel = 'not found'
     if ($nodeExe) { $nodeLabel = (& $nodeExe --version) }
     $nodeVersion = $nodeLabel
@@ -567,7 +580,11 @@ $exitCode = & {
             Get-Content -LiteralPath $npmLog -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Say ("  " + $_) }
             Fail "npm install failed (exit $npmExit). The previous install was restored."
           }
-          if (-not (Test-Path -LiteralPath $puppeteer)) { Fail 'npm reported success but puppeteer-core is missing. The previous install was restored.' }
+          if (-not (Test-Path -LiteralPath $puppeteer)) {
+            Say 'npm output (last 15 lines):' 'Yellow'
+            Get-Content -LiteralPath $npmLog -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { Say ("  " + $_) }
+            Fail ('npm exited 0 but puppeteer-core is still missing (npm at ' + [string]$npmExe + '). The previous install was restored.')
+          }
           Say 'agent dependencies installed'
         }
       } else {

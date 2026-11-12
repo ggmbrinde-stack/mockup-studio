@@ -1,4 +1,4 @@
-# Mockup Studio — AI Agent Context (v2.3.5)
+# Mockup Studio — AI Agent Context (v2.3.6)
 
 > **Scope: UI/UX is the default focus, behaviour changes need explicit approval.**
 > Do not change host/agent contracts, batch/placement semantics or the runtime flow unless the user
@@ -19,7 +19,7 @@ the `Vectorizer` layer fitted to original bounds. Supports bounded parallel per-
 history/re-place, optional warm Chrome daemon, a safe opt-in updater, and a customizable keyboard
 shortcut for vectorize (default `Ctrl+Shift+Ç`, panel focus only).
 
-Current release: **2.3.5** — `CSXS/manifest.xml` (two places, bundle and extension) and
+Current release: **2.3.6** — `CSXS/manifest.xml` (two places, bundle and extension) and
 `CHANGELOG.md` carry the version. Keep all three plus `README.md` in agreement when releasing.
 
 ## Paths
