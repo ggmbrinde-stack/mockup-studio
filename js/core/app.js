@@ -486,7 +486,12 @@
       var h = state.history[i];
       var d = document.createElement("div");
       d.className = "history-item " + (h.ok ? "ok" : "bad");
-      d.textContent = (h.ok ? "\u2713 " : "\u2715 ") + h.time + " — " + t(h.action) + (h.file ? " (" + h.file + ")" : "") + (h.msg ? " — " + h.msg : "");
+      /* "14:22:10 — export_01.svg — Placed", the order the V1 frame shows. */
+      var parts = [h.time];
+      if (h.file) parts.push(h.file);
+      parts.push(t(h.action));
+      if (h.msg) parts.push(h.msg);
+      d.textContent = (h.ok ? "\u2713 " : "\u2715 ") + parts.join(" — ");
       el.appendChild(d);
     }
   }
