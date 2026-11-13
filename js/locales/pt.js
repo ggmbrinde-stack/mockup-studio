@@ -181,7 +181,9 @@ window.LOCALES.pt = {
     vxStrokeFixed: "Espessura do traço fixa",
     vxFixedSize: "Fixar o tamanho do SVG",
     errorBatchChanged: "Outra janela iniciou um lote. Execute este novamente.",
-    errorBatchItemInvalid: "Esse objeto já não existe no documento; foi ignorado."
+    errorBatchItemInvalid: "Esse objeto já não existe no documento; foi ignorado.",
+    settingsPillPng: "Lado maior do PNG",
+    settingsPillPreset: "Predefinição"
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.pt);

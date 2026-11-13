@@ -319,6 +319,8 @@
     core.on(core.$("refreshSvgsBtn"), "click", refreshSvgHistory);
     core.on(core.$("openLogBtn"), "click", bridge.openLogFolder);
     core.on(core.$("langBtn"), "click", core.toggleLanguage);
+    /* Mini State header: closing the floating window is closing its own window. */
+    core.on(core.$("miniClose"), "click", function () { try { window.close(); } catch (e) { } });
     core.on(core.$("checkUpdateBtn"), "click", function () { startUpdate("check"); });
     core.on(core.$("applyUpdateBtn"), "click", armOrApplyUpdate);
     core.on(core.$("restoreUpdateBtn"), "click", function () { startUpdate("restore"); });

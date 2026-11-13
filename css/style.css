@@ -131,9 +131,16 @@ select:focus-visible {
 /* Hint */
 .hint { font-size: 11px; color: var(--text-hint); line-height: 1.4; overflow-wrap: anywhere; }
 
-/* Actions */
+/* Actions: text links in the V1 frame, not boxed buttons. */
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.actions .btn { flex: 0 1 auto; }
+.actions .btn {
+  flex: 0 1 auto; border-color: transparent; background: transparent;
+  color: var(--accent); padding-left: 4px; padding-right: 4px;
+}
+.actions .btn:hover { background: var(--accent-tint); }
+.actions .btn:active { background: var(--accent-tint); }
+.actions .btn:disabled { opacity: .45; }
+.actions .btn:disabled:hover { background: transparent; }
 
 /* Settings */
 /* Settings can be taller than the whole panel. Cap it and let the form scroll inside,
@@ -187,13 +194,12 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 .history-item.bad { color: var(--danger); }
 .log div { padding: 2px 0; border-bottom: 1px solid #f5f5f5; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Consolas, monospace; font-size: 11px; }
 
-/* Footer: in the canvas the version sits above the maker line, both flush left; the
-   Mini State keeps only the version, on one compact row. */
-.appFooter { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+/* Footer: one row, version left and the maker line right, as in the V1 full frame. */
+.appFooter { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 /* No margin-top:auto here: an auto margin would absorb the spare height and keep
    History/Log at their minimum instead of letting them grow with the panel. */
 .version { font-size: 11px; color: var(--muted-2); }
-.attribution { font-size: 10px; color: #AAAAAA; text-align: left; overflow-wrap: anywhere; }
+.attribution { font-size: 10px; color: #AAAAAA; text-align: right; overflow-wrap: anywhere; }
 
 .panelSubTitle { font-weight: 600; font-size: 11.5px; color: var(--muted); margin: var(--space-2) var(--pad-sm) var(--space-1) }
 .svg-history-item { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 5px 6px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--surface); margin-bottom: 4px }
@@ -268,7 +274,20 @@ body[data-mode="mini"] #setupOverlay { display: none !important; }
 .mode-mini #vectorizeBtn { min-height: 34px; font-size: 13px; }
 .mode-mini .actions { gap: 4px; }
 .mode-mini .actions .btn { flex: 1 1 auto; font-size: 11px; padding: 2px 6px; min-height: 22px; }
-.mode-mini .appFooter { flex-direction: row; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-soft); padding-top: 6px; }
+.mode-mini .appFooter { display: none; }
+/* The mini frame ends with the compact-mode caption instead of the version line. */
+.miniCaption { display: none; font-size: 11px; color: var(--text-muted); }
+.mode-mini .miniCaption { display: block; }
+/* V1 mini frame has a close control in the header and no actions row at all. */
+.miniClose {
+  display: none; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--text-muted); font-size: 15px; line-height: 1;
+  cursor: pointer; flex: 0 0 auto;
+}
+.mode-mini .miniClose { display: inline-flex; }
+.miniClose:hover { background: var(--surface-alt); color: var(--text-primary); }
+.mode-mini .actions { display: none; }
 .mode-mini .appFooter .version { font-size: 10.5px; }
 .windowMode #vectorizeBtn { min-height: 34px; }
 
@@ -417,4 +436,13 @@ details[open].settings { min-height: 96px; }
 @media (max-width: 380px) {
   .mode-mini { padding: 6px 8px; gap: 5px; }
   .mode-mini .actions .btn { flex: 1 1 auto; }
+}
+
+/* Collapsed-settings summary pill from the V1 frame
+   ("PNG long side: 1700px · Preset: General purpose"). */
+.settingsPill {
+  margin-left: auto; max-width: 72%;
+  font-weight: 400; font-size: 10.5px; color: var(--text-muted);
+  background: var(--surface-alt); border-radius: 999px; padding: 2px 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }

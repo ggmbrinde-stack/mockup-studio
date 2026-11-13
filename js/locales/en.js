@@ -182,7 +182,9 @@ window.LOCALES.en = {
     vxStrokeFixed: "Fixed stroke width",
     vxFixedSize: "Fix the SVG size",
     errorBatchChanged: "Another window started a batch. Run this one again.",
-    errorBatchItemInvalid: "That object is gone from the document; it was skipped."
+    errorBatchItemInvalid: "That object is gone from the document; it was skipped.",
+    settingsPillPng: "PNG long side",
+    settingsPillPreset: "Preset"
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.en);

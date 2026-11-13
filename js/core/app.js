@@ -367,6 +367,15 @@
     setVxCheck("vxStrokeFixed", vx.strokeFixed);
     var swEl = $("vxStrokeWidth");
     if (swEl) swEl.value = String(vx.strokeWidth);
+    /* Collapsed-settings summary, as in the V1 frame:
+       "PNG long side: 1700px · Preset: General purpose". */
+    var pill = $("settingsPill");
+    if (pill) {
+      var side = parseInt(state.settings.pngLongSide, 10);
+      var sideText = (side === 0) ? t("pngPresetOriginal") : (side + "px");
+      var presetKey = "vxPreset" + (vx.preset === "editing" ? "Editing" : vx.preset === "cutting" ? "Cutting" : vx.preset === "custom" ? "Custom" : "General");
+      pill.textContent = t("settingsPillPng") + ": " + sideText + " · " + t("settingsPillPreset") + ": " + t(presetKey);
+    }
   }
 
   /* Selection changes arrive from host/watch.jsx as CSXS events, so this only renders -
