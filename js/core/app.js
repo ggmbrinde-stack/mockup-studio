@@ -125,20 +125,44 @@
   function setStatus(text) {
     var raw = String(text || "");
     statusKey = "";
-    if (raw === lastStatusText) return;
-    lastStatusText = raw;
+    /* The floating window gets the short form; the log keeps the full sentence. */
+    var shown = windowMode ? shortenForMini(raw) : raw;
+    if (shown === lastStatusText) return;
+    lastStatusText = shown;
     var el = $("statusBar");
-    if (el) el.textContent = raw;
+    if (el) el.textContent = shown;
     appendLogUI("[status] " + raw);
   }
   /* V1 status model (design/NOTES-v1.md §3): the docked panel states the full
      sentence, the floating window states one word, and the colour carries the state. */
   var STATUS_MINI_KEY = {
     statusReady: "statusReadyMini",
+    statusLoadingHost: "statusLoadingHostMini",
+    statusHostError: "statusHostErrorMini",
+    statusExporting: "statusExportingMini",
+    statusUploading: "statusUploadingMini",
     statusVectorizing: "statusVectorizingMini",
+    statusResult: "statusResultMini",
+    statusDownloading: "statusDownloadingMini",
+    statusPlacing: "statusPlacingMini",
     statusPlaced: "statusPlacedMini",
+    statusBatch: "statusBatchMini",
+    statusBatchProgress: "statusBatchProgressMini",
+    statusBatchDone: "statusBatchDoneMini",
+    statusBatchCancelled: "statusBatchCancelledMini",
+    batchNoItems: "batchNoItemsMini",
+    statusPlacingLinked: "statusPlacingLinkedMini",
+    statusPlaceFailed: "statusPlaceFailedMini",
+    statusExportFailed: "statusExportFailedMini",
+    statusAgentLaunch: "statusAgentLaunchMini",
+    statusWaitingSlot: "statusWaitingSlotMini",
+    statusAgentLoading: "statusAgentLoadingMini",
+    statusAgentError: "statusAgentErrorMini",
     statusLoginRequired: "statusLoginRequiredMini",
-    statusAgentError: "statusAgentErrorMini"
+    statusSignInOpen: "statusSignInOpenMini",
+    statusSignInClosed: "statusSignInClosedMini",
+    statusWindowClosed: "statusWindowClosedMini",
+    statusCancelled: "statusCancelledMini"
   };
   var STATUS_TONE = {
     statusReady: "accent",
@@ -149,6 +173,35 @@
     statusHostError: "danger"
   };
   var statusKey = "";
+  /* Statuses reach setStatus() already translated, so the short forms are found by
+     mapping the text back to its key. Rebuilt when the language changes. */
+  var statusMiniText = null;
+  function buildStatusMiniText() {
+    statusMiniText = [];
+    var dict = (window.LOCALES && window.LOCALES[state.lang]) || {};
+    for (var k in STATUS_MINI_KEY) {
+      if (!STATUS_MINI_KEY.hasOwnProperty(k)) continue;
+      var full = dict[k];
+      var mini = dict[STATUS_MINI_KEY[k]];
+      if (typeof full !== "string" || typeof mini !== "string" || !full) continue;
+      statusMiniText.push({ full: full, mini: mini });
+    }
+    /* Longest first so a longer message wins over one that prefixes it. */
+    statusMiniText.sort(function (a, b) { return b.full.length - a.full.length; });
+    return statusMiniText;
+  }
+  function shortenForMini(text) {
+    var raw = String(text || "");
+    var table = statusMiniText || buildStatusMiniText();
+    for (var i = 0; i < table.length; i++) {
+      if (raw === table[i].full || raw.indexOf(table[i].full) === 0) return table[i].mini;
+    }
+    /* Live batch progress arrives already formatted ("Batch 1/3 (2 active)…"), so keep
+       just the counter instead of clipping mid-word. */
+    var bp = /^(\S+ \d+\/\d+)/.exec(raw);
+    if (bp) return bp[1];
+    return raw.length > 26 ? raw.slice(0, 25) + "\u2026" : raw;
+  }
   function statusTextFor(key) {
     var k = windowMode ? (STATUS_MINI_KEY[key] || key) : key;
     return t(k) || t(key) || "";
@@ -522,6 +575,7 @@
   var extensionVersion = readExtensionVersion();
 
   function renderLocale() {
+    statusMiniText = null;
     var nodes = document.querySelectorAll("[data-i18n]");
     for (var i = 0; i < nodes.length; i++) {
       var key = nodes[i].getAttribute("data-i18n");
