@@ -24,6 +24,9 @@
    to vectorizer.ai. Prefer a dedicated account you can rotate.
 */
 window.VBADMIN = {
+  /* The update repository, shared with agent/update.js: both read it from this file so the
+     "View release notes" button and the updater can never point at different projects. */
+  updateRepo: "ggmbrinde-stack/mockup-studio",
   skipWizard: false,
   autoSignIn: false,
   credentialsUrl: "",

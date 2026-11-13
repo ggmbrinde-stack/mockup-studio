@@ -335,7 +335,8 @@
     });
     /* "View release notes" opens the published release list in the system browser. */
     core.on(core.$("releaseNotesBtn"), "click", function () {
-      var url = "https://github.com/ggmbrinde-stack/mockup-studio/releases";
+      var url = (core.releasesUrl && core.releasesUrl()) || "";
+      if (!url) return;
       try {
         if (window.cep && window.cep.util && window.cep.util.openURLInDefaultBrowser) {
           window.cep.util.openURLInDefaultBrowser(url); return;

@@ -37,7 +37,18 @@ function parseArgs(argv) {
   return out;
 }
 
-const DEFAULT_REPO = 'ggmbrinde-stack/mockup-studio';
+/* The repository is declared once, in js/admin-config.js, which ships with the panel and
+   that the panel reads for its "View release notes" link. The literal is only a last
+   resort for a tree where that file is missing. */
+const FALLBACK_REPO = 'ggmbrinde-stack/mockup-studio';
+function readAdminRepo() {
+  try {
+    const cfg = fs.readFileSync(path.join(__dirname, '..', 'js', 'admin-config.js'), 'utf8');
+    const m = /updateRepo\s*:\s*"([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)"/.exec(cfg);
+    return m ? m[1] : '';
+  } catch (e) { return ''; }
+}
+const DEFAULT_REPO = readAdminRepo() || FALLBACK_REPO;
 const ALLOWED_HOSTS = new Set([
   'api.github.com',
   'github.com',

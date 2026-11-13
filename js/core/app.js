@@ -3,6 +3,12 @@
   var VB = window.VBPanel = window.VBPanel || {};
   var core = VB.core = VB.core || {};
 
+  /* One source for the update repository: js/admin-config.js, which the agent's updater
+     reads too, so the release page and the updater cannot drift apart. */
+  var UPDATE_REPO = (window.VBADMIN && window.VBADMIN.updateRepo) || "ggmbrinde-stack/mockup-studio";
+  core.updateRepo = function () { return UPDATE_REPO; };
+  core.releasesUrl = function () { return "https://github.com/" + UPDATE_REPO + "/releases"; };
+
   /* The manifest opens this same page twice: once as the docked panel (Full State) and
      once as a modeless window with ?view=window (Mini State). The flag is read before
      first paint and turned into a class on .app, so the compact copy never shows the

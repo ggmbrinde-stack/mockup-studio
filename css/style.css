@@ -129,8 +129,6 @@ select:focus-visible {
 .statusDetail { font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
 /* The status block is status + selection and sizes to its content (~32px with both
    lines), as NOTES-v1 §5E specifies; a fixed slot left a gap under the status. */
-.mode-full .statusDetail { min-height: 0; }
-.mode-mini .statusDetail { min-height: 0; }
 /* Live selection line, fed by host/watch.jsx over CSXS events. */
 .selection { font-size: 11.5px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
 .selection.on { color: var(--fg); font-weight: 600; }
@@ -284,13 +282,13 @@ body[data-mode="mini"] #setupOverlay { display: none !important; }
 .mode-mini #lastExport:empty { display: none; }
 .mode-mini .selection { font-size: 11px; }
 .mode-mini #vectorizeBtn { min-height: 34px; font-size: 13px; }
+/* The only button that can appear in the mini row is Cancel, as a compact link. */
 .mode-mini .actions { gap: 4px; }
-.mode-mini .actions .btn { flex: 1 1 auto; font-size: 11px; padding: 2px 6px; min-height: 22px; }
+.mode-mini .actions .btn { flex: 0 0 auto; font-size: 11px; padding: 2px 6px; min-height: 22px; }
 .mode-mini .appFooter { display: none; }
 /* The mini frame ends with the compact-mode caption instead of the version line. */
 .miniCaption { display: none; font-size: 10.5px; color: var(--text-muted); }
 .mode-mini .miniCaption { display: block; }
-/* V1 mini frame has a close control in the header and no actions row at all. */
 /* 26×26 boxed close control with a centred ✕ (NOTES-v1 §5D). */
 .miniClose {
   display: none; align-items: center; justify-content: center;
@@ -309,7 +307,6 @@ body.canCancel .mode-mini .actions { display: flex; justify-content: flex-end; }
 body.canCancel .mode-mini #signInBtn,
 body.canCancel .mode-mini #openSvgsBtn,
 body.canCancel .mode-mini #openLogBtn { display: none; }
-.mode-mini .appFooter .version { font-size: 10.5px; }
 .windowMode #vectorizeBtn { min-height: 34px; }
 
 /* Extremely narrow dock: nothing may push the layout wider than the panel. */
@@ -456,7 +453,6 @@ details[open].settings { min-height: 96px; }
 }
 @media (max-width: 380px) {
   .mode-mini { padding: 6px 8px; gap: 5px; }
-  .mode-mini .actions .btn { flex: 1 1 auto; }
 }
 
 /* Collapsed-settings summary pill from the V1 frame
