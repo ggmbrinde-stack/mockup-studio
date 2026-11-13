@@ -169,8 +169,9 @@
   function refreshStatusCopy() {
     if (statusKey) paintStatus(statusTextFor(statusKey), STATUS_TONE[statusKey]);
     /* The selection line also reads differently per state (document name only in the
-       docked panel), so repaint it from the last known selection. */
-    if (state.selection) renderSelection(state.selection);
+       docked panel), so repaint it from the last known selection. Guarded: this runs
+       once from applyLayout() before `state` is assigned at module init. */
+    if (state && state.selection) renderSelection(state.selection);
   }
   function setDetail(text) { var el = $("statusDetail"); if (el) el.textContent = text ? String(text) : ""; }
   function setRunTimerDetail(prefix) {
@@ -502,6 +503,24 @@
       if (done) done(applied);
     });
   }
+  /* Footer identity: app name plus the version in CSXS/manifest.xml, which is the only
+     place the version is bumped. Reading it avoids a second copy drifting out of date. */
+  function readExtensionVersion() {
+    try {
+      var api = window.__adobe_cep__;
+      var fsApi = window.cep && window.cep.fs;
+      if (!api || !fsApi || !fsApi.readFile) return "";
+      var base = String(api.getSystemPath("extension") || "")
+        .replace(/^file:\/\/\//, "").replace(/\\/g, "/");
+      if (!base) return "";
+      var res = fsApi.readFile(base + "/CSXS/manifest.xml");
+      if (!res || res.err !== 0 || !res.data) return "";
+      var m = /ExtensionBundleVersion="([0-9][0-9.]*)"/.exec(String(res.data));
+      return m ? m[1] : "";
+    } catch (e) { return ""; }
+  }
+  var extensionVersion = readExtensionVersion();
+
   function renderLocale() {
     var nodes = document.querySelectorAll("[data-i18n]");
     for (var i = 0; i < nodes.length; i++) {
@@ -514,6 +533,8 @@
     }
     var langBtn = $("langBtn");
     if (langBtn) langBtn.textContent = state.lang.toUpperCase();
+    var versionEl = $("versionText");
+    if (versionEl) versionEl.textContent = t("appTitle") + (extensionVersion ? " v" + extensionVersion : "");
     document.documentElement.lang = state.lang;
     renderHistory();
   }
@@ -547,8 +568,12 @@
     if (v) v.disabled = !hostOk || state.busy || state.waiting || state.login;
     var s = $("signInBtn");
     if (s) s.disabled = !hostOk || state.busy || state.waiting || state.login;
+    var cancelable = !!(state.waiting || state.login || state.busy);
     var c = $("cancelBtn");
-    if (c) c.disabled = !(state.waiting || state.login || state.busy);
+    if (c) c.disabled = !cancelable;
+    /* The mini window hides the shortcut row, but Cancel has to stay reachable while a
+       run is active, so the body carries the flag and CSS brings the row back. */
+    try { document.body.classList.toggle("canCancel", cancelable); } catch (e) { }
   }
 
   core.state = state;

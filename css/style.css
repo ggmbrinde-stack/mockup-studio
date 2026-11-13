@@ -302,7 +302,13 @@ body[data-mode="mini"] #setupOverlay { display: none !important; }
 .mode-mini .miniClose { display: inline-flex; }
 .miniClose:hover { background: var(--surface-alt); color: var(--text-primary); }
 /* Output panels keep their hint and section label: they explain where files land. */
+/* Mini State keeps the shortcut row out of the way, except Cancel: body.canCancel is set
+   from core.updateButtons() while a run is active, and then only Cancel comes back. */
 .mode-mini .actions { display: none; }
+body.canCancel .mode-mini .actions { display: flex; justify-content: flex-end; }
+body.canCancel .mode-mini #signInBtn,
+body.canCancel .mode-mini #openSvgsBtn,
+body.canCancel .mode-mini #openLogBtn { display: none; }
 .mode-mini .appFooter .version { font-size: 10.5px; }
 .windowMode #vectorizeBtn { min-height: 34px; }
 

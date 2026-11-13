@@ -321,7 +321,18 @@
     core.on(core.$("openLogBtn"), "click", bridge.openLogFolder);
     core.on(core.$("langBtn"), "click", core.toggleLanguage);
     /* Mini State header: closing the floating window is closing its own window. */
-    core.on(core.$("miniClose"), "click", function () { try { window.close(); } catch (e) { } });
+    /* A CEP panel does not own a browser window, so window.close() is usually a no-op
+       there; CEP's own closeExtension() is the real way out of the floating window. */
+    core.on(core.$("miniClose"), "click", function () {
+      try { window.close(); } catch (e) { }
+      setTimeout(function () {
+        try {
+          var cs = (bridge.getCS && bridge.getCS()) || null;
+          if (cs && typeof cs.closeExtension === "function") { cs.closeExtension(); return; }
+          if (window.__adobe_cep__ && typeof window.__adobe_cep__.closeExtension === "function") window.__adobe_cep__.closeExtension();
+        } catch (e2) { }
+      }, 60);
+    });
     /* "View release notes" opens the published release list in the system browser. */
     core.on(core.$("releaseNotesBtn"), "click", function () {
       var url = "https://github.com/ggmbrinde-stack/mockup-studio/releases";
@@ -506,10 +517,9 @@
         core.log("Host self-test: " + selfTest);
         if (!st.ok || !st.parsed) core.showError(core.t("errorJson") + " (" + selfTest + ")");
       });
-      bridge.evalJsx("app.version", function (version) {
-        var el = core.$("versionText");
-        if (el && version) el.textContent = core.t("versionLabel") + " " + version;
-      });
+      /* The footer names the app and its own version (set in core.renderLocale from
+         CSXS/manifest.xml); the Illustrator version is not what belongs there. */
+      core.renderLocale();
     });
     core.schedulePoll(core.currentPollMs());
     scheduleDaemonPoll();
