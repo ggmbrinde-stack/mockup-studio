@@ -3,15 +3,47 @@
   var VB = window.VBPanel = window.VBPanel || {};
   var core = VB.core = VB.core || {};
 
-  /* The manifest opens this same page twice: once as the docked panel and once as a
-     modeless window with ?view=window. That flag switches to the compact layout, which is
-     applied here so the sections are hidden before first paint. */
+  /* The manifest opens this same page twice: once as the docked panel (Full State) and
+     once as a modeless window with ?view=window (Mini State). The flag is read before
+     first paint and turned into a class on .app, so the compact copy never shows the
+     sections that need a full-width dock. The body keeps its .windowMode class too,
+     which hides those sections even if the script runs late. */
   var windowMode = false;
   try {
     windowMode = String(window.location.search || "").indexOf("view=window") >= 0;
     if (windowMode) document.body.className = (document.body.className ? document.body.className + " " : "") + "windowMode";
   } catch (eMode) { }
-  core.isWindowMode = function () { return windowMode; };
+
+  /* One place decides the layout, so a state can also be switched at runtime.
+     Everything else in the panel is layout-agnostic: the same ids and handlers are
+     used by both states. */
+  function applyLayout() {
+    var mode = windowMode ? "mini" : "full";
+    try {
+      var app = document.querySelector(".app");
+      if (app) {
+        var cls = String(app.className || "").replace(/\bmode-(full|mini)\b/g, "").replace(/\s+/g, " ").replace(/^ | $/g, "");
+        app.className = cls + " mode-" + mode;
+        app.setAttribute("data-mode", mode);
+      }
+      document.body.setAttribute("data-mode", mode);
+      document.documentElement.setAttribute("data-mode", mode);
+    } catch (e) { }
+    return mode;
+  }
+  applyLayout();
+
+  core.isWindowMode = function () { return !!windowMode; };
+  core.layoutMode = function () { return windowMode ? "mini" : "full"; };
+  core.applyLayout = applyLayout;
+  core.setWindowMode = function (flag) {
+    windowMode = !!flag;
+    try {
+      document.body.className = String(document.body.className || "").replace(/\bwindowMode\b/g, "").replace(/\s+/g, " ").replace(/^ | $/g, "");
+      if (windowMode) document.body.className = (document.body.className ? document.body.className + " " : "") + "windowMode";
+    } catch (e) { }
+    return applyLayout();
+  };
 
   var POLL_MS_IDLE = 1200;
   var POLL_MS_ACTIVE = 400;

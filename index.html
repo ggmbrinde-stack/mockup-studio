@@ -6,7 +6,9 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="app">
+<!-- Full State (docked panel) is the default; js/core/app.js switches this element to
+     mode-mini for the modeless window (?view=window). Both states share this markup. -->
+<div class="app mode-full" data-mode="full">
   <header class="toolbar">
     <div class="title" data-i18n="appTitle">Vectorizer Bridge</div>
     <div class="spacer"></div>
@@ -193,8 +195,10 @@
     <div class="updateWarn" id="updateRestartWarn" data-i18n="updateRestartWarn" hidden></div>
   </details>
 
-  <div class="version" id="versionText"></div>
-  <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
+  <footer class="appFooter">
+    <div class="version" id="versionText"></div>
+    <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
+  </footer>
   <div id="jsError" class="error-box"></div>
 </div>
 

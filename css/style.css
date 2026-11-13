@@ -1,26 +1,56 @@
 /* Vectorizer Bridge — CEP panel styles (Illustrator 2025+, Windows) */
 /*
+  Two states, one DOM (see js/core/app.js):
+  - Full State (docked panel, canvas width 380px): header, live status, selection
+    text, primary Vectorize button, actions row, Settings accordion, History,
+    Updates, footer. Everything stacks vertically and fills the docked width.
+  - Mini State (modeless window, ?view=window): a compact toolbar with header,
+    status, the primary button and a footer. The other sections are hidden, not
+    merely moved, so the window stays one small strip.
+
   Layout rules:
-  - The panel window can be docked at almost any size, so nothing is sized in fixed
-    pixels that a narrow or short panel cannot honour. The app column fills the window,
-    the History/Log panels grow into the free space and scroll internally, and every
-    text block wraps instead of forcing a horizontal scrollbar.
-  - Breakpoints: single column below 360px, two columns from 360px, roomier from 560px,
-    compact spacing when the panel is short.
+  - Nothing is sized in fixed pixels that a narrow or short panel cannot honour. The
+    app column fills the window, History/Log grow into the free space and scroll
+    internally, and every text block wraps instead of forcing a horizontal scrollbar.
+  - Breakpoints: single column up to 360px (rail), the designed 380px column, roomier
+    from 620px, and a two-column grid from 820px where History and Log sit side by
+    side under the controls.
 */
 :root {
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --fg: #262626;
-  --muted: #5f5f5f;      /* 6.1:1 on --bg */
-  --muted-2: #6b6b6b;    /* 5.1:1 on --bg */
-  --border: #cfcfcf;
-  --border-soft: #e8e8e8;
-  --accent: #0b57d0;     /* 6.1:1 on --bg, 6.4:1 under white text */
-  --accent-hover: #0842a0;
-  --success: #1b5e20;
-  --danger: #c62828;
-  --focus: #0b57d0;
+  /* --- Canvas design tokens (design/VectorizerBridge-UI.pen) -----------------
+     Values are the canvas variables verbatim; the canvas names are used directly
+     (var(--panel-bg), $accent → var(--accent)) and the panel's older aliases map
+     onto them, so one palette drives both the design and the code. */
+  --panel-bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface-alt: #F2F2F2;
+  --border: #DDDDDD;
+  --border-strong: #999999;
+  --text-primary: #111111;
+  --text-body: #333333;
+  --text-muted: #767676;
+  --text-hint: #666666;       /* the hint line in the canvas */
+  --accent: #0066CC;
+  --accent-hover: #0052A3;
+  --accent-tint: #E8F1FB;
+  --status-info: #1A73E8;     /* live status line in the canvas */
+  --success: #2E7D32;
+  --danger: #C62828;
+  --warning: #B26A00;
+  --font-ui: "Segoe UI", sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+
+  /* aliases the rest of the stylesheet already uses */
+  --bg: var(--panel-bg);
+  --fg: var(--text-primary);
+  --muted: var(--text-muted);
+  --muted-2: #888888;
+  --border-soft: #EEEEEE;
+  --accent-soft: var(--accent-tint);
+  --focus: var(--accent);
   --radius: 4px;
   --pad: clamp(8px, 2.4vw, 14px);
   --pad-sm: clamp(8px, 2vw, 12px);
@@ -34,7 +64,7 @@ html, body {
 }
 html { overflow: hidden; }
 body {
-  font-family: "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
   font-size: var(--fs);
   color: var(--fg); background: var(--bg);
   overflow: hidden; /* the app column owns scrolling */
@@ -51,11 +81,11 @@ body {
 
 /* Header */
 .toolbar {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  border-bottom: 1px solid var(--border); padding-bottom: var(--space-2);
 }
 .title {
-  font-weight: 700; font-size: clamp(14px, 3.6vw, 16px); color: var(--fg);
+  font-weight: 700; font-size: clamp(14px, 3.6vw, 15px); color: var(--text-primary);
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .spacer { flex: 1 1 auto; }
@@ -63,15 +93,15 @@ body {
 
 /* Buttons */
 .btn {
-  border: 1px solid #b0b0b0; background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary);
   padding: 5px 10px; border-radius: var(--radius); cursor: pointer;
   font-size: 12px; font-family: inherit; min-height: 26px;
   max-width: 100%; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
-.btn:hover { background: #f0f0f0; }
-.btn:active { background: #e6e6e6; }
-.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; font-weight: 600; white-space: normal; }
+.btn:hover { background: var(--surface-alt); }
+.btn:active { background: #E6E6E6; }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; font-weight: 600; font-size: 12px; min-height: 30px; white-space: normal; }
 .btn.primary:hover { background: var(--accent-hover); }
 .btn.primary:active { background: #062f78; }
 .btn.small { padding: 3px 8px; font-size: 11.5px; min-height: 24px; }
@@ -88,14 +118,18 @@ select:focus-visible {
 }
 
 /* Status */
-.status { font-weight: 600; color: var(--accent); padding: 2px 0; line-height: 1.35; overflow-wrap: anywhere; }
+.status { font-weight: 600; font-size: 13px; color: var(--status-info); padding: 2px 0; line-height: 1.35; overflow-wrap: anywhere; }
 .statusDetail { font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+/* The canvas keeps a 30px live-status slot so the primary button never jumps when a
+   state arrives; the Mini State drops it because its height is the scarce resource. */
+.mode-full .statusDetail { min-height: 30px; }
+.mode-mini .statusDetail { min-height: 0; }
 /* Live selection line, fed by host/watch.jsx over CSXS events. */
 .selection { font-size: 11.5px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
 .selection.on { color: var(--fg); font-weight: 600; }
 
 /* Hint */
-.hint { font-size: 11.5px; color: var(--muted); line-height: 1.4; overflow-wrap: anywhere; }
+.hint { font-size: 11px; color: var(--text-hint); line-height: 1.4; overflow-wrap: anywhere; }
 
 /* Actions */
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -105,7 +139,7 @@ select:focus-visible {
 /* Settings can be taller than the whole panel. Cap it and let the form scroll inside,
    keeping its summary row visible, so the sections below always get real space. */
 .settings {
-  border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
   flex: 0 1 auto; max-height: 42vh; overflow-y: auto; overscroll-behavior: contain;
 }
 .settingsSummary {
@@ -116,26 +150,25 @@ select:focus-visible {
 .settingsSummary::-webkit-details-marker { display: none; }
 .settingsSummary::before { content: "▸"; color: var(--muted); font-size: 10px; line-height: 1; }
 details[open] > .settingsSummary::before { content: "▾"; }
-.settingsGrid { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 8px var(--pad-sm); align-items: end; }
-@media (min-width: 360px) {
-  .settingsGrid { grid-template-columns: 1fr 1fr; }
-}
-@media (min-width: 560px) {
-  .settingsGrid { gap: 10px; }
+/* The canvas keeps the form in one column at the docked width (420px frame, 380px
+   of content); two columns only once the panel is genuinely wide. */
+.settingsGrid { display: grid; grid-template-columns: 1fr; gap: var(--space-2); padding: var(--space-2) var(--pad-sm); align-items: end; }
+@media (min-width: 620px) {
+  .settingsGrid { grid-template-columns: 1fr 1fr; gap: 10px 18px; }
 }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field.full { grid-column: 1 / -1; }
-.field label { font-size: 12px; color: #3f3f3f; overflow-wrap: anywhere; }
-.field .checkbox { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; font-size: 12px; color: #3f3f3f; }
+.field label { font-size: 12px; color: var(--text-body); overflow-wrap: anywhere; }
+.field .checkbox { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; font-size: 12px; color: var(--text-body); }
 .field .checkbox span { overflow-wrap: anywhere; }
 .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .row input { flex: 1 1 8ch; min-width: 0; }
-input[type=text], input[type=number], select { padding: 5px 8px; border: 1px solid #b0b0b0; border-radius: var(--radius); font-size: 12px; width: 100%; max-width: 100%; min-width: 0; font-family: inherit; color: var(--fg); background: var(--surface); }
+input[type=text], input[type=number], select { padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: 12px; width: 100%; max-width: 100%; min-width: 0; font-family: inherit; color: var(--fg); background: var(--surface); }
 input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 
 /* History / log panels */
 .panel {
-  border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
   /* basis 0 + grow: these are the only blocks that take spare height, so making the
      panel taller really does give History/Log more room instead of leaving the page
      scrollable at a fixed size. */
@@ -145,7 +178,7 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
   resize: none;
 }
 .panelTitleRow { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 6px var(--pad-sm); border-bottom: 1px solid #f0f0f0; }
-.panelTitle { font-weight: 700; font-size: 12px; padding: 6px var(--pad-sm); border-bottom: 1px solid #f0f0f0; color: #3f3f3f; }
+.panelTitle { font-weight: 700; font-size: 12px; padding: 6px var(--pad-sm); border-bottom: 1px solid var(--border-soft); color: var(--text-body); }
 .panelTitleRow .panelTitle { padding: 0; border-bottom: 0; }
 .panelTitleRow .btn { flex: 0 0 auto; }
 .list, .log { flex: 1 1 0%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--pad-sm); font-size: 12px; }
@@ -154,12 +187,15 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 .history-item.bad { color: var(--danger); }
 .log div { padding: 2px 0; border-bottom: 1px solid #f5f5f5; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Consolas, monospace; font-size: 11px; }
 
+/* Footer: in the canvas the version sits above the maker line, both flush left; the
+   Mini State keeps only the version, on one compact row. */
+.appFooter { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 /* No margin-top:auto here: an auto margin would absorb the spare height and keep
    History/Log at their minimum instead of letting them grow with the panel. */
 .version { font-size: 11px; color: var(--muted-2); }
-.attribution { font-size: 11px; color: var(--muted-2); text-align: center; overflow-wrap: anywhere; }
+.attribution { font-size: 10px; color: #AAAAAA; text-align: left; overflow-wrap: anywhere; }
 
-.panelSubTitle { font-weight: 600; font-size: 11.5px; color: var(--muted); margin: 8px var(--pad-sm) 4px }
+.panelSubTitle { font-weight: 600; font-size: 11.5px; color: var(--muted); margin: var(--space-2) var(--pad-sm) var(--space-1) }
 .svg-history-item { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 5px 6px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--surface); margin-bottom: 4px }
 .svg-history-meta { min-width: 0; flex: 1 1 60%; }
 .svg-history-name { font-size: 11.5px; color: var(--fg); overflow-wrap: anywhere }
@@ -187,18 +223,54 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
   .svg-history-actions { flex: 1 1 100%; justify-content: flex-end; }
 }
 
-/* Floating window (?view=window): the same page, reduced to the controls that work
-   without the surrounding panel sections. */
-.windowMode .app { padding: 10px; gap: 8px; display: flex; flex-direction: column; }
+/* ---------------------------------------------------------------- States --
+   Full State is the default and the docked width on the canvas is 380px; the
+   column stacks vertically in this order: header, live status, selection, primary
+   button, actions, Settings, History, Updates, footer. Mini State is the same
+   markup reduced to header, status, primary button and footer. */
+/* Canvas frame: 10px vertical / 12px horizontal padding, 8px between sections. */
+.app.mode-full {
+  display: flex; flex-direction: column;
+  gap: var(--space-2); padding: 10px 12px;
+}
+.app.mode-mini {
+  display: flex; flex-direction: column;
+  gap: 6px; padding: 8px 10px;
+}
+
+/* Mini State: the sections that need a full-width dock are removed from the flow
+   entirely (display:none, not visibility) so nothing can leave a gap or scroll.
+   The .windowMode selectors cover the moment before app.js has set the class. */
+.mode-mini #settingsBox,
+.mode-mini #historyBox,
+.mode-mini #updatesBox,
+.mode-mini #logBox,
+.mode-mini #setupOverlay,
+.mode-mini .attribution,
+.mode-mini > .hint:not(#lastExport),
 .windowMode #settingsBox,
 .windowMode #historyBox,
 .windowMode #updatesBox,
 .windowMode #logBox,
 .windowMode #setupOverlay,
 .windowMode .attribution,
-.windowMode .version { display: none !important; }
 .windowMode .app > .hint:not(#lastExport) { display: none !important; }
-.windowMode #vectorizeBtn { min-height: 32px; }
+/* The setup tour belongs to the docked panel; the mini window never shows it. */
+body[data-mode="mini"] #setupOverlay { display: none !important; }
+
+.mode-mini .toolbar { padding-bottom: 6px; border-bottom-color: var(--border-soft); }
+.mode-mini .title { font-size: 13px; }
+.mode-mini .status { font-size: 12.5px; }
+.mode-mini .statusDetail:empty,
+.mode-mini .selection:empty,
+.mode-mini #lastExport:empty { display: none; }
+.mode-mini .selection { font-size: 11px; }
+.mode-mini #vectorizeBtn { min-height: 34px; font-size: 13px; }
+.mode-mini .actions { gap: 4px; }
+.mode-mini .actions .btn { flex: 1 1 auto; font-size: 11px; padding: 2px 6px; min-height: 22px; }
+.mode-mini .appFooter { flex-direction: row; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-soft); padding-top: 6px; }
+.mode-mini .appFooter .version { font-size: 10.5px; }
+.windowMode #vectorizeBtn { min-height: 34px; }
 
 /* Extremely narrow dock: nothing may push the layout wider than the panel. */
 @media (max-width: 280px) {
@@ -219,13 +291,14 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 @media (min-width: 620px) {
   .app { padding: 14px 18px; }
   .btn { padding: 5px 12px; }
-  .settingsGrid { grid-template-columns: 1fr 1fr; gap: 10px 18px; }
 }
 
 /* Very wide dock: controls on the left, History and Log side by side under the
    header, so a dragged-out panel uses its width instead of one long scroll. */
 @media (min-width: 820px) {
-  .app {
+  /* Scoped to mode-full so it outranks the base .app.mode-full column layout, and so
+     a wide Mini State window still stays a single compact column. */
+  .app.mode-full {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch; align-content: stretch;
@@ -242,15 +315,17 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
   .app > .version,
   .app > .attribution,
   .app > .settings,
-  .app > #updatesBox { grid-column: 1 / -1; }
+  .app > #updatesBox,
+  .app > .appFooter { grid-column: 1 / -1; }
   .app > #historyBox { grid-column: 1; }
   .app > #logBox { grid-column: 2; }
   .panel { min-height: 130px; }
 }
 
-/* Short panel: drop the long explanatory line and tighten spacing so the lists and the
-   action buttons fit without turning the whole panel into one long scroll area. */
-@media (max-height: 720px) {
+/* Short panel: drop the long explanatory line only when the height is really tight.
+   The canvas screens are 640px tall and keep the hint under the button, so this must
+   not trigger there. */
+@media (max-height: 560px) {
   .app { gap: 6px; }
   .app > .hint:not(#lastExport) { display: none; }
   details[open].settings { min-height: 88px; }
@@ -324,4 +399,22 @@ details[open].settings { min-height: 96px; }
 
 
 /* vectorizer.ai export settings block */
-.vxTitle { font-weight: 600; font-size: 12px; margin: 4px 0 2px; opacity: .9; }
+.vxTitle { font-weight: 600; font-size: 12px; margin: 4px 0 2px; color: var(--text-primary); opacity: .9; }
+
+/* ------------------------------------------------- Canvas breakpoints ----
+   380px is the designed docked width: below it the panel is a rail and the rows
+   stack tighter, above 620px it gets roomier, and from 820px the grid takes over
+   (History and Log side by side). Mini State ignores all of them: its window is
+   resized by hand and only the toolbar metrics matter. */
+@media (max-width: 379px) {
+  .mode-full { padding: 8px; gap: 6px; }
+  .mode-full .toolbar { gap: 6px; }
+  .mode-full .actions .btn { flex: 1 1 auto; }
+}
+@media (min-width: 380px) and (max-width: 619px) {
+  .mode-full { padding: 10px 12px; }
+}
+@media (max-width: 380px) {
+  .mode-mini { padding: 6px 8px; gap: 5px; }
+  .mode-mini .actions .btn { flex: 1 1 auto; }
+}
