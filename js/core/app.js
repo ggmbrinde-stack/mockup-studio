@@ -390,7 +390,7 @@
     var text = "";
     if (!info || !info.open) text = t("selectionNoDoc") || "No document open";
     else if (n === 0) text = (t("selectionNothing") || "Nothing selected") + (doc ? " — " + doc : "");
-    else text = (t("selectionCount") || "{count} selected").replace("{count}", String(n)) + (doc ? " — " + doc : "");
+    else text = (t(n === 1 ? "selectionCount" : "selectionCountMany") || "{count} layers selected").replace("{count}", String(n)) + (doc ? " — " + doc : "");
     el.textContent = text;
     el.className = "selection" + ((info && info.open && n > 0) ? " on" : "");
   }
