@@ -304,7 +304,7 @@ $exitCode = & {
     Initialize-Ui
     Write-Host ''
     Write-Host '  MOCKUP STUDIO' -ForegroundColor Cyan -NoNewline
-    Write-Host '   Vectorizer Bridge for Illustrator' -ForegroundColor DarkGray
+    Write-Host '   for Illustrator' -ForegroundColor DarkGray
     Write-Host ('  ' + ('-' * 62)) -ForegroundColor DarkGray
 
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
@@ -657,9 +657,9 @@ $exitCode = & {
     Write-Host ''
     if ($aiPids.Count -gt 0) {
       Write-Host '  Save your open documents first: restarting Illustrator closes every open file.' -ForegroundColor Yellow
-      Write-Host '  Then restart Illustrator and open Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
+      Write-Host '  Then restart Illustrator and open Window > Extensions > Mockup Studio.' -ForegroundColor White
     } else {
-      Write-Host '  Open Illustrator, then Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
+      Write-Host '  Open Illustrator, then Window > Extensions > Mockup Studio.' -ForegroundColor White
     }
     Write-Host '  The panel runs a short first-time setup: language, sign in, defaults.' -ForegroundColor DarkGray
     Write-Host ''

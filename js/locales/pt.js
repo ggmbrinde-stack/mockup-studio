@@ -1,6 +1,6 @@
 window.LOCALES = window.LOCALES || {};
 window.LOCALES.pt = {
-  appTitle: "Vectorizer Bridge",
+  appTitle: "Mockup Studio",
 
   vectorizeBtn: "Vetorizar seleção",
   selectionNoDoc: "Nenhum documento aberto",
@@ -128,7 +128,7 @@ window.LOCALES.pt = {
   openSvgFolder: "Mostrar na pasta",
 
   setupWelcomeTitle: "Bem-vindo ao Mockup Studio",
-  setupWelcomeText: "O Vectorizer Bridge transforma a arte selecionada num SVG vetorial com o vectorizer.ai e coloca-a por cima do original na camada “Vectorizer”. Uma configuração rápida, cerca de um minuto.",
+  setupWelcomeText: "O Mockup Studio transforma a arte selecionada num SVG vetorial com o vectorizer.ai e coloca-a por cima do original na camada “Vectorizer”. Uma configuração rápida, cerca de um minuto.",
   setupLanguage: "Idioma",
   setupStepVectorize: "Selecione a arte e clique em “Vetorizar seleção”.",
   setupStepSignIn: "Inicie sessão uma vez no vectorizer.ai; a sessão fica guardada para as próximas vezes.",

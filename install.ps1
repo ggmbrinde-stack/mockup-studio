@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Installs or updates the Vectorizer Bridge CEP extension for the current user.
+  Installs or updates the Mockup Studio CEP extension for the current user.
 .DESCRIPTION
   Mirrors only the runtime extension files (index.html, CSXS, css, host, js, modules, agent)
   into %APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge, installs agent
@@ -30,7 +30,7 @@ function Write-Log($msg) {
   Write-Host ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg)
 }
 
-Write-Log "Vectorizer Bridge installer starting."
+Write-Log "Mockup Studio installer starting."
 Write-Log "Source: $Source"
 Write-Log "Destination: $Dest"
 
@@ -232,7 +232,7 @@ Write-Log "Install/update complete."
 Write-Log "Next steps:"
 if ($aiPids.Count -gt 0) { Write-Log "  1) Save your open documents, then fully quit and reopen Illustrator (-Force was used; host scripts are cached)." }
 else { Write-Log "  1) Open Illustrator (restart it if it was already running)." }
-Write-Log "  2) Open Window > Extensions > Vectorizer Bridge."
+Write-Log "  2) Open Window > Extensions > Mockup Studio."
 Write-Log "  3) Panel shortcut Ctrl+Shift+; (semicolon) and the flyout menu only work when the panel has focus."
 Write-Log "  4) Agent dependencies live in $agentDir\node_modules and are preserved between installs."
 Write-Log "Runtime/user data remains untouched: $RuntimeDir"

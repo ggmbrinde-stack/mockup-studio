@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="2.3.18" ExtensionBundleName="Mockup Studio">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="2.3.19" ExtensionBundleName="Mockup Studio">
   <ExtensionList>
-    <Extension Id="com.bestofgifts.vectorizerbridge.panel" Version="2.3.18"/>
-    <Extension Id="com.bestofgifts.vectorizerbridge.window" Version="2.3.18"/>
+    <Extension Id="com.bestofgifts.vectorizerbridge.panel" Version="2.3.19"/>
+    <Extension Id="com.bestofgifts.vectorizerbridge.window" Version="2.3.19"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -28,7 +28,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Vectorizer Bridge</Menu>
+          <Menu>Mockup Studio</Menu>
           <!-- Min/Max let the user drag a floating panel to any workable size; when the panel
                is docked the host still decides the width. -->
           <Geometry>
@@ -61,7 +61,7 @@
         </Lifecycle>
         <UI>
           <Type>Modeless</Type>
-          <Menu>Vectorizer Bridge (floating)</Menu>
+          <Menu>Mockup Studio (floating)</Menu>
           <Geometry>
             <Size>
               <Width>380</Width>

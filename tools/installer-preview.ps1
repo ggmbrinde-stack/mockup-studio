@@ -136,7 +136,7 @@ try {
   Initialize-Ui
   Write-Host ''
   Write-Host '  MOCKUP STUDIO' -ForegroundColor Cyan -NoNewline
-  Write-Host '   Vectorizer Bridge for Illustrator' -ForegroundColor DarkGray
+  Write-Host '   for Illustrator' -ForegroundColor DarkGray
   Write-Host ('  ' + ('-' * 62)) -ForegroundColor DarkGray
 
   $panelState = 'first install'
@@ -204,7 +204,7 @@ try {
   Write-Host '  C:\Users\you\AppData\Roaming\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge' -ForegroundColor DarkGray
   Write-Host ''
   Write-Host '  Save your open documents first: restarting Illustrator closes every open file.' -ForegroundColor Yellow
-  Write-Host '  Then restart Illustrator and open Window > Extensions > Vectorizer Bridge.' -ForegroundColor White
+  Write-Host '  Then restart Illustrator and open Window > Extensions > Mockup Studio.' -ForegroundColor White
   Write-Host '  The panel runs a short first-time setup: language, sign in, defaults.' -ForegroundColor DarkGray
   Write-Host ''
   Write-Host '  Undo: set VB_INSTALL_VERSION to an older release and re-run, or use uninstall.ps1.' -ForegroundColor DarkGray

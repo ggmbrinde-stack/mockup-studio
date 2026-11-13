@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Uninstalls the Vectorizer Bridge CEP extension for the current user.
+  Uninstalls the Mockup Studio CEP extension for the current user.
 .DESCRIPTION
   Stops the warm agent daemon, then removes
   %APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge.
@@ -22,7 +22,7 @@ function Write-Log($msg) {
   Write-Host ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg)
 }
 
-Write-Log "Vectorizer Bridge uninstaller starting."
+Write-Log "Mockup Studio uninstaller starting."
 Write-Log "Extension folder target: $Dest"
 Write-Log "User runtime data will NOT be touched: $RuntimeData"
 

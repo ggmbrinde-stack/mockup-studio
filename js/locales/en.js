@@ -1,6 +1,6 @@
 window.LOCALES = window.LOCALES || {};
 window.LOCALES.en = {
-  appTitle: "Vectorizer Bridge",
+  appTitle: "Mockup Studio",
 
   vectorizeBtn: "Vectorize selection",
   selectionNoDoc: "No document open",
@@ -129,7 +129,7 @@ window.LOCALES.en = {
   openSvgFolder: "Show in folder",
 
   setupWelcomeTitle: "Welcome to Mockup Studio",
-  setupWelcomeText: "Vectorizer Bridge turns selected artwork into a real vector SVG with vectorizer.ai, then places it over the original on a “Vectorizer” layer. A quick setup, about a minute.",
+  setupWelcomeText: "Mockup Studio turns selected artwork into a real vector SVG with vectorizer.ai, then places it over the original on a “Vectorizer” layer. A quick setup, about a minute.",
   setupLanguage: "Language",
   setupStepVectorize: "Select artwork and click “Vectorize selection”.",
   setupStepSignIn: "Sign in once to vectorizer.ai; the session is kept for later runs.",
