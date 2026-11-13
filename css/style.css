@@ -37,7 +37,7 @@
   --success: #2E7D32;
   --danger: #C62828;
   --warning: #B26A00;
-  --font-ui: "Segoe UI", sans-serif;
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -51,10 +51,11 @@
   --border-soft: #EEEEEE;
   --accent-soft: var(--accent-tint);
   --focus: var(--accent);
-  --radius: 4px;
-  --pad: clamp(8px, 2.4vw, 14px);
-  --pad-sm: clamp(8px, 2vw, 12px);
-  --gap: clamp(6px, 1.8vw, 10px);
+  --radius: 4px;        /* buttons, inputs, badges (NOTES-v1 §1) */
+  --radius-card: 6px;   /* cards and panels */
+  --pad: 16px;          /* app inset, uniform (NOTES-v1 §1) */
+  --pad-sm: 10px;       /* card padding (NOTES-v1 §5E) */
+  --gap: 10px;          /* between stacked sections */
   --fs: clamp(12px, 2.9vw, 13px);
 }
 * { box-sizing: border-box; }
@@ -101,7 +102,8 @@ body {
 }
 .btn:hover { background: var(--surface-alt); }
 .btn:active { background: #E6E6E6; }
-.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; font-weight: 600; font-size: 12px; min-height: 30px; white-space: normal; }
+/* Primary action: 38px tall, 6px radius, 13px semibold white (NOTES-v1 §5E). */
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; font-weight: 600; font-size: 13px; min-height: 38px; border-radius: 6px; white-space: normal; }
 .btn.primary:hover { background: var(--accent-hover); }
 .btn.primary:active { background: #062f78; }
 .btn.small { padding: 3px 8px; font-size: 11.5px; min-height: 24px; }
@@ -118,11 +120,16 @@ select:focus-visible {
 }
 
 /* Status */
-.status { font-weight: 600; font-size: 13px; color: var(--status-info); padding: 2px 0; line-height: 1.35; overflow-wrap: anywhere; }
+.status { font-weight: 600; font-size: 13px; color: var(--accent); padding: 2px 0; line-height: 1.35; overflow-wrap: anywhere; }
+/* Status colour carries the state (NOTES-v1 §3). */
+.status.tone-accent { color: var(--accent); }
+.status.tone-success { color: var(--success); }
+.status.tone-danger { color: var(--danger); }
+.status.tone-warning { color: var(--warning); }
 .statusDetail { font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
-/* The canvas keeps a 30px live-status slot so the primary button never jumps when a
-   state arrives; the Mini State drops it because its height is the scarce resource. */
-.mode-full .statusDetail { min-height: 30px; }
+/* The status block is status + selection and sizes to its content (~32px with both
+   lines), as NOTES-v1 §5E specifies; a fixed slot left a gap under the status. */
+.mode-full .statusDetail { min-height: 0; }
 .mode-mini .statusDetail { min-height: 0; }
 /* Live selection line, fed by host/watch.jsx over CSXS events. */
 .selection { font-size: 11.5px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
@@ -146,8 +153,8 @@ select:focus-visible {
 /* Settings can be taller than the whole panel. Cap it and let the form scroll inside,
    keeping its summary row visible, so the sections below always get real space. */
 .settings {
-  border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
-  flex: 0 1 auto; max-height: 42vh; overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid var(--border-soft); border-radius: var(--radius-card); background: var(--surface);
+  flex: 0 0 auto; overflow: visible;
 }
 .settingsSummary {
   display: flex; align-items: center; gap: 6px;
@@ -175,20 +182,26 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 
 /* History / log panels */
 .panel {
-  border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+  border: 1px solid var(--border-soft); border-radius: var(--radius-card); background: var(--surface);
   /* basis 0 + grow: these are the only blocks that take spare height, so making the
      panel taller really does give History/Log more room instead of leaving the page
      scrollable at a fixed size. */
-  flex: 1 1 0%; min-height: clamp(64px, 11vh, 150px);
+  /* V1 cards are content-sized: the panel scrolls as a whole instead of each card
+     growing a scrollbar of its own. */
+  flex: 0 0 auto; min-height: 0;
   display: flex; flex-direction: column;
-  overflow: hidden auto; /* scroll the body instead of cutting content */
+  overflow: visible;
   resize: none;
 }
 .panelTitleRow { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 6px var(--pad-sm); border-bottom: 1px solid #f0f0f0; }
 .panelTitle { font-weight: 700; font-size: 12px; padding: 6px var(--pad-sm); border-bottom: 1px solid var(--border-soft); color: var(--text-body); }
 .panelTitleRow .panelTitle { padding: 0; border-bottom: 0; }
 .panelTitleRow .btn { flex: 0 0 auto; }
-.list, .log { flex: 1 1 0%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--pad-sm); font-size: 12px; }
+/* The log is long by nature; cap it so one busy session cannot swallow the panel. */
+.list { min-height: 0; padding: 6px var(--pad-sm); font-size: 12px; }
+.log { min-height: 0; max-height: 200px; overflow-y: auto; overscroll-behavior: contain; padding: 6px var(--pad-sm); font-size: 12px; }
+.panel > summary { list-style: none; }
+.panel > summary::-webkit-details-marker { display: none; }
 .history-item { padding: 4px 0; border-bottom: 1px solid #f5f5f5; font-size: 11.5px; overflow-wrap: anywhere; }
 .history-item.ok { color: var(--success); }
 .history-item.bad { color: var(--danger); }
@@ -210,7 +223,8 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
 
 /* Release notes shown in Updates: plain text from the GitHub release body, wrapping
    and scrolling instead of stretching the panel. */
-.updateNotes { display: none; margin: 6px 0 2px; padding: 6px 8px; border-left: 3px solid var(--border); background: #f7f7f7; border-radius: var(--radius); font-size: 11.5px; color: #3f3f3f; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 150px; overflow-y: auto; }
+/* One line, ellipsised, as in the V1 Updates block. */
+.updateNotes { display: none; margin: 2px 0; font-size: 11px; color: var(--text-body); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .updateNotes.show { display: block; }
 /* Shown only when the update needs Illustrator to be restarted, which closes documents. */
 .updateWarn { margin: 6px 0 0; padding: 6px 8px; border-left: 3px solid #c47f00; background: #fff8e6; border-radius: var(--radius); font-size: 11.5px; color: #6b4500; line-height: 1.45; }
@@ -234,14 +248,14 @@ input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
    column stacks vertically in this order: header, live status, selection, primary
    button, actions, Settings, History, Updates, footer. Mini State is the same
    markup reduced to header, status, primary button and footer. */
-/* Canvas frame: 10px vertical / 12px horizontal padding, 8px between sections. */
+/* V1 frames: 16px uniform app inset, 10px between sections (NOTES-v1 §1). */
 .app.mode-full {
   display: flex; flex-direction: column;
-  gap: var(--space-2); padding: 10px 12px;
+  gap: var(--gap); padding: var(--pad);
 }
 .app.mode-mini {
   display: flex; flex-direction: column;
-  gap: 6px; padding: 8px 10px;
+  gap: 6px; padding: var(--pad-sm);
 }
 
 /* Mini State: the sections that need a full-width dock are removed from the flow
@@ -276,17 +290,23 @@ body[data-mode="mini"] #setupOverlay { display: none !important; }
 .mode-mini .actions .btn { flex: 1 1 auto; font-size: 11px; padding: 2px 6px; min-height: 22px; }
 .mode-mini .appFooter { display: none; }
 /* The mini frame ends with the compact-mode caption instead of the version line. */
-.miniCaption { display: none; font-size: 11px; color: var(--text-muted); }
+.miniCaption { display: none; font-size: 10.5px; color: var(--text-muted); }
 .mode-mini .miniCaption { display: block; }
 /* V1 mini frame has a close control in the header and no actions row at all. */
+/* 26×26 boxed close control with a centred ✕ (NOTES-v1 §5D). */
 .miniClose {
   display: none; align-items: center; justify-content: center;
-  width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--radius);
-  background: transparent; color: var(--text-muted); font-size: 15px; line-height: 1;
+  width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text-primary); font-size: 11px; line-height: 1;
   cursor: pointer; flex: 0 0 auto;
 }
 .mode-mini .miniClose { display: inline-flex; }
 .miniClose:hover { background: var(--surface-alt); color: var(--text-primary); }
+/* V1 History is a list of placed results only; the hint, the file list tooling and the
+   "Recent activity" label stay in the DOM behind the panel's own disclosure. */
+#historyBox > .hint,
+#historyBox > .panelSubTitle { display: none; }
 .mode-mini .actions { display: none; }
 .mode-mini .appFooter .version { font-size: 10.5px; }
 .windowMode #vectorizeBtn { min-height: 34px; }

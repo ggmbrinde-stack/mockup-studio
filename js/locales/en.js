@@ -57,16 +57,19 @@ window.LOCALES.en = {
   log: "Log",
   versionLabel: "Illustrator",
 
-  statusReady: "Ready.",
+  statusReady: "Ready to vectorize",
+  statusReadyMini: "Ready",
   statusLoadingHost: "Loading Illustrator host scripts…",
   statusHostError: "Host scripts did not load.",
   statusExporting: "Exporting selection…",
   statusUploading: "Uploading to vectorizer.ai…",
   statusVectorizing: "Vectorizing…",
+  statusVectorizingMini: "Running…",
   statusResult: "Vectorization finished. Preparing the download…",
   statusDownloading: "Downloading the SVG…",
   statusPlacing: "Placing the SVG over the original artwork…",
-  statusPlaced: "SVG placed on the “Vectorizer” layer and selected.",
+  statusPlaced: "Placed successfully",
+  statusPlacedMini: "Done",
   statusBatch: "Batch {i}/{n}: {stage}",
   statusBatchDone: "Batch complete: {ok}/{n} placed.",
   statusBatchCancelled: "Batch cancelled after {ok}/{n}.",
@@ -81,8 +84,10 @@ window.LOCALES.en = {
   statusAgentLaunch: "Starting the background vectorizer…",
   statusWaitingSlot: "Waiting for a free worker…",
   statusAgentLoading: "Opening vectorizer.ai in the background…",
-  statusAgentError: "Vectorizer failed.",
-  statusLoginRequired: "Sign in to vectorizer.ai to download results.",
+  statusAgentError: "Error",
+  statusAgentErrorMini: "Error",
+  statusLoginRequired: "Sign in required",
+  statusLoginRequiredMini: "Sign in",
   statusSignInOpen: "Sign-in window open. Sign in, then close the window.",
   statusSignInHint: "The sign-in window is a normal Chrome window. Your session is stored for later runs.",
   statusSignInClosed: "Sign-in window closed. Click “Vectorize selection”.",
@@ -185,7 +190,9 @@ window.LOCALES.en = {
     errorBatchChanged: "Another window started a batch. Run this one again.",
     errorBatchItemInvalid: "That object is gone from the document; it was skipped.",
     settingsPillPng: "PNG long side",
-    settingsPillPreset: "Preset"
+    settingsPillPreset: "Preset",
+  settingsPillOriginal: "Original",
+  releaseNotes: "View release notes"
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.en);

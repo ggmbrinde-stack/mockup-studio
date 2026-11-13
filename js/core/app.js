@@ -28,6 +28,7 @@
       }
       document.body.setAttribute("data-mode", mode);
       document.documentElement.setAttribute("data-mode", mode);
+      if (typeof refreshStatusCopy === "function") refreshStatusCopy();
     } catch (e) { }
     return mode;
   }
@@ -123,11 +124,53 @@
   var lastStatusText = "";
   function setStatus(text) {
     var raw = String(text || "");
+    statusKey = "";
     if (raw === lastStatusText) return;
     lastStatusText = raw;
     var el = $("statusBar");
     if (el) el.textContent = raw;
     appendLogUI("[status] " + raw);
+  }
+  /* V1 status model (design/NOTES-v1.md §3): the docked panel states the full
+     sentence, the floating window states one word, and the colour carries the state. */
+  var STATUS_MINI_KEY = {
+    statusReady: "statusReadyMini",
+    statusVectorizing: "statusVectorizingMini",
+    statusPlaced: "statusPlacedMini",
+    statusLoginRequired: "statusLoginRequiredMini",
+    statusAgentError: "statusAgentErrorMini"
+  };
+  var STATUS_TONE = {
+    statusReady: "accent",
+    statusVectorizing: "accent",
+    statusPlaced: "success",
+    statusLoginRequired: "warning",
+    statusAgentError: "danger",
+    statusHostError: "danger"
+  };
+  var statusKey = "";
+  function statusTextFor(key) {
+    var k = windowMode ? (STATUS_MINI_KEY[key] || key) : key;
+    return t(k) || t(key) || "";
+  }
+  function paintStatus(text, tone) {
+    lastStatusText = text;
+    var el = $("statusBar");
+    if (el) { el.textContent = text; el.className = tone ? "status tone-" + tone : "status"; }
+  }
+  function setStatusKey(key) {
+    var text = statusTextFor(key);
+    var changed = text !== lastStatusText;
+    statusKey = key || "";
+    paintStatus(text, STATUS_TONE[key]);
+    if (changed) appendLogUI("[status] " + text);
+  }
+  /* Called when the panel switches state, so the same status reads full or short. */
+  function refreshStatusCopy() {
+    if (statusKey) paintStatus(statusTextFor(statusKey), STATUS_TONE[statusKey]);
+    /* The selection line also reads differently per state (document name only in the
+       docked panel), so repaint it from the last known selection. */
+    if (state.selection) renderSelection(state.selection);
   }
   function setDetail(text) { var el = $("statusDetail"); if (el) el.textContent = text ? String(text) : ""; }
   function setRunTimerDetail(prefix) {
@@ -372,9 +415,9 @@
     var pill = $("settingsPill");
     if (pill) {
       var side = parseInt(state.settings.pngLongSide, 10);
-      var sideText = (side === 0) ? t("pngPresetOriginal") : (side + "px");
+      var sideText = (side === 0) ? (t("settingsPillOriginal") || "Original") : (side + "px");
       var presetKey = "vxPreset" + (vx.preset === "editing" ? "Editing" : vx.preset === "cutting" ? "Cutting" : vx.preset === "custom" ? "Custom" : "General");
-      pill.textContent = t("settingsPillPng") + ": " + sideText + " · " + t("settingsPillPreset") + ": " + t(presetKey);
+      pill.textContent = t("settingsPillPng") + ": " + sideText + " • " + t("settingsPillPreset") + ": " + t(presetKey);
     }
   }
 
@@ -387,10 +430,13 @@
     var doc = (info && info.doc) ? String(info.doc) : "";
     var n = (info && info.sel !== undefined && info.sel !== null) ? parseInt(info.sel, 10) : 0;
     if (!isFinite(n) || n < 0) n = 0;
+    /* V1 mini frame names the count only; the document name would not fit in the
+       floating window, so it is dropped there. */
+    var suffix = (doc && !windowMode) ? " — " + doc : "";
     var text = "";
     if (!info || !info.open) text = t("selectionNoDoc") || "No document open";
-    else if (n === 0) text = (t("selectionNothing") || "Nothing selected") + (doc ? " — " + doc : "");
-    else text = (t(n === 1 ? "selectionCount" : "selectionCountMany") || "{count} layers selected").replace("{count}", String(n)) + (doc ? " — " + doc : "");
+    else if (n === 0) text = (t("selectionNothing") || "Nothing selected") + suffix;
+    else text = (t(n === 1 ? "selectionCount" : "selectionCountMany") || "{count} layers selected").replace("{count}", String(n)) + suffix;
     el.textContent = text;
     el.className = "selection" + ((info && info.open && n > 0) ? " on" : "");
   }
@@ -507,7 +553,7 @@
 
   core.state = state;
   core.$ = $; core.on = on; core.jsxString = jsxString; core.t = t; core.fmtElapsed = fmtElapsed;
-  core.runElapsedMs = runElapsedMs; core.setStatus = setStatus; core.setDetail = setDetail; core.setRunTimerDetail = setRunTimerDetail;
+  core.runElapsedMs = runElapsedMs; core.setStatus = setStatus; core.setStatusKey = setStatusKey; core.refreshStatusCopy = refreshStatusCopy; core.setDetail = setDetail; core.setRunTimerDetail = setRunTimerDetail;
   core.showError = showError; core.appendLogUI = appendLogUI; core.log = log;
   core.loadSettings = loadSettings; core.saveSettings = saveSettings; core.syncPngPresetUI = syncPngPresetUI; core.applySettingsToUI = applySettingsToUI;
   core.renderLocale = renderLocale; core.toggleLanguage = toggleLanguage;

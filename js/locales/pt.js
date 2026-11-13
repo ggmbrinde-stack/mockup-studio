@@ -56,16 +56,19 @@ window.LOCALES.pt = {
   log: "Log",
   versionLabel: "Illustrator",
 
-  statusReady: "Pronto.",
+  statusReady: "Pronto para vetorizar",
+  statusReadyMini: "Pronto",
   statusLoadingHost: "Carregando scripts do Illustrator…",
   statusHostError: "Os scripts do Illustrator não carregaram.",
   statusExporting: "Exportando a seleção…",
   statusUploading: "Enviando para o vectorizer.ai…",
-  statusVectorizing: "Vetorizando…",
+  statusVectorizing: "A vetorizar…",
+  statusVectorizingMini: "A correr…",
   statusResult: "Vetorização concluída. Preparando o download…",
   statusDownloading: "Baixando o SVG…",
   statusPlacing: "Colocando o SVG sobre a arte original…",
-  statusPlaced: "SVG colocado na camada “Vectorizer” e selecionado.",
+  statusPlaced: "Colocado com sucesso",
+  statusPlacedMini: "Concluído",
   statusBatch: "Lote {i}/{n}: {stage}",
   statusBatchDone: "Lote concluído: {ok}/{n} colocados.",
   statusBatchCancelled: "Lote cancelado após {ok}/{n}.",
@@ -80,8 +83,10 @@ window.LOCALES.pt = {
   statusAgentLaunch: "Iniciando o vetorizador em segundo plano…",
   statusWaitingSlot: "À espera de um trabalhador livre…",
   statusAgentLoading: "Abrindo o vectorizer.ai em segundo plano…",
-  statusAgentError: "O vetorizador falhou.",
-  statusLoginRequired: "Inicie sessão no vectorizer.ai para baixar resultados.",
+  statusAgentError: "Erro",
+  statusAgentErrorMini: "Erro",
+  statusLoginRequired: "É necessário iniciar sessão",
+  statusLoginRequiredMini: "Entrar",
   statusSignInOpen: "Janela de sessão aberta. Inicie sessão e feche a janela.",
   statusSignInHint: "A janela de sessão é uma janela normal do Chrome. A sessão fica guardada para as próximas vezes.",
   statusSignInClosed: "Janela de sessão fechada. Clique em “Vetorizar seleção”.",
@@ -184,7 +189,9 @@ window.LOCALES.pt = {
     errorBatchChanged: "Outra janela iniciou um lote. Execute este novamente.",
     errorBatchItemInvalid: "Esse objeto já não existe no documento; foi ignorado.",
     settingsPillPng: "Lado maior do PNG",
-    settingsPillPreset: "Predefinição"
+    settingsPillPreset: "Predefinição",
+  settingsPillOriginal: "Original",
+  releaseNotes: "Ver notas da versão"
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.pt);

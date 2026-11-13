@@ -13,7 +13,7 @@
     <div class="title" data-i18n="appTitle">Vectorizer Bridge</div>
     <div class="spacer"></div>
     <button id="langBtn" class="btn small">EN</button>
-    <button id="miniClose" class="miniClose" type="button" aria-label="Close" title="Close">×</button>
+    <button id="miniClose" class="miniClose" type="button" aria-label="Close" title="Close">✕</button>
   </header>
 
   <div class="status" id="statusBar" role="status" aria-live="polite">Ready</div>
@@ -178,7 +178,7 @@
     <div id="historyList" class="list"></div>
   </details>
 
-  <details class="panel" id="logBox" open>
+  <details class="panel" id="logBox">
     <summary class="panelTitle" data-i18n="log">Log</summary>
     <div id="panelLog" class="log"></div>
   </details>
@@ -188,6 +188,7 @@
     <div class="hint" id="updateVersionText"></div>
     <div class="updateNotes" id="updateNotes"></div>
     <div class="actions">
+      <button id="releaseNotesBtn" class="btn small" type="button" data-i18n="releaseNotes">View release notes</button>
       <button id="checkUpdateBtn" class="btn small" data-i18n="checkUpdates">Check for updates</button>
       <button id="applyUpdateBtn" class="btn small" data-i18n="updateNow" style="display:none;">Update now</button>
       <button id="restoreUpdateBtn" class="btn small" data-i18n="restorePrevious" style="display:none;">Restore previous version</button>

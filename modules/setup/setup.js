@@ -154,7 +154,7 @@
     markDone();
     close();
     core.log(core.t("setupDoneLog") || "Setup finished.");
-    core.setStatus(core.t("statusReady"));
+    core.setStatusKey("statusReady");
     try { core.events.emit("setup:finished", {}); } catch (e) { }
   }
 

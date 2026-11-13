@@ -48,7 +48,7 @@
         var payload = { svgPath: f.path || '', layerName: 'Vectorizer', hideOriginal: false, allowAnyDoc: true };
         bridge.evalJsx('VB.placeSVG(' + core.jsxString(encodeURIComponent(JSON.stringify(payload))) + ')', function (res) {
           var r = bridge.parseResult(res);
-          if (r.ok) { core.setStatus(core.t('statusPlaced')); core.addHistory('placed', f.name || '', true, 'from history'); try { refreshSvgHistory(); } catch (e) {} }
+          if (r.ok) { core.setStatusKey('statusPlaced'); core.addHistory('placed', f.name || '', true, 'from history'); try { refreshSvgHistory(); } catch (e) {} }
           else { core.setStatus(core.t('statusPlaceFailed') + ' ' + bridge.friendlyError(r.error)); }
         });
       });
@@ -138,7 +138,7 @@
       core.state.runStartedAt = 0;
       var timing = '⏱ total ' + core.fmtElapsed(totalMs) + ' (export ' + core.fmtElapsed(core.state.exportMs) + ', place ' + core.fmtElapsed(placeMs) + ')';
       if (r.ok) {
-        if (r.embedded) { core.setStatus(core.t('statusPlaced')); core.setDetail(timing); }
+        if (r.embedded) { core.setStatusKey('statusPlaced'); core.setDetail(timing); }
         else { core.setStatus(core.t('statusPlacingLinked')); core.setDetail(timing + (r.error ? ' · ' + r.error : '')); }
         core.addHistory('placed', fileName, true, (r.embedded ? '' : '(linked) ') + timing);
         try { refreshSvgHistory(); } catch (e) {}
@@ -158,12 +158,13 @@
       case 'starting': case 'launching': case 'loading': case 'uploading':
       case 'vectorizing': case 'result': case 'downloading': {
         var map = { starting:'statusAgentLaunch', launching:'statusAgentLaunch', loading:'statusAgentLoading', uploading:'statusUploading', vectorizing:'statusVectorizing', result:'statusResult', downloading:'statusDownloading' };
-        core.setStatus(core.t(map[s.state] || 'statusVectorizing'));
+        var stKey = map[s.state] || 'statusVectorizing';
+        if (stKey === 'statusVectorizing') core.setStatusKey(stKey); else core.setStatus(core.t(stKey));
         break;
       }
       case 'loginRequired':
         core.state.waiting = false; core.state.shortcutStatusPath = ''; core.updateButtons();
-        core.setStatus(core.t('statusLoginRequired'));
+        core.setStatusKey('statusLoginRequired');
         core.setDetail((s.message || core.t('statusSignInHint')) + (core.state.runStartedAt ? ' · ⏱ ' + core.fmtElapsed(core.runElapsedMs()) : ''));
         core.addHistory('loginRequired', '', false, core.fmtElapsed(core.runElapsedMs()));
         core.state.runStartedAt = 0;
@@ -321,6 +322,16 @@
     core.on(core.$("langBtn"), "click", core.toggleLanguage);
     /* Mini State header: closing the floating window is closing its own window. */
     core.on(core.$("miniClose"), "click", function () { try { window.close(); } catch (e) { } });
+    /* "View release notes" opens the published release list in the system browser. */
+    core.on(core.$("releaseNotesBtn"), "click", function () {
+      var url = "https://github.com/ggmbrinde-stack/mockup-studio/releases";
+      try {
+        if (window.cep && window.cep.util && window.cep.util.openURLInDefaultBrowser) {
+          window.cep.util.openURLInDefaultBrowser(url); return;
+        }
+      } catch (e) { }
+      try { window.open(url, "_blank"); } catch (e2) { }
+    });
     core.on(core.$("checkUpdateBtn"), "click", function () { startUpdate("check"); });
     core.on(core.$("applyUpdateBtn"), "click", armOrApplyUpdate);
     core.on(core.$("restoreUpdateBtn"), "click", function () { startUpdate("restore"); });
@@ -465,7 +476,7 @@
     bindUI();
     core.renderLocale();
     core.applySettingsToUI();
-    core.setStatus(core.t("statusReady"));
+    core.setStatusKey("statusReady");
     try {
       bridge.setCS(new CSInterface());
     } catch (e) {
@@ -477,13 +488,13 @@
       if (String(result) !== "ok") {
         bridge.hostOk = false;
         core.showError(core.t("errorHost") + " (" + result + ")");
-        core.setStatus(core.t("statusHostError"));
+        core.setStatusKey("statusHostError");
         core.updateButtons();
         return;
       }
       bridge.hostOk = true;
       core.updateButtons();
-      core.setStatus(core.t("statusReady"));
+      core.setStatusKey("statusReady");
       core.setDetail("");
       bridge.evalJsx("VB.getBridgeFolderPath()", function (bp) { core.state.bridgeFolder = String(bp || "").replace(/^"|"$/g, ""); });
       refreshDaemonStatus();
@@ -528,7 +539,9 @@
       el.className = "updateNotes";
       return;
     }
-    el.textContent = (core.t("updateWhatsNew") || "What's new:") + "\n" + notes;
+    /* V1 shows one line: "v2.3.3 — Fixed PNG export scaling issue • Improved vector accuracy". */
+    var version = String((r && (r.version || r.latest || r.current)) || "").replace(/^v/i, "");
+    el.textContent = (version ? "v" + version + " — " : "") + notes.replace(/[\r\n]+/g, " \u2022 ");
     el.className = "updateNotes show";
   }
 
