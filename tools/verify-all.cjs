@@ -24,6 +24,8 @@ const SUITES = [
   { name: 'panel wiring', cmd: path.resolve(root, '..', 'tools', 'verify-host.cjs') },
   { name: 'agent helpers', cmd: path.join(root, 'tools', 'verify-agent-lib.cjs') },
   { name: 'export options', cmd: path.join(root, 'tools', 'verify-export-options.cjs') },
+  { name: 'gemini in chrome', cmd: path.join(root, 'tools', 'verify-ai-image.cjs') },
+  { name: 'whats-new / tour', cmd: path.join(root, 'tools', 'verify-tour.cjs') },
   { name: 'dead CSS', cmd: path.join(root, 'tools', 'verify-css.cjs') }
 ];
 

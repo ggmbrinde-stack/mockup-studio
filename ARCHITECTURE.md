@@ -11,14 +11,14 @@
   - `modules/vectorizer/vectorizer.js`: vectorizer module — UI bind/init, vectorize/sign-in/cancel, single-run poll/place fallback, SVG history UI/place, warm daemon control; subscribes to `core.events`.
   - `js/panel.js`: bootstrap (`VBPanel.vectorizer.init`); registers `CSInterface.registerKeyEventsInterest` for the configured vectorize shortcut and the panel flyout menu.
 - **Host (Illustrator ExtendScript, cached; requires Illustrator restart/full reload on change)** — loaded via `$.evalFile`:
-  - `host/json.jsx` (JSON polyfill), `host/core.jsx` (shared helpers: paths/log/bounds/doc checks, SVG listing/open/reveal), `host/batch.jsx` (prepareBatch/exportBatchItem/resolve), `host/export.jsx` (single `exportSelection`), `host/place.jsx` (`placeSVG`, `allowAnyDoc` history place), `host/agent.jsx` (agent/daemon launch/status/stop). `host/common.jsx`/`host/import.jsx` remain as compatibility copies.
+  - `host/json.jsx` (JSON polyfill), `host/core.jsx` (shared helpers: paths/log/bounds/doc checks, SVG listing/open/reveal), `host/batch.jsx` (prepareBatch/exportBatchItem/resolve), `host/export.jsx` (single `exportSelection`), `host/place.jsx` (`placeSVG`, `allowAnyDoc` history place), `host/ai.jsx` (Gemini in Chrome: source export, Chrome launcher, image validation, raster placement), `host/agent.jsx` (agent/daemon launch/status/stop). `host/common.jsx`/`host/import.jsx` remain as compatibility copies.
 - **Agent (Node, outside Illustrator)** — `agent/`:
   - Entrypoints/wrappers (stable): `run.js`, `login.js`, `lib.js`→`core/lib.js`, `job.js`→`vectorizer/job.js`, `daemon.js`→`daemon/server.js`, `daemon-ctl.js`→`daemon/ctl.js`.
   - Modules: `core/lib.js` (browser/profile/status helpers), `vectorizer/job.js` (Puppeteer vectorizer.ai flow, per-page CDP Fetch SVG capture), `daemon/server.js` + `daemon/ctl.js` (warm page pool/IPC).
 - **Runtime data (user Documents, not in repo)** — `%USERPROFILE%\Documents\VectorizerBridge\`: `agent-downloads/`, `agent-status*.json`, `agent-daemon.json`, logs, `vectorizer-profile/`, debug.
 
 ## Interfaces & conventions
-- Panel modules share `window.VBPanel.{core,bridge,queue,vectorizer}`; ExtendScript API under `VB.*`.
+- Panel modules share `window.VBPanel.{core,bridge,queue,vectorizer,aiImage}`; ExtendScript API under `VB.*`.
 - Queue↔vectorizer decoupled via `core.events` (`poll:tick`, `batch:finished`); keep this boundary for UI/UX changes.
 - Keep per-item export/place semantics and source-document guards for auto/batch placement; history/manual place may target any open document (`allowAnyDoc`) and fit to active artboard.
 - Default `batchWorkers=1` (safer on Windows); warm daemon is single browser/profile with reusable pages (clamped 1–4).

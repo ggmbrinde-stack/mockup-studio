@@ -1,5 +1,27 @@
 # Changelog — Mockup Studio
 
+## 2.5.0 — 2026-11-16
+
+### Added
+- **AI image editor (Gemini in Chrome): image generation on the Google AI Plus subscription.** *Use selection* exports the artwork to `Documents/VectorizerBridge/gemini/source`, *Open Gemini in Chrome* copies the prompt and opens `gemini.google.com` in a chromeless app window of the user's own Chrome, so the image work runs on the plan they already pay for — no API key, no Google Cloud billing. The user generates and downloads there; *Choose result…* (or a recent file from the results folder) previews the image and *Place in Illustrator* adds it to a `Gemini Image` layer, sized to the artwork that was exported. Four prompt templates cover product mockups, background edits, product photography and general edits.
+- **Nothing in the browser is automated.** No page is driven, no session, cookie or profile data is read, the Downloads folder is not watched and nothing is uploaded silently: the workflow prepares files and opens a window, and every action inside Gemini stays the user's own. Chrome is started with `--app=` (a chromeless window on the user's own profile, no `--user-data-dir`), so it reads as part of the panel and the session it uses is the one they already have.
+- **A local workspace per request.** Each export gets an id (`gm-<timestamp>`) with the PNG in `gemini/source` and its prompt/document metadata in `gemini/requests`; downloaded results live in `gemini/results`. Only source images and request records older than seven days are cleaned — results are never deleted.
+- **The download comes back by itself.** After *Open Gemini in Chrome* the panel watches `gemini/results` for an image newer than the moment Gemini was opened, previews it and places it on the `Gemini Image` layer — the same "press one button and the result lands in the document" ending a vectorize run has. Opening Gemini states that folder's full path and opens it in Explorer, so the download has an obvious home. Only that folder is scanned, never the Downloads tree, and choosing a result by hand stops the watch. Automatic placement is pinned to the document the source was exported from: switch files while Gemini is working and the result is shown for you to place yourself instead of landing in the wrong document. (Generation itself still happens in Gemini: automating that would mean driving the consumer site with the signed-in Google account.)
+
+### Changed
+- `VB.exportSelection` takes an optional output path. The Gemini source images therefore reuse the same selection handling, artboard fit and pixel budget as a vectorize run, instead of a second exporter that could drift.
+
+### Removed
+- **The Google AI Studio (API key) Gemini block is gone.** Image work now goes through the browser workflow above, which needs no key and adds no billing, so the paid API path, its `/gemini` daemon route and the `secrets.json` key handling were removed with it.
+
+### Notes
+- The automatic return only sees files saved into `gemini/results` — point Chrome's download folder there once, or use *Save as* into it. Anything saved elsewhere still needs *Choose result…*, and the watch gives up after 15 minutes.
+
+## 2.4.0 — 2026-11-16
+
+### Added
+- **"What's new" card and a feature tour.** The first time the panel opens after a version change it says what that build added; *Show me* walks through the new controls — it opens the real section and outlines the actual field instead of showing a slide. The text lives in `js/whats-new.js`, shipped with the build and never fetched, so it cannot be replaced remotely and always matches the installed version; acknowledgement is stored per version in `ms.whatsNewSeen`. A *What's new* button in Updates replays the tour.
+
 ## 2.3.10 — 2026-11-12
 
 ### Fixed

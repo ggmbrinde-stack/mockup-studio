@@ -238,8 +238,13 @@ async function main() {
   try { if (heartbeat.unref) heartbeat.unref(); } catch (e) {}
 }
 
-main().catch(e => {
-  try { console.error(e && e.stack ? e.stack : e); } catch (e2) {}
-  process.exit(1);
-});
+/* daemon/ctl.js runs this file directly, so main() starts only when this is the
+   script; agent/daemon.js calls main() itself from its own wrapper. */
+module.exports = { main };
+if (require.main === module) {
+  main().catch(e => {
+    try { console.error(e && e.stack ? e.stack : e); } catch (e2) {}
+    process.exit(1);
+  });
+}
 

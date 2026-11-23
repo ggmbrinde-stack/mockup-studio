@@ -162,6 +162,8 @@
     markDone();
     close();
     core.log("Setup skipped.");
+    /* Same event as Finish: the What's-new card waits for this card to close. */
+    try { core.events.emit("setup:finished", {}); } catch (e) { }
   }
 
   function setLang(lang) {

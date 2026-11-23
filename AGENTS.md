@@ -56,8 +56,9 @@ Current release: **2.3.10** — `CSXS/manifest.xml` (two places, bundle and exte
   `$.evalFile` in `js/bridge/host.js`:
   - `host/json.jsx` (JSON polyfill) → `host/core.jsx` (shared: paths/log/bounds/doc checks, SVG
     list/open/reveal) → `host/batch.jsx` (prepare/export/resolve per item) → `host/export.jsx` (single
-    `exportSelection`) → `host/place.jsx` (`placeSVG`, `allowAnyDoc`) → `host/agent.jsx` (agent/daemon
-    launch/status/stop). API namespace: `VB.*` on `$.global`. `host/common.jsx`/`host/import.jsx` are
+    `exportSelection`) → `host/place.jsx` (`placeSVG`, `allowAnyDoc`) → `host/ai.jsx` (Gemini in Chrome:
+    source export into `gemini/`, Chrome launcher, image validation, raster placement) → `host/agent.jsx`
+    (agent/daemon launch/status/stop). API namespace: `VB.*` on `$.global`. `host/common.jsx`/`host/import.jsx` are
     kept as compatibility copies — the harness still exercises them, so do not delete them casually.
 - **Agent (Node, outside Illustrator, `agent/`)**: single dependency `puppeteer-core ^25.16.0`
   (`agent/package.json`).

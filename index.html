@@ -170,6 +170,74 @@
     </div>
   </details>
 
+  <!-- Gemini in Chrome: uses the Google AI Plus subscription through the normal
+       Gemini site, so no API key and no billing. Nothing is uploaded automatically:
+       the user generates and downloads in Chrome, then brings the file back here. -->
+  <details class="settings" id="aiImageBox">
+    <summary class="settingsSummary"><span data-i18n="aiImgTitle">AI image editor (Gemini in Chrome)</span></summary>
+    <div class="settingsGrid">
+      <div class="field full">
+        <div class="hint" data-i18n="aiImgHint">Uses your normal Chrome session and Google AI Plus. Nothing is uploaded for you: you generate in Gemini and bring the image back.</div>
+      </div>
+      <div class="field full">
+        <div class="aiImgRow">
+          <div class="aiImgThumb">
+            <img id="aiImgSourcePreview" alt="" hidden>
+            <span id="aiImgSourceEmpty" class="aiImgEmpty" data-i18n="aiImgSource">Source</span>
+          </div>
+          <div class="aiImgInfo">
+            <div id="aiImgSourceName" class="aiImgName"></div>
+            <div id="aiImgSourceMeta" class="svg-history-sub"></div>
+            <div class="row">
+              <button id="aiImgUseSelection" class="btn small" type="button" data-i18n="aiImgUseSelection">Use selection</button>
+              <button id="aiImgShowSource" class="btn small" type="button" data-i18n="aiImgShowSource">Show file</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="field full">
+        <label for="aiImgPrompt" data-i18n="aiImgInstructions">Instructions</label>
+        <textarea id="aiImgPrompt" class="aiPrompt" rows="3" spellcheck="false" data-i18n-placeholder="aiImgPromptPlaceholder" placeholder="Describe the image you want Gemini to create or the edit to apply…"></textarea>
+      </div>
+      <div class="field full">
+        <label for="aiImgTemplate" data-i18n="aiImgTemplate">Prompt template</label>
+        <select id="aiImgTemplate">
+          <option value="" data-i18n="aiImgTplNone">None</option>
+          <option value="product" data-i18n="aiImgTplProduct">Product mockup</option>
+          <option value="background" data-i18n="aiImgTplBackground">Background edit</option>
+          <option value="photo" data-i18n="aiImgTplPhoto">Product photography</option>
+          <option value="general" data-i18n="aiImgTplGeneral">General image</option>
+        </select>
+        <div class="hint" data-i18n="aiImgTplHint">A template adds its text to the prompt; edit it afterwards as you like.</div>
+      </div>
+      <div class="field full">
+        <div class="row">
+          <button id="aiImgOpen" class="btn primary small" type="button" data-i18n="aiImgOpen">Open Gemini in Chrome</button>
+          <button id="aiImgCopy" class="btn small" type="button" data-i18n="aiImgCopy">Copy prompt</button>
+          <button id="aiImgResultsFolder" class="btn small" type="button" data-i18n="aiImgResultsFolder">Open results folder</button>
+        </div>
+        <div id="aiImgStatus" class="hint aiImgStatus" role="status" aria-live="polite"></div>
+      </div>
+      <div class="field full">
+        <div class="aiImgRow">
+          <div class="aiImgThumb">
+            <img id="aiImgResultPreview" alt="" hidden>
+            <span id="aiImgResultEmpty" class="aiImgEmpty" data-i18n="aiImgResult">Result</span>
+          </div>
+          <div class="aiImgInfo">
+            <div id="aiImgResultName" class="aiImgName"></div>
+            <div class="row">
+              <button id="aiImgPick" class="btn small" type="button" data-i18n="aiImgPick">Choose result…</button>
+              <button id="aiImgPlace" class="btn small" type="button" data-i18n="aiImgPlace">Place in Illustrator</button>
+            </div>
+          </div>
+        </div>
+        <div class="panelSubTitle" data-i18n="aiImgResultsTitle">Recent results</div>
+        <div id="aiImgResults" class="aiImgResults"></div>
+      </div>
+    </div>
+  </details>
+
   <details class="panel" id="historyBox" open>
     <summary class="panelTitleRow"><span class="panelTitle" data-i18n="history">History</span><button id="refreshSvgsBtn" class="btn small" data-i18n="refreshSvgs">Refresh</button></summary>
     <div class="hint" data-i18n="svgHistoryHint">SVG files are saved in Documents/VectorizerBridge/agent-downloads.</div>
@@ -188,6 +256,7 @@
     <div class="hint" id="updateVersionText"></div>
     <div class="updateNotes" id="updateNotes"></div>
     <div class="actions">
+      <button id="whatsNewBtn" class="btn small" type="button" data-i18n="whatsNewBtn">What's new</button>
       <button id="releaseNotesBtn" class="btn small" type="button" data-i18n="releaseNotes">View release notes</button>
       <button id="checkUpdateBtn" class="btn small" data-i18n="checkUpdates">Check for updates</button>
       <button id="applyUpdateBtn" class="btn small" data-i18n="updateNow" style="display:none;">Update now</button>
@@ -205,6 +274,23 @@
        version line, matching the V1 mini frame. -->
   <div class="miniCaption" id="miniCaption">Compact Window Mode</div>
   <div id="jsError" class="error-box"></div>
+</div>
+
+<!-- What's new card and feature tour. Anchored to the bottom (not a centred
+     modal) so the control the tour points at stays visible; shown once per
+     version by modules/tour/tour.js, with the text from js/whats-new.js. -->
+<div id="tourCard" class="tourCard" role="dialog" aria-live="polite" hidden>
+  <div class="tourHead">
+    <span class="tourTitle" id="tourTitle"></span>
+    <span class="tourStep" id="tourStep"></span>
+  </div>
+  <div class="tourBody" id="tourBody"></div>
+  <div class="setupActions">
+    <button type="button" class="btn small" id="tourBack">Back</button>
+    <div class="spacer"></div>
+    <button type="button" class="btn small" id="tourSkip">Later</button>
+    <button type="button" class="btn primary" id="tourNext">Next</button>
+  </div>
 </div>
 
 <!-- First-run setup: three short steps, shown once. Reopened from Settings. -->
@@ -267,12 +353,15 @@
 <script src="js/admin-config.js"></script>
 <script src="js/locales/en.js"></script>
 <script src="js/locales/pt.js"></script>
+<script src="js/whats-new.js"></script>
 
 <script src="js/core/app.js"></script>
 <script src="js/bridge/host.js"></script>
 <script src="js/queue/batch.js"></script>
 <script src="modules/vectorizer/vectorizer.js"></script>
+<script src="modules/ai-image/ai-image.js"></script>
 <script src="modules/setup/setup.js"></script>
+<script src="modules/tour/tour.js"></script>
 <script src="js/panel.js"></script>
 </body>
 </html>

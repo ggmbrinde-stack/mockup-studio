@@ -1,7 +1,7 @@
 ﻿/* Vectorizer Bridge — export current selection as one PNG (single/legacy path). */
 var VB = $.global.VB;
 
-VB.exportSelection = function (pngLongSide) {
+VB.exportSelection = function (pngLongSide, outPath) {
   var tempDoc = null;
   var doc = null;
   var docFullName = "";
@@ -27,7 +27,10 @@ VB.exportSelection = function (pngLongSide) {
     VB.ensureBridgeFolder();
     var bf = new Folder(VB.getBridgeFolderPath());
     if (!bf.exists) bf.create();
-    var pngFile = new File(bf.fsName + "/vectorizer_export.png");
+    // A caller may name the output (the Gemini workflow keeps one file per
+    // request); everything else keeps the single default name.
+    var pngTarget = (outPath && String(outPath).length) ? String(outPath) : (bf.fsName + "/vectorizer_export.png");
+    var pngFile = new File(pngTarget);
     if (pngFile.exists) pngFile.remove();
 
     var bounds = [];

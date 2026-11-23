@@ -86,6 +86,7 @@
       ext + "/host/batch.jsx",
       ext + "/host/export.jsx",
       ext + "/host/place.jsx",
+      ext + "/host/ai.jsx",
       ext + "/host/agent.jsx",
       ext + "/host/watch.jsx"
     ];

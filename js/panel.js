@@ -141,6 +141,12 @@
     if (window.VBPanel && VBPanel.vectorizer && typeof VBPanel.vectorizer.init === "function") {
       VBPanel.vectorizer.init();
     }
+    if (window.VBPanel && VBPanel.aiImage && typeof VBPanel.aiImage.init === "function") {
+      VBPanel.aiImage.init();
+    }
+    if (window.VBPanel && VBPanel.tour && typeof VBPanel.tour.init === "function") {
+      VBPanel.tour.init();
+    }
     setupPanelIntegrations();
   }
 

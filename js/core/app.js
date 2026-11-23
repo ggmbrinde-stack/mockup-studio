@@ -649,6 +649,9 @@
   core.VX_PRESETS = VX_PRESETS;
   core.addHistory = addHistory; core.renderHistory = renderHistory; core.updateButtons = updateButtons;
   core.schedulePoll = schedulePoll; core.currentPollMs = currentPollMs;
+  /* The manifest is the only place the version is bumped, and the What's-new
+     card keys on it, so it must not be copied into a second file. */
+  core.extensionVersion = function () { return extensionVersion; };
   core.events = { on: busOn, off: busOff, emit: busEmit };
   core.shortcutLabel = shortcutLabel;
 })();
