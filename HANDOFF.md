@@ -1,19 +1,18 @@
 # Project Handoff — Mockup Studio
 
-Updated: **2026-11-12**
-Project: **Mockup Studio** — Adobe Illustrator CEP panel (`com.bestofgifts.vectorizerbridge`), v2.3.3
-Last agent: Freebuff chat (Phase 1 read-only audit, then Phase 2 shared-foundation documentation)
+Updated: **2026-11-23**
+Project: **Mockup Studio** — Adobe Illustrator CEP panel (`com.bestofgifts.vectorizerbridge`), v2.5.0
+Last agent: Code (verification + doc refresh)
 Repository/location: `C:\Users\user\Videos\BestOfGifts_Master\vector_illust\VectorizerBridge`
 Remote: `https://github.com/ggmbrinde-stack/mockup-studio.git`
-Branch: `main` (0 ahead / 0 behind `origin/main`)
-Git status: clean at audited HEAD, then **three new docs and two doc edits, all uncommitted** (see below)
-HEAD: `75eccda release: 2.3.3` (2026-11-11 17:15 UTC)
+Branch: `main` (in sync with `origin/main`)
+HEAD: `396b380 feat: v2.4.0 what's-new card + v2.5.0 AI image editor (Gemini in Chrome)`
 
 ## Current task
 
-Establish one shared documentation and instruction foundation that works for both chat coding agents
-and pen.dev. Phase 2 created `DESIGN.md`, `SKILLS.md` and this handoff, and reconciled `AGENTS.md`.
-**No application code, runtime configuration or design file was changed.**
+v2.4.0 (What's-new card + feature tour) and v2.5.0 (AI image editor, Gemini in Chrome) are committed
+and pushed (`396b380`). All verification harnesses pass (`node tools/verify-all.cjs` → 7/7). Docs
+refreshed to 2.5.0. Next: real Illustrator test of the AI image flow and the What's-new tour.
 
 ## Decisions to preserve
 
@@ -30,86 +29,75 @@ and pen.dev. Phase 2 created `DESIGN.md`, `SKILLS.md` and this handoff, and reco
 
 ## Completed and verified
 
-Phase 1 (audit, read-only):
+v2.4.0 + v2.5.0 (committed `396b380`):
+- What's-new card + feature tour (`js/whats-new.js`, `modules/tour/`, `tools/verify-tour.cjs`).
+- AI image editor, Gemini in Chrome (`host/ai.jsx`, `modules/ai-image/`, `tools/verify-ai-image.cjs`).
+  Uses the user's own Chrome + Google AI Plus; no API key, no billing. Nothing automated in the browser.
+- `VB.exportSelection` takes an optional output path; `agent/daemon.js` wrapper calls `main()`;
+  `server.js` exports `main` and self-runs only when it is the script.
+- Verification: `node tools/verify-all.cjs` → 7/7 suites pass (panel wiring, agent helpers, export
+  options, gemini in chrome, whats-new/tour, dead CSS, js syntax on 26 files).
 
-- Confirmed the real repository and its clean state; confirmed `vector_illust/` is untracked inside the
-  unrelated parent repo `BestOfGifts_Master` and not ignored there.
-- Confirmed source ↔ installed CEP parity: 12 sampled files byte-identical, manifest `2.3.3` in both.
-- Inventoried agent instructions, MCP servers, skills and the pen.dev installation.
-- Read the three Notion reference pages (research/decisions, canonical templates v3.0, implementation hub).
-
-Phase 2 (documentation only):
-
-- `AGENTS.md` rewritten from v2.2.0 to the actual 2.3.3 state, preserving every CEP/ExtendScript/
-  daemon/batch/installer invariant, and extended with Fast/Full workflow, Basic/Extended/Critical QA,
-  verified commands, and a Notion/pen.dev access section.
-- `DESIGN.md` created from the approved template, grounded in the real tokens, breakpoints, ids and
-  accessibility rules, and ending in the Design ↔ Code Sync table (all frames marked unverified).
-- `SKILLS.md` created: nine entries split into not-installed / not-applicable, with Pen, Codex, Cursor,
-  Notion and GitHub capabilities recorded honestly.
-- `HANDOFF.md` (this file) created at the repository root.
-- `RELEASE_PROMPT.md` given a visible stale banner; its content is unchanged.
-- `../HANDOFF.md` (workspace shell) deliberately **not** touched.
+Prior (2.3.x): modularization, floating window, warm daemon, batch/placement fixes, installer/uninstaller,
+design tokens, fluid panel, first-run setup, parallel-batch fixes, oversized-artwork pixel budget.
 
 ## In progress / not verified
 
-- Nothing is implemented in pen.dev. No `.pen` frame has been reconciled with the 2.3.3 panel.
-- The `.pen` file predates the shipped UI (canvas 2026-11-11 09:53 vs release 17:15), so the design and
-  the code have already diverged.
+- **AI image flow not tested in a live Illustrator session** — host `ai.jsx` changes need a full
+  Illustrator quit/reopen; the Gemini-in-Chrome round trip (Use selection → Open Gemini → download to
+  `gemini/results` → auto-place on `Gemini Image` layer) has not been run end-to-end.
+- **What's-new card + tour not visually confirmed** in the panel.
+- **Installed CEP parity** for the new files (`host/ai.jsx`, `modules/ai-image/`, `js/whats-new.js`,
+  `modules/tour/`, locales, `index.html`, `css`) not re-verified after the 2.5.0 commit.
+- Nothing is implemented in pen.dev. No `.pen` frame has been reconciled with the 2.5.0 panel.
 - `..\design\` and `..\tools\` remain untracked and undefended by `.gitignore`; a `git clean` in the
   parent workspace would delete the only design file and the only regression harness.
 
 ## Changed files
 
-Uncommitted, documentation only:
+Committed `396b380` (v2.4.0 + v2.5.0):
+- New: `host/ai.jsx`, `js/whats-new.js`, `modules/ai-image/ai-image.js`, `modules/tour/tour.js`,
+  `tools/verify-ai-image.cjs`, `tools/verify-tour.cjs`, `GEMINI_UPSCALE_RESEARCH_2026-11-16.md`.
+- Modified: `AGENTS.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `CSXS/manifest.xml`, `agent/daemon.js`,
+  `agent/daemon/server.js`, `css/style.css`, `host/export.jsx`, `index.html`, `js/bridge/host.js`,
+  `js/core/app.js`, `js/locales/en.js`, `js/locales/pt.js`, `js/panel.js`, `modules/setup/setup.js`,
+  `tools/verify-all.cjs`.
 
-| File | Change |
-|---|---|
-| `AGENTS.md` | Modified — version, freeze policy, workflow, QA levels, commands, doc references, open decisions |
-| `DESIGN.md` | **New** — visual standards + Design ↔ Code Sync |
-| `SKILLS.md` | **New** — approved tool belt + real availability |
-| `HANDOFF.md` | **New** — this checkpoint |
-| `RELEASE_PROMPT.md` | Modified — stale-warning banner only |
-
-No file in `js/`, `modules/`, `host/`, `agent/`, `css/`, `CSXS/` or any `.ps1` installer was touched.
+Uncommitted (this session): `ARCHITECTURE.md` + `HANDOFF.md` refreshed to 2.5.0.
 
 ## Tests / checks
 
-- QA level: **Basic** (documentation only; no runtime surface changed).
-- Completion status: **Verified** for what was claimed; design/runtime alignment is **not verified**.
-- Passed: `node ../tools/verify-host.cjs` → **22/22 checks, exit 0** (JSON layer, export/import against
-  the fake Illustrator DOM, `host/core.jsx` + `host/batch.jsx` prepare/export/`docChanged`/resolve,
-  panel ids, `t()` keys, `data-i18n` keys).
-- Passed: path/link existence checks for every file referenced by the new docs; version strings in
-  `AGENTS.md`/`HANDOFF.md` match `CSXS/manifest.xml` (`2.3.3`); `git status` in the parent Magento repo
-  still shows only the pre-existing `?? vector_illust/`.
-- Not run: any Illustrator host session, any signed-in vectorizer.ai run, warm-daemon start, updater
-  download, MCP handshake, or pen.dev interaction.
-- Visual/host-app check: **not run** — no UI was changed.
-- No commit, push, release or configuration change was made.
+- QA level: **Extended** (v2.4.0 + v2.5.0 feature commit + doc refresh).
+- Completion status: **Verified** for the offline harnesses; **Partially verified** for the AI image
+  flow and tour (not run in a live Illustrator session).
+- Passed: `node tools/verify-all.cjs` → **7/7 suites, exit 0** (panel wiring, agent helpers, export
+  options, gemini in chrome, whats-new/tour, dead CSS, js syntax on 26 files).
+- Not run: a real Illustrator session, the Gemini-in-Chrome round trip, the What's-new tour in the panel,
+  a signed-in vectorizer.ai run, warm-daemon start, updater download.
+- Visual/host-app check: **not run** — no UI was changed in the verification pass.
 
 ## Blockers
 
 - **Untracked assets:** `..\design\VectorizerBridge-UI.pen` (547 KB), `..\design\NOTES-ui-redesign.md`,
-  `..\tools\*.cjs`. Versioning them (or choosing an archive location) needs a user decision — committing
-  a 547 KB design file is a policy choice, not an obvious one.
-- **Untrusted `.pen` ↔ code mapping:** nothing links frames to files yet except the new sync table,
-  and every row is "not verified".
-- **Notion access is agent-dependent:** only this Freebuff chat can read the workspace pages.
-- **Doc drift elsewhere:** `ARCHITECTURE.md`, `README.md`, `PROJECT_STATE_2026-11-06.md`,
-  `PROJECT_STATE_2026-11-10.md`, `ARCHITECTURE_PLAN.md`, `CHANGES_2026-11-06.md` still carry v2.2.0/2.3.0
-  versions and overlapping content. Consolidation was deliberately not performed in Phase 2.
+  `..\tools\*.cjs`. Versioning them (or choosing an archive location) needs a user decision.
+- **AI image flow untested in Illustrator:** host `ai.jsx` needs a full Illustrator quit/reopen; the
+  Gemini-in-Chrome round trip has not been exercised end-to-end.
+- **Installed CEP parity** for the 2.5.0 files not re-verified after the commit.
+- **Doc drift elsewhere:** `ARCHITECTURE.md` (now 2.5.0), `PROJECT_STATE_2026-11-06.md`,
+  `PROJECT_STATE_2026-11-10.md`, `ARCHITECTURE_PLAN.md`, `CHANGES_2026-11-06.md` still carry old versions.
+- **Notion access is agent-dependent:** only the Freebuff chat can read the workspace pages.
 
 ## Next recommended environment
 
-**pen.dev first, then Chat.** The next piece of real value is reconciling the canvas with the shipped
-panel; that is canvas work. Implementation of anything resulting from it belongs back in a chat agent.
+**Chat (code), then Illustrator.** The next piece of real value is testing the AI image flow and the
+What's-new tour in a live Illustrator session, then confirming installed CEP parity.
 
 ## Next action
 
-1. Open `C:\Users\user\Videos\BestOfGifts_Master\vector_illust` (not just the `.pen` file) as a pen.dev
-   workspace, re-capture or relabel the frames against the running 2.3.3 panel, and fill in the
-   Design ↔ Code Sync table in `DESIGN.md` with what you actually see.
+1. Full quit/reopen Illustrator (host `ai.jsx` cache reset), open panel → AI image editor.
+2. Use selection → Open Gemini in Chrome → generate → download to `gemini/results` → confirm auto-place
+   on `Gemini Image` layer. Test What's-new card + tour.
+3. Verify installed CEP parity for the 2.5.0 files (`Get-FileHash` vs source).
 
 ## Resume protocol
 

@@ -1,7 +1,7 @@
-﻿# Mockup Studio architecture (v2.2.0 — frozen for UI/UX)
+﻿# Mockup Studio architecture (v2.5.0)
 
 ## Status
-- **Development frozen for UI/UX work.** Behavior/flow is stable; prioritize UI/UX changes without altering host/agent contracts or batch/placement semantics. Keep source and installed CEP in sync.
+- **Behavior/flow is stable; UI/UX changes do not alter host/agent contracts or batch/placement semantics.** Keep source and installed CEP in sync on every change. Current release 2.5.0 adds the AI image editor (Gemini in Chrome) and the What's-new card/tour.
 
 ## Runtime layers
 - **Panel/UI (CEP HTML+JS)** — `index.html` loads in order:
