@@ -125,12 +125,13 @@ export function AiImageSection() {
   }, []);
 
   const pngSize = useCallback((): number => {
+    /* 0 is the "Original" preset: the host's exportSelection treats it as native
+       resolution, so it must pass through instead of being read as "unset". */
     let size = 1700;
     try {
       const v = parseInt(String(actions.live.settings.pngLongSide), 10);
       if (isFinite(v)) size = v;
     } catch { }
-    if (!size) size = 1700;
     return size;
   }, [actions]);
 

@@ -69,6 +69,9 @@ export function useVectorizer() {
       actions.setDetail(elapsed ? ("⏱ " + actions.fmtElapsed(elapsed)) : "");
       actions.addHistory("batchFailed", b.docName || "", false, "cancelled at " + (b.doneCount || 0) + "/" + (b.total || 0));
       actions.setState({ batch: null });
+      /* finishBatch does this too; a cancelled batch must not leave its VB_BATCH
+         notes/tags on the document until the next run happens to clear them. */
+      try { evalJsx("VB.restoreBatchNotes()", () => { }); } catch { }
       actions.events.emit("batch:finished", { cancelled: true, ok: b.ok || 0, failed: b.failed || 0, skipped: b.skipped || 0, total: b.total || 0, docName: b.docName || "" });
     } else {
       actions.setStatus(actions.t("statusCancelled"));

@@ -1,7 +1,9 @@
 # Updating Mockup Studio
 
 The panel can update itself, but only when you ask it to and only after it has verified what it
-downloaded. There is no background check and nothing is applied at startup.
+downloaded. It does one read-only version check when the panel opens (a GitHub API call that only
+reports whether a newer release exists); nothing is downloaded or applied until you press
+**Update now** and confirm.
 
 ## For users: how to update
 
@@ -23,7 +25,7 @@ Your settings, history, SVGs and the agent's `node_modules` are preserved.
 
 | Step | What runs | Safety |
 |---|---|---|
-| Check | `agent/update.js --action check` | `GET https://api.github.com/repos/<repo>/releases/latest`, HTTPS only |
+| Check | `agent/update.js --action check` — also run once when the panel opens | `GET https://api.github.com/repos/<repo>/releases/latest`, HTTPS only, read-only |
 | Version compare | `x.y.z` parsed numerically | Non-numeric tags are refused |
 | Download | the release's `.zip` asset | HTTPS + host allowlist, 80 MB cap, 30 s timeout, max 4 redirects |
 | Verify | SHA-256 of the downloaded archive | Must match the asset's published digest, otherwise nothing is unpacked |

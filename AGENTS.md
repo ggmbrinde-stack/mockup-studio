@@ -166,10 +166,14 @@ full Illustrator restart or full extension reload before they are verified.
 Run commands from the repository root (`vector_illust/VectorizerBridge`).
 
 ```bash
-node --check js/core/app.js          # any touched panel/agent JS
-node ../tools/verify-host.cjs        # 22 offline checks: JSON layer, export/import,
-                                     # core+batch host scripts, panel wiring. No Illustrator
-                                     # and no user documents touched. All 22 pass at 2.3.3.
+npm --prefix modern-ui run verify    # the panel CEP actually loads (dist/): local assets,
+                                     # VB.* calls vs host/*.jsx, t() keys vs en/pt,
+                                     # whats-new keys and tour targets
+node --check agent/update.js        # any touched agent JS
+node ../tools/verify-host.cjs        # 22 offline checks on the HOST scripts and the legacy
+                                     # native panel (index.html + js/panel.js). No Illustrator
+                                     # and no user documents touched. It no longer covers the
+                                     # React panel, which is dist/, so run `npm run verify` too.
 ```
 
 The harness lives in the workspace shell (`../tools/`), **outside this Git repository**, so a fresh
