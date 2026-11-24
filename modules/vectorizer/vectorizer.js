@@ -480,12 +480,52 @@
     }, true);
   }
 
+
+  function updateBannerEl() { return core.$("updateBanner"); }
+  function updateBannerTextEl() { return core.$("updateBannerText"); }
+  function updateBannerBtnEl() { return core.$("updateBannerBtn"); }
+  function updateBannerCloseEl() { return core.$("updateBannerClose"); }
+
+  function dismissUpdateBannerForSession() {
+    try { return sessionStorage.getItem("vb_update_dismissed") === "1"; } catch (e) { return false; }
+  }
+
+  function hideUpdateBanner() {
+    var banner = updateBannerEl();
+    if (banner) banner.hidden = true;
+  }
+
+  function initUpdateBanner() {
+    var closeBtn = updateBannerCloseEl();
+    if (closeBtn) {
+      closeBtn.textContent = core.t("updateBannerDismiss") || "Dismiss";
+      closeBtn.onclick = function () {
+        try { sessionStorage.setItem("vb_update_dismissed", "1"); } catch (e) {}
+        hideUpdateBanner();
+      };
+    }
+    var btn = updateBannerBtnEl();
+    if (btn) {
+      btn.textContent = core.t("updateBannerBtn") || "Download update";
+      btn.onclick = function () {
+        if (typeof armOrApplyUpdate === "function") { armOrApplyUpdate(); }
+      };
+    }
+  }
+
+  function autoCheckUpdates() {
+    if (!bridge.hostOk) return;
+    if (dismissUpdateBannerForSession()) return;
+    startUpdate("check");
+  }
+
   function init() {
     core.loadSettings();
     // queue↔vectorizer interface/events
     core.events.on('poll:tick', pollOnce);
     core.events.on('batch:finished', function () { try { refreshSvgHistory(); } catch (e) {} });
     bindUI();
+    initUpdateBanner();
     core.renderLocale();
     core.applySettingsToUI();
     core.setStatusKey("statusReady");
@@ -512,6 +552,7 @@
       refreshDaemonStatus();
       refreshSvgHistory();
       refreshUpdateInfo();
+      setTimeout(function () { try { autoCheckUpdates(); } catch (e) {} }, 1500);
       if (core.state.settings.warmDaemon) ensureDaemonRunning();
       bridge.evalJsx("VB.selfTest()", function (selfTest) {
         var st = bridge.parseResult(selfTest);
@@ -557,6 +598,13 @@
   }
 
   function renderUpdate(r) {
+    if (r && r.state && core.state && core.state.update) {
+      core.state.update.available = (r.state === "available");
+      core.state.update.checking = (r.state === "checking");
+      core.state.update.downloading = (r.state === "downloading" || r.state === "installing");
+      core.state.update.staged = (r.state === "done");
+      core.state.update.remoteVersion = r.latest || r.version || "";
+    }
     var statusEl = core.$("updateStatusText");
     var versionEl = core.$("updateVersionText");
     var applyBtn = core.$("applyUpdateBtn");
@@ -586,6 +634,32 @@
     }
     if (applyBtn) applyBtn.style.display = (r.state === "available") ? "" : "none";
     renderUpdateNotes(r);
+    // Sync banner with updater state (single source of truth)
+    if (core.state && core.state.update) {
+      var _banner = updateBannerEl();
+      var _bannerText = updateBannerTextEl();
+      var _bannerBtn = updateBannerBtnEl();
+      if (core.state.update.downloading) {
+        if (_bannerText) _bannerText.textContent = core.t("updateDownloading") || "Downloading\u2026";
+        if (_bannerBtn) { _bannerBtn.disabled = true; _bannerBtn.style.display = ""; }
+        if (_banner) _banner.hidden = false;
+      } else if (core.state.update.staged) {
+        if (_bannerText) _bannerText.textContent = (core.t("updateDone") || "Updated to {version}. Restart Illustrator to finish.").replace("{version}", core.state.update.remoteVersion || "");
+        if (_bannerBtn) _bannerBtn.style.display = "none";
+        if (_banner) _banner.hidden = false;
+      } else if (core.state.update.available) {
+        if (!dismissUpdateBannerForSession()) {
+          if (_bannerText) {
+            var _tpl = core.t("updateBannerText") || "New version available: {version}";
+            _bannerText.textContent = _tpl.replace("{version}", core.state.update.remoteVersion || "");
+          }
+          if (_bannerBtn) { _bannerBtn.style.display = ""; _bannerBtn.disabled = false; }
+          if (_banner) _banner.hidden = false;
+        }
+      } else {
+        if (_banner && !dismissUpdateBannerForSession() && r && r.state !== "checking") _banner.hidden = true;
+      }
+    }
   }
 
   function refreshUpdateInfo() {

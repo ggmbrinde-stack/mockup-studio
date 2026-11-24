@@ -21,7 +21,7 @@
     <Extension Id="com.bestofgifts.vectorizerbridge.panel">
       <DispatchInfo>
         <Resources>
-          <MainPath>./index.html</MainPath>
+          <MainPath>./dist/index.html</MainPath>
         </Resources>
         <Lifecycle>
           <AutoVisible>true</AutoVisible>
@@ -54,7 +54,7 @@
     <Extension Id="com.bestofgifts.vectorizerbridge.window">
       <DispatchInfo>
         <Resources>
-          <MainPath>./index.html?view=window</MainPath>
+          <MainPath>./dist/index.html?view=window</MainPath>
         </Resources>
         <Lifecycle>
           <AutoVisible>true</AutoVisible>

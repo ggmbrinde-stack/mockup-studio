@@ -89,6 +89,18 @@ body {
   font-weight: 700; font-size: clamp(14px, 3.6vw, 15px); color: var(--text-primary);
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.badge {
+  display: inline-block; padding: 1px 6px; border-radius: var(--radius);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; line-height: 1.6; white-space: nowrap;
+  flex: 0 0 auto;
+}
+.badge-legacy {
+  background: var(--surface-alt); color: var(--muted); border: 1px solid var(--border);
+}
+.badge-modern {
+  background: var(--accent-tint); color: var(--accent); border: 1px solid var(--accent);
+}
 .spacer { flex: 1 1 auto; }
 #langBtn { font-size: 12px; flex: 0 0 auto; }
 
@@ -515,3 +527,22 @@ body[data-mode="mini"] #tourCard { display: none !important; }
   background: var(--surface-alt); border-radius: 999px; padding: 2px 8px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+
+/* Update banner (proactive notification) */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin: 0 0 8px 0;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius, 4px);
+  background: var(--surface, #ffffff);
+  font-size: 12px;
+}
+.update-banner[hidden] { display: none !important; }
+.update-banner-text { flex: 1; min-width: 0; color: var(--text-body, #333333); }
+.mode-mini .update-banner { display: none !important; }

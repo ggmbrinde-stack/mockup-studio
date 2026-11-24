@@ -9,8 +9,14 @@
 <!-- Full State (docked panel) is the default; js/core/app.js switches this element to
      mode-mini for the modeless window (?view=window). Both states share this markup. -->
 <div class="app mode-full" data-mode="full">
+  <div id="updateBanner" class="update-banner" hidden>
+    <span id="updateBannerText" class="update-banner-text"></span>
+    <button id="updateBannerBtn" class="btn small primary" type="button" data-i18n="updateBannerBtn">Download update</button>
+    <button id="updateBannerClose" class="btn small" type="button" aria-label="Dismiss">&#x2715;</button>
+  </div>
   <header class="toolbar">
     <div class="title" data-i18n="appTitle">Mockup Studio</div>
+    <span class="badge badge-legacy" data-i18n="badgeLegacy">legacy</span>
     <div class="spacer"></div>
     <button id="langBtn" class="btn small">EN</button>
     <button id="miniClose" class="miniClose" type="button" aria-label="Close" title="Close">✕</button>

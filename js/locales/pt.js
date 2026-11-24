@@ -1,6 +1,7 @@
 window.LOCALES = window.LOCALES || {};
 window.LOCALES.pt = {
   appTitle: "Mockup Studio",
+  badgeLegacy: "legado",
 
   vectorizeBtn: "Vetorizar seleção",
   selectionNoDoc: "Nenhum documento aberto",
@@ -26,6 +27,9 @@ window.LOCALES.pt = {
   updateFailed: "A atualização falhou:",
   checkUpdates: "Verificar atualizações",
   updateNow: "Atualizar agora",
+  updateBannerText: "Nova versão disponível: {version}",
+  updateBannerBtn: "Baixar atualização",
+  updateBannerDismiss: "Dispensar",
   updateConfirm: "Confirmar atualização?",
   restorePrevious: "Restaurar versão anterior",
 

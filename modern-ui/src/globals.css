@@ -1,0 +1,80 @@
+/* The React tree reuses the native panel's class vocabulary, so it reuses its stylesheet.
+   Unlayered rules beat Tailwind's layered base, which keeps buttons and inputs looking like the panel. */
+@import "../../css/style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .badge {
+    @apply inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase leading-relaxed whitespace-nowrap flex-shrink-0;
+  }
+  .badge-modern {
+    @apply border border-[var(--accent)] bg-[var(--accent-tint)] text-[var(--accent)];
+  }
+}
+
+@layer base {
+  :root {
+    --panel-bg: #FAFAFA;
+    --surface: #FFFFFF;
+    --surface-alt: #F2F2F2;
+    --border: #DDDDDD;
+    --border-strong: #999999;
+    --text-primary: #111111;
+    --text-body: #333333;
+    --text-muted: #767676;
+    --text-hint: #666666;
+    --accent: #0066CC;
+    --accent-hover: #0052A3;
+    --accent-tint: #E8F1FB;
+    --status-info: #1A73E8;
+    --success: #2E7D32;
+    --danger: #C62828;
+    --warning: #B26A00;
+    --font-ui: "Segoe UI", Arial, sans-serif;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+
+    --muted: var(--text-muted);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+  html {
+    overflow: hidden;
+  }
+  body {
+    font-family: var(--font-ui);
+    font-size: var(--fs);
+    color: var(--fg);
+    background: var(--bg);
+    overflow: hidden;
+  }
+}
+
+/* The error box only exists in the DOM when there is an error, but the native sheet hides it.
+   Unlayered so it lands after that rule, and a flex row keeps the dismiss button reachable. */
+.error-box {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.error-box > .errorText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.error-box > .errorDismiss {
+  flex: 0 0 auto;
+}

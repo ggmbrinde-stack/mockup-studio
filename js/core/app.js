@@ -90,6 +90,7 @@
     lang: "en",
     history: [],
     daemon: { state: "unknown", busy: false },
+    update: { available: false, checking: false, downloading: false, staged: false, remoteVersion: "", stagedVersion: "" },
     runToken: 0,
     bridgeFolder: "",
     batch: null,
