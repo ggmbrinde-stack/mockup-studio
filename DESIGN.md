@@ -54,7 +54,8 @@ visible `:focus-visible` ring; text wraps with `overflow-wrap: anywhere` (never 
 
 - **Current state:** one light token set. There is **no** `data-theme` / dark token block in
   `css/style.css` today. Do not document or claim a dark mode that does not exist.
-- **Intended direction** (researched in `UI_UX_RESEARCH_2026-11-11.md`, not implemented): derive
+- **Intended direction** (researched in `docs/archive/UI_UX_RESEARCH_2026-11-11.md`; the React build
+  shipped in 3.0.0, so check `modern-ui/src` first): derive
   light/dark from `new CSInterface().getHostEnvironment().appSkinInfo` — use it only as a *signal*
   (`panelBackgroundColor.color.red > 128`), never as paint, because CEP reports approximate colours.
   Listen for `CSInterface.THEME_COLOR_CHANGED_EVENT`. Default must remain the light palette so a

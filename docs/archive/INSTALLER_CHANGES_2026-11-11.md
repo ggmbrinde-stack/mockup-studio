@@ -1,3 +1,7 @@
+> **Archived 2026-11-24 — historical record, do not treat as current.** The defects below are fixed and
+> subsumed by `install.ps1`, `install-online.ps1` and `uninstall.ps1`. Current install/update rules:
+> `../../INSTALL.md`, `../../UPDATE.md`.
+
 # Installer & Uninstaller — Changes (2026-11-11)
 
 Audit of `install.ps1` / `uninstall.ps1` found five real defects (a failed `npm install`

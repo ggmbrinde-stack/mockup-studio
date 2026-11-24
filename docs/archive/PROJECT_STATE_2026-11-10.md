@@ -1,4 +1,8 @@
-﻿# Project State — Mockup Studio (2026-11-10)
+﻿> **Archived 2026-11-24 — historical snapshot, do not treat as current.** It describes v2.2.0 and the
+> native panel. Current docs: `../../AGENTS.md`, `../../ARCHITECTURE.md` (3.0.0 React panel),
+> `../../HANDOFF.md`, `../../CHANGELOG.md`.
+
+# Project State — Mockup Studio (2026-11-10)
 
 ## Summary
 **v2.2.0 — stable, development frozen for UI/UX work.** CEP panel (`com.bestofgifts.vectorizerbridge`, Illustrator 2025/2026+, Windows) vectorizes selections via vectorizer.ai and places editable SVGs on `Vectorizer` layer. Bounded parallel per-item batch v2, SVG history (place to any open doc), warm daemon, and modularized panel/host/agent architecture are in place. Source and installed CEP are in sync.

@@ -1,8 +1,34 @@
 # UI Modernization Decision — Mockup Studio
 
 **Date:** 2026-11-23
-**Status:** Approved direction, not yet implemented
-**Scope:** Panel/UI layer only. Host (`host/*.jsx`), agent (`agent/*`), and CEP manifest stay as-is.
+**Status:** **Implemented and shipped in 3.0.0 (2026-11-24)** — see the outcome note below. The decision
+record and its constraints stay valid; the implementation details that changed are listed there.
+**Scope:** Panel/UI layer only. Host (`host/*.jsx`) and agent (`agent/*`) stayed as-is; the manifest
+changed only its `MainPath`.
+
+## Outcome (2026-11-24) — shipped as 3.0.0
+
+- **Built and released.** The panel is the React/Vite app in `modern-ui/`, built to repo-root `dist/`;
+  `CSXS/manifest.xml` (both extensions) loads `./dist/index.html`. Delivered to existing installs
+  through the self-updater; a 2.5.0 install was verified to update to 3.0.0 and restore back.
+- **Deviations from the plan:**
+  - React **19**, not 18.
+  - No Bolt CEP tooling in the dependency tree — a plain Vite + TypeScript scaffold with a Bolt-style
+    `cep.config.ts` kept for reference. Vite writes to `dist/` at the repository root, output is a
+    single IIFE bundle loaded as `defer` (CEP cannot load ES modules).
+  - The **manifest had to change**: `MainPath` is now `./dist/index.html`, so `dist/` must ship in the
+    release archive and is checked by the updater and both installers.
+  - i18n stayed a plain TS module pair (`modern-ui/src/locales/{en,pt}.ts`), not react-i18next.
+  - Tailwind stayed pinned to **v3** as required.
+- **Invariants that held:** `VB.*` host API and ES3 host untouched, per-item batch/`VB_BATCH`/doc guard,
+  warm daemon, `ExtensionBundleId` and install path unchanged, shortcut and updater reimplemented with
+  the same behaviour, offline operation (no CDNs).
+- **Open decisions, resolved:** branch `feature/modern-ui` merged to `main` (not a separate repo);
+  `:root` tokens carried over into the new CSS rather than Tailwind's shadcn palette; the offline
+  harness (`tools/verify-host.cjs`) kept and still passing, not rewritten;
+  `window.VBPanel.{core,bridge,queue,vectorizer}` kept as the contract surface.
+- **Still open:** no live-Illustrator visual sign-off of the React panel yet, and the legacy native
+  files (`index.html`, `js/`, `modules/`, `css/`) remain in the tree unloaded.
 
 ## Decision
 

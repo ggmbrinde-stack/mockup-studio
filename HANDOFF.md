@@ -1,18 +1,19 @@
 # Project Handoff — Mockup Studio
 
-Updated: **2026-11-23**
-Project: **Mockup Studio** — Adobe Illustrator CEP panel (`com.bestofgifts.vectorizerbridge`), v2.5.0
-Last agent: Code (verification + doc refresh)
+Updated: **2026-11-24**
+Project: **Mockup Studio** — Adobe Illustrator CEP panel (`com.bestofgifts.vectorizerbridge`), v3.0.0
+Last agent: Code (3.0.0 release + updater verification)
 Repository/location: `C:\Users\user\Videos\BestOfGifts_Master\vector_illust\VectorizerBridge`
 Remote: `https://github.com/ggmbrinde-stack/mockup-studio.git`
 Branch: `main` (in sync with `origin/main`)
-HEAD: `396b380 feat: v2.4.0 what's-new card + v2.5.0 AI image editor (Gemini in Chrome)`
+HEAD: `40f5185 chore(release): 3.0.0 for the React panel`
 
 ## Current task
 
-v2.4.0 (What's-new card + feature tour) and v2.5.0 (AI image editor, Gemini in Chrome) are committed
-and pushed (`396b380`). All verification harnesses pass (`node tools/verify-all.cjs` → 7/7). Docs
-refreshed to 2.5.0. Next: real Illustrator test of the AI image flow and the What's-new tour.
+**3.0.0 is shipped.** The panel UI is now the React/Vite app in `modern-ui/`, built to repo-root
+`dist/`, and `CSXS/manifest.xml` loads `./dist/index.html`. The release is published on GitHub
+(`3.0.0`, asset `mockup-studio-3.0.0.zip`, 294,055 bytes, digest `sha256:fde8e331…`) and an existing
+2.5.0 install was proven to update from it and restore back.
 
 ## Decisions to preserve
 
@@ -20,88 +21,97 @@ refreshed to 2.5.0. Next: real Illustrator test of the AI image flow and the Wha
   `tools\`, legacy `HANDOFF.md`, release zips) is **outside Git** — see "Blockers".
 - Behaviour stays frozen for the UI/UX phase: no unrequested behaviour changes; release/installer work
   needs explicit approval. `AGENTS.md` states this interpretation explicitly.
-- The panel is vanilla HTML/CSS/JS inside CEP. No React, no JSX, no Tailwind, no build step — a pen.dev
-  design that uses shadcn-style components must be translated to native code.
-- `AGENTS.md` holds project rules; `DESIGN.md` holds visual standards and the Design ↔ Code Sync table;
-  `SKILLS.md` holds the honest capability inventory; this file holds state.
-- Notion is durable knowledge only. Notion MCP is configured for the unrelated parent Magento
-  workspace, **not** for this one, so most agents cannot read Notion here.
+- The panel is React 19 + Vite + Tailwind with Radix/shadcn-style primitives in `modern-ui/`. Build
+  output goes to repo-root `dist/` and is committed — `MainPath`, the updater and both installers all
+  depend on `dist/index.html` existing.
+- `window.VBPanel.{core,bridge,queue,vectorizer}` are re-implemented in TypeScript
+  (`context/core-context.tsx`, `hooks/use-host.ts`, `hooks/use-batch.ts`, `hooks/use-vectorizer.ts`)
+  and must keep those global names: host scripts, the flyout menu and shortcut registration use them.
+- `AGENTS.md` holds project rules; `DESIGN.md` holds visual standards; `SKILLS.md` the capability
+  inventory; `ARCHITECTURE.md` the layer reference; this file holds state.
 
 ## Completed and verified
 
-v2.4.0 + v2.5.0 (committed `396b380`):
-- What's-new card + feature tour (`js/whats-new.js`, `modules/tour/`, `tools/verify-tour.cjs`).
-- AI image editor, Gemini in Chrome (`host/ai.jsx`, `modules/ai-image/`, `tools/verify-ai-image.cjs`).
-  Uses the user's own Chrome + Google AI Plus; no API key, no billing. Nothing automated in the browser.
-- `VB.exportSelection` takes an optional output path; `agent/daemon.js` wrapper calls `main()`;
-  `server.js` exports `main` and self-runs only when it is the script.
-- Verification: `node tools/verify-all.cjs` → 7/7 suites pass (panel wiring, agent helpers, export
-  options, gemini in chrome, whats-new/tour, dead CSS, js syntax on 26 files).
+3.0.0 (commits `ecb34f8` → `403bca3` → `40f5185`, pushed to `origin/main`):
+- React panel replaces the native UI; legacy `index.html`/`js/`/`modules/` stay in the tree but are
+  not loaded.
+- Version 3.0.0 across `CSXS/manifest.xml` (bundle + both extensions), `CHANGELOG.md`, `README.md`,
+  `AGENTS.md`, `UPDATE.md`, `modern-ui/package.json` + lock.
+- Release plumbing: `dist/index.html` added to `REQUIRED_FILES` (`agent/update.js`), `install.ps1` and
+  `install-online.ps1`; `install.ps1` no longer copies `native-panel-backup*`.
+- Updater proven offline: 2.5.0 install → apply 3.0.0 → status `done`, backup `2.5.0-<stamp>`,
+  real `dist/` in place → restore → 2.5.0 with the old `dist` byte-identical, status `restored`.
+  Guards also pass: archive without `dist/index.html` is rejected before the install is touched; a
+  restore with no backup reports `No previous version is backed up yet.`
+- Updater proven from GitHub: sandbox 2.5.0 → `check` → `available 3.0.0` with release notes → `apply`
+  (real download, digest verified) → 3.0.0 → `restore` → 2.5.0.
+- Installed CEP copy synced: manifest 3.0.0, `dist` bundle `index-Bi7AhOc8.js`, `agent/update.js`
+  with `dist/index.html`.
 
-Prior (2.3.x): modularization, floating window, warm daemon, batch/placement fixes, installer/uninstaller,
-design tokens, fluid panel, first-run setup, parallel-batch fixes, oversized-artwork pixel budget.
+Prior (2.4.0–2.5.0, `396b380`): What's-new card + tour, AI image editor (Gemini in Chrome), warm
+daemon, modularized host/agent. Prior (2.3.x): batch/placement fixes, installers, design tokens.
 
 ## In progress / not verified
 
-- **AI image flow not tested in a live Illustrator session** — host `ai.jsx` changes need a full
-  Illustrator quit/reopen; the Gemini-in-Chrome round trip (Use selection → Open Gemini → download to
-  `gemini/results` → auto-place on `Gemini Image` layer) has not been run end-to-end.
-- **What's-new card + tour not visually confirmed** in the panel.
-- **Installed CEP parity** for the new files (`host/ai.jsx`, `modules/ai-image/`, `js/whats-new.js`,
-  `modules/tour/`, locales, `index.html`, `css`) not re-verified after the 2.5.0 commit.
-- Nothing is implemented in pen.dev. No `.pen` frame has been reconciled with the 2.5.0 panel.
-- `..\design\` and `..\tools\` remain untracked and undefended by `.gitignore`; a `git clean` in the
-  parent workspace would delete the only design file and the only regression harness.
+- **Panel-side "Restore previous version" button not re-verified.** Illustrator was running but CEP
+  debug ports 8088/8089/8090 were down, so `VB.updateBackups()` could not be evaluated. The restore
+  path itself is verified through `agent/update.js --action restore`.
+- **3.0.0 panel not visually reviewed** in a live Illustrator session (idle/running/error/signed-out,
+  panel widths 240/320/460 px, floating `?view=window` layout). The bundle builds and was exercised
+  through CDP for the custom-PNG-size fix, not as a full visual pass.
+- **AI image flow** (Use selection → Gemini → auto-place) still has no end-to-end Illustrator run.
+- **Doc drift fixed 2026-11-24:** the five superseded files (`PROJECT_STATE_2026-11-06.md`,
+  `PROJECT_STATE_2026-11-10.md`, `ARCHITECTURE_PLAN.md`, `CHANGES_2026-11-06.md`, `RELEASE_PROMPT.md`)
+  moved to `docs/archive/` with banners and an index; nothing in the working set describes the native
+  panel any more.
 
 ## Changed files
 
-Committed `396b380` (v2.4.0 + v2.5.0):
-- New: `host/ai.jsx`, `js/whats-new.js`, `modules/ai-image/ai-image.js`, `modules/tour/tour.js`,
-  `tools/verify-ai-image.cjs`, `tools/verify-tour.cjs`, `GEMINI_UPSCALE_RESEARCH_2026-11-16.md`.
-- Modified: `AGENTS.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `CSXS/manifest.xml`, `agent/daemon.js`,
-  `agent/daemon/server.js`, `css/style.css`, `host/export.jsx`, `index.html`, `js/bridge/host.js`,
-  `js/core/app.js`, `js/locales/en.js`, `js/locales/pt.js`, `js/panel.js`, `modules/setup/setup.js`,
-  `tools/verify-all.cjs`.
+Committed `40f5185` (3.0.0 bump): `CSXS/manifest.xml`, `CHANGELOG.md`, `README.md`, `AGENTS.md`,
+`UPDATE.md`, `modern-ui/package.json`, `modern-ui/package-lock.json`.
 
-Uncommitted (this session): `ARCHITECTURE.md` + `HANDOFF.md` refreshed to 2.5.0.
+Committed `403bca3` (release prep): `agent/update.js`, `install.ps1`, `install-online.ps1`,
+`UPDATE.md`, `CHANGELOG.md`, `dist/` (built output).
+
+Committed `ecb34f8` (React panel, 69 files): `modern-ui/` (new app), `dist/` build, manifest
+`MainPath`, `host/watch.jsx`, `js/admin-config.js`, `js/whats-new.js`.
+
+Uncommitted (this session): `ARCHITECTURE.md` + `HANDOFF.md` refreshed to 3.0.0. Untracked and
+deliberately uncommitted: `native-panel-backup-20261123/`.
 
 ## Tests / checks
 
-- QA level: **Extended** (v2.4.0 + v2.5.0 feature commit + doc refresh).
-- Completion status: **Verified** for the offline harnesses; **Partially verified** for the AI image
-  flow and tour (not run in a live Illustrator session).
-- Passed: `node tools/verify-all.cjs` → **7/7 suites, exit 0** (panel wiring, agent helpers, export
-  options, gemini in chrome, whats-new/tour, dead CSS, js syntax on 26 files).
-- Not run: a real Illustrator session, the Gemini-in-Chrome round trip, the What's-new tour in the panel,
-  a signed-in vectorizer.ai run, warm-daemon start, updater download.
-- Visual/host-app check: **not run** — no UI was changed in the verification pass.
+- QA level: **Critical** (manifest/build/installer/updater).
+- Completion status: **Verified** for build, updater apply/restore (offline and from GitHub), staged
+  validation guards and the installed-copy sync; **Partially verified** for the panel itself (no live
+  Illustrator visual pass, in-panel restore button not evaluated).
+- Passed: `npm --prefix modern-ui run build` (exit 0), `node ../tools/verify-host.cjs` (all checks),
+  `node --check agent/update.js`, `npx oxlint` (31 warnings, 0 errors).
+- Not run: live Illustrator panel review, AI image round trip, signed-in vectorizer.ai run, warm-daemon
+  start, in-panel restore click.
 
 ## Blockers
 
-- **Untracked assets:** `..\design\VectorizerBridge-UI.pen` (547 KB), `..\design\NOTES-ui-redesign.md`,
-  `..\tools\*.cjs`. Versioning them (or choosing an archive location) needs a user decision.
-- **AI image flow untested in Illustrator:** host `ai.jsx` needs a full Illustrator quit/reopen; the
-  Gemini-in-Chrome round trip has not been exercised end-to-end.
-- **Installed CEP parity** for the 2.5.0 files not re-verified after the commit.
-- **Doc drift elsewhere:** `ARCHITECTURE.md` (now 2.5.0), `PROJECT_STATE_2026-11-06.md`,
-  `PROJECT_STATE_2026-11-10.md`, `ARCHITECTURE_PLAN.md`, `CHANGES_2026-11-06.md` still carry old versions.
+- **Untracked assets:** `..\design\VectorizerBridge-UI.pen`, `..\design\NOTES-ui-redesign.md`,
+  `..\tools\*.cjs`. Versioning them needs a user decision.
+- **CEP debug port unavailable** while Illustrator runs, so panel state cannot be inspected from here;
+  a full Illustrator restart is needed to load 3.0.0 anyway.
 - **Notion access is agent-dependent:** only the Freebuff chat can read the workspace pages.
 
 ## Next recommended environment
 
-**Chat (code), then Illustrator.** The next piece of real value is testing the AI image flow and the
-What's-new tour in a live Illustrator session, then confirming installed CEP parity.
+**Illustrator**, after a full quit/reopen so CEP loads 3.0.0.
 
 ## Next action
 
-1. Full quit/reopen Illustrator (host `ai.jsx` cache reset), open panel → AI image editor.
-2. Use selection → Open Gemini in Chrome → generate → download to `gemini/results` → confirm auto-place
-   on `Gemini Image` layer. Test What's-new card + tour.
-3. Verify installed CEP parity for the 2.5.0 files (`Get-FileHash` vs source).
+1. Restart Illustrator, open the panel, confirm the React UI renders and the version footer reads 3.0.0.
+2. Create one backup (apply an update, or copy a backup folder), then confirm **Restore previous
+   version** appears in *Updates* and works from the panel.
+3. Visual pass at 240/320/460 px and in the floating window; then the AI image round trip.
 
 ## Resume protocol
 
-Read `AGENTS.md`, then this file, then `DESIGN.md` if the work is visual. Verify the claims against
-`git status`, `git log -1`, the installed CEP copy and `node ../tools/verify-host.cjs` before trusting
-them. If a prior agent ended without writing a handoff, reconstruct state from files and Git — never
-invent progress. Do not commit, push, publish or overwrite uncommitted work without approval.
+Read `AGENTS.md`, then this file, then `ARCHITECTURE.md` for layers. Verify the claims against
+`git status`, `git log -1`, the installed CEP copy and a build/`node ../tools/verify-host.cjs` before
+trusting them. If a prior agent ended without writing a handoff, reconstruct state from files and Git
+— never invent progress. Do not commit, push, publish or overwrite uncommitted work without approval.

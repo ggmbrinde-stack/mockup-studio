@@ -1,11 +1,11 @@
-> ## ⚠ STALE — HISTORICAL RUNBOOK, NOT A TASK
+> ## ⚠ ARCHIVED — HISTORICAL RUNBOOK, NOT A TASK
 >
-> This file describes publishing **2.3.1** and has been superseded: 2.3.2 and 2.3.3 have since shipped
-> (current release **2.3.3**, see `CHANGELOG.md`). Its HEAD (`de2bc84`), version and release steps are
-> outdated. **Do not execute anything in this file and do not treat it as current instructions.**
-> If a release is needed, follow `AGENTS.md`, `UPDATE.md` and `CHANGELOG.md` instead, and get explicit
-> authorization before changing repository visibility, publishing a release, committing or pushing.
-> Kept unchanged below as a historical record.
+> This file describes publishing **2.3.1** and was archived on 2026-11-24; the current release is
+> **3.0.0**. Its HEAD, version, and archive list are all obsolete — in particular the archive must now
+> contain `dist/`, which this runbook does not. **Do not execute anything in this file.**
+> For a release follow `../../UPDATE.md` ("For maintainers"), `../../AGENTS.md` and
+> `../../CHANGELOG.md`, and get explicit authorization before changing repository visibility,
+> publishing a release, committing or pushing. Kept unchanged below as a historical record.
 
 ---
 

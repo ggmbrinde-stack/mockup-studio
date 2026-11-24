@@ -183,4 +183,4 @@ Speed pass. No change to what gets vectorized — the same PNG goes to the same 
 - Development **frozen for UI/UX work**: avoid behavior/flow changes; keep source and installed CEP in sync when UI changes are made.
 
 ## 2026-11-06
-- See `CHANGES_2026-11-06.md` and `PROJECT_STATE_2026-11-06.md` for v1/v2.1 baseline, batch v1, SVG import fix, daemon, and hardening history.
+- See `docs/archive/CHANGES_2026-11-06.md` and `docs/archive/PROJECT_STATE_2026-11-06.md` for v1/v2.1 baseline, batch v1, SVG import fix, daemon, and hardening history.

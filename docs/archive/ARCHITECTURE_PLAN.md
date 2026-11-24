@@ -1,3 +1,8 @@
+> **Archived 2026-11-24 — unimplemented proposal, do not follow it.** None of this was built: there is
+> no `js/shell/`, no module registry and no SKU-resolver/Gemini module. The panel is the React app in
+> `modern-ui/` (see `../../ARCHITECTURE.md`). The multi-tool idea would need a fresh design against
+> that app; the open questions below were never answered.
+
 # Mockup Studio — Architecture Plan (simple)
 
 ## Goal

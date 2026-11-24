@@ -1,3 +1,7 @@
+> **Archived 2026-11-24 — historical snapshot, do not treat as current.** It describes the native
+> panel and v2.1-era work. Current docs: `../../AGENTS.md`, `../../ARCHITECTURE.md` (3.0.0 React
+> panel), `../../HANDOFF.md`, `../../CHANGELOG.md`.
+
 # Vectorizer Bridge — Project State (2026-11-06)
 
 ## What this is

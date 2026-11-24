@@ -45,7 +45,7 @@ shadcn/ui itself has no MCP connection and no components in this repository.
 | **Codex built-in skills** | **Installed and verified (Codex only)** | `~/.codex/skills/.system/{imagegen,openai-docs,review-agent}` |
 | **Cursor built-in skills** | **Installed and available (Cursor only)** | `~/.cursor/skills-cursor/*` incl. `review`, `canvas`, `create-skill`, `deploy-with-vercel` |
 | **Notion** | **Freebuff chat only** | Verified readable from the Freebuff chat session. **No Notion MCP for this workspace** — the only `notion` server is in `..\..\opencode.json`, which belongs to the parent Magento workspace |
-| **GitHub** | **CLI only, unverified** | No GitHub MCP anywhere. `RELEASE_PROMPT.md` describes `gh` usage; this audit did not use it |
+| **GitHub** | **CLI only, unverified** | No GitHub MCP anywhere. `docs/archive/RELEASE_PROMPT.md` describes `gh` usage; this audit did not use it |
 | **Regression harness** | **Installed and verified** | `../tools/verify-host.cjs` — 22 checks, all passing at 2.3.3 |
 | **Illustrator host testing** | **Installed and verified** | Adobe Illustrator 2025, 2026 and 2027 are installed; CEP copy is in sync and byte-identical to source |
 

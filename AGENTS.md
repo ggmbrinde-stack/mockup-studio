@@ -123,9 +123,10 @@ Panel-side JS is **not** ES3-limited (it runs in the CEP Chromium); do not confu
 | `SKILLS.md` | Choosing a specialist skill/component source | Honest inventory: installed vs selected-but-absent |
 | `HANDOFF.md` | Resuming work, or before pausing/substantial handoff | Factual checkpoint; verify it against Git |
 | `CHANGELOG.md` | Cutting a release | Release notes per version |
-| `ARCHITECTURE.md` | Deeper layer/interfaces reference | **Version header is stale (v2.2.0)** — trust this file |
+| `ARCHITECTURE.md` | Deeper layer/interfaces reference | Current: 3.0.0 React panel + host/agent layers |
 | `UPDATE.md`, `INSTALL.md` | Installer/updater work | User-facing |
-| `RELEASE_PROMPT.md` | **Never as a task** | Historical release runbook, explicitly stale |
+| `UI_MODERNIZATION_DECISION.md` | Why the panel is React; before proposing a different UI stack | Decision record (2026-11-23) + 3.0.0 outcome note |
+| `docs/archive/` | Only when researching history | Superseded snapshots, the unimplemented multi-tool plan and the 2.3.1 runbook. **Never as a task** |
 
 Documentation is not the source of truth for code. `git status`, `git diff` and the files themselves win.
 
@@ -250,9 +251,10 @@ a design uses shadcn-style components (translate to native HTML/CSS/JS). Update 
    *no unrequested behaviour changes*. Confirm if the intent is different.
 2. **Versioning the `.pen` and harness.** They sit outside this repository. Committing them (large
    JSON design file + `.cjs` tools) or archiving them elsewhere needs a user decision.
-3. **Document consolidation.** `ARCHITECTURE_PLAN.md`, `PROJECT_STATE_2026-11-06.md`,
-   `PROJECT_STATE_2026-11-10.md` and `CHANGES_2026-11-06.md` overlap and carry stale versions.
-   Archive rather than delete, once the user agrees.
+3. ~~**Document consolidation.**~~ **Done (2026-11-24).** The five superseded files
+   (`PROJECT_STATE_2026-11-06.md`, `PROJECT_STATE_2026-11-10.md`, `ARCHITECTURE_PLAN.md`,
+   `CHANGES_2026-11-06.md`, `RELEASE_PROMPT.md`) moved to `docs/archive/` with a README. Record new
+   history in `CHANGELOG.md` and `HANDOFF.md`, not in dated snapshot files.
 
 ## Quick file map
 

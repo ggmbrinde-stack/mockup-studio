@@ -1,3 +1,7 @@
+> **Archived 2026-11-24 — research notes on the native panel, do not treat as current.** The panel is
+> now the React app in `modern-ui/`; see `../../ARCHITECTURE.md` and `../../DESIGN.md`. Some findings
+> (offline-only assets, status/detail feedback, real empty states) carried into that build.
+
 # UI/UX research — low-risk improvements for the Mockup Studio panel
 
 Scope: the CEP panel (`index.html`, `css/style.css`, `js/core/app.js`, `modules/vectorizer/vectorizer.js`).

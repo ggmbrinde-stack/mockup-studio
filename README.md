@@ -73,5 +73,6 @@ See `ARCHITECTURE.md` for details and `AGENTS.md` for AI-agent contracts/invaria
 - `AGENTS.md` — AI agent context, contracts, invariants, freeze rules
 - `ARCHITECTURE.md` — layers, modules, interfaces
 - `CHANGELOG.md` — release notes (current: 3.0.0)
-- `PROJECT_STATE_2026-11-10.md` — current state snapshot
-- `CHANGES_2026-11-06.md`, `PROJECT_STATE_2026-11-06.md` — prior baseline history
+- `HANDOFF.md`, `ARCHITECTURE.md` — current state and layers (3.0.0)
+- `docs/archive/` — superseded 2.2.0–2.3.x snapshots, the unimplemented multi-tool plan and the old
+  2.3.1 release runbook; history only
