@@ -125,7 +125,8 @@ $excludeDirs = @(
   'agent-downloads',
   'agent-debug',
   'vectorizer-profile',
-  'tools'
+  'tools',
+  'native-panel-backup*'
 )
 # Runtime/user artifacts and development-only files are never copied.
 $excludeFiles = @(
@@ -221,7 +222,7 @@ $manifestText = Get-Content -LiteralPath $destManifest -Raw
 $versionMatch = [regex]::Match($manifestText, 'ExtensionBundleVersion="([^"]+)"')
 $installedVersion = 'unknown'
 if ($versionMatch.Success) { $installedVersion = $versionMatch.Groups[1].Value }
-$required = @('index.html', 'host\core.jsx', 'host\place.jsx', 'js\bridge\host.js', 'agent\run.js')
+$required = @('index.html', 'dist\index.html', 'host\core.jsx', 'host\place.jsx', 'js\bridge\host.js', 'agent\run.js')
 $missing = @($required | Where-Object { -not (Test-Path (Join-Path $Dest $_)) })
 if ($missing.Count -gt 0) { throw ("Install verification failed; missing: " + ($missing -join ', ')) }
 $fileCount = @(Get-ChildItem -LiteralPath $Dest -Recurse -File -ErrorAction SilentlyContinue |

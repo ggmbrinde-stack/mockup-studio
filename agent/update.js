@@ -58,7 +58,7 @@ const ALLOWED_HOSTS = new Set([
   'codeload.github.com',
   'raw.githubusercontent.com'
 ]);
-const REQUIRED_FILES = ['index.html', 'host/core.jsx', 'host/place.jsx', 'js/bridge/host.js', 'agent/run.js'];
+const REQUIRED_FILES = ['index.html', 'dist/index.html', 'host/core.jsx', 'host/place.jsx', 'js/bridge/host.js', 'agent/run.js'];
 const MAX_BYTES = 80 * 1024 * 1024;
 
 const APPLIER = [

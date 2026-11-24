@@ -51,7 +51,7 @@ $exitCode = & {
   $SkipDeps = ($env:VB_SKIP_AGENT_DEPS -eq '1')
   $ForceNode = ($env:VB_FORCE_NODE_SETUP -eq '1')
 
-  $Required = @('index.html', 'host\core.jsx', 'host\place.jsx', 'js\bridge\host.js', 'agent\run.js')
+  $Required = @('index.html', 'dist\index.html', 'host\core.jsx', 'host\place.jsx', 'js\bridge\host.js', 'agent\run.js')
   $StaleRootFiles = @('*.md', '.gitignore', 'install.ps1', 'install-online.ps1', 'uninstall.ps1')
 
   # ------------------------------------------------------------------ presentation helpers

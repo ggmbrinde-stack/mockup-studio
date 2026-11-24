@@ -1,4 +1,4 @@
-# Mockup Studio — Adobe Illustrator panel (v2.3.0)
+# Mockup Studio — Adobe Illustrator panel (v2.6.0)
 
 > **Development frozen for UI/UX work.** Behavior/flow/contracts are stable; UI/UX changes only. Keep source and `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\` in sync.
 
@@ -72,6 +72,6 @@ See `ARCHITECTURE.md` for details and `AGENTS.md` for AI-agent contracts/invaria
 ## Docs
 - `AGENTS.md` — AI agent context, contracts, invariants, freeze rules
 - `ARCHITECTURE.md` — layers, modules, interfaces
-- `CHANGELOG.md` — release notes (current: 2.3.0)
+- `CHANGELOG.md` — release notes (current: 2.6.0)
 - `PROJECT_STATE_2026-11-10.md` — current state snapshot
 - `CHANGES_2026-11-06.md`, `PROJECT_STATE_2026-11-06.md` — prior baseline history

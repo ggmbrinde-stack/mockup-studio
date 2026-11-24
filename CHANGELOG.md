@@ -1,5 +1,24 @@
 # Changelog — Mockup Studio
 
+## 2.6.0 — 2026-11-24
+
+### Added
+- **The panel is a React app now (`modern-ui/`).** The interface moved from hand-written DOM code to a Vite + React + Tailwind build that ships as `dist/`; `CSXS/manifest.xml` loads `./dist/index.html` (and the floating-window variant). Everything the panel did is still there — settings, history and re-place, bounded parallel batches with per-item progress, updates, the AI image editor, the setup wizard and both locales — but the UI renders from a single state store instead of several scripts mutating the DOM behind each other.
+- **The panel survives its own bugs.** A render error is caught by an error boundary that shows the message and a Reload button instead of leaving a blank panel.
+
+### Changed
+- **Release archives must contain `dist/`.** The manifest points the panel at `dist/index.html`, so `agent/update.js` and `install.ps1` now refuse a tree without it: an update can no longer install a panel that will not open.
+- **`install.ps1` skips `native-panel-backup-*`**, so a source install no longer copies the pre-migration snapshot into the extension.
+
+### Fixed
+- **Batches always finish.** Completion is idempotent, so a batch can no longer hang on its last item after everything was placed.
+- **Settings → PNG size → Custom works again.** Choosing Custom reveals the size field, and the number is committed on Enter or blur instead of rejecting every keystroke below 100.
+- **Cancel and error copy interpolate their numbers** (`{ok}`/`{n}` no longer render literally), and the error box can be dismissed and clears itself.
+- **The host scripts load reliably** — the CEP `SystemPath` lookup used a numeric extension id.
+
+### Notes
+- Existing installs get this through *Updates → Check for updates*. The updater backs up the current version first, and **Restore previous version** brings it back; restart Illustrator after either operation, because CEP caches the panel per process.
+
 ## 2.5.0 — 2026-11-16
 
 ### Added

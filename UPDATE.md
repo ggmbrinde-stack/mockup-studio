@@ -27,8 +27,8 @@ Your settings, history, SVGs and the agent's `node_modules` are preserved.
 | Version compare | `x.y.z` parsed numerically | Non-numeric tags are refused |
 | Download | the release's `.zip` asset | HTTPS + host allowlist, 80 MB cap, 30 s timeout, max 4 redirects |
 | Verify | SHA-256 of the downloaded archive | Must match the asset's published digest, otherwise nothing is unpacked |
-| Stage | extracted into a temp folder | Must contain `CSXS/manifest.xml` with exactly the release version, plus `index.html`, `host/core.jsx`, `host/place.jsx`, `js/bridge/host.js`, `agent/run.js` |
-| Backup | `Documents/VectorizerBridge/backups/<oldVersion>-<timestamp>` | Excludes `node_modules` and runtime artifacts |
+| Stage | extracted into a temp folder | Must contain `CSXS/manifest.xml` with exactly the release version, plus `index.html`, `dist/index.html`, `host/core.jsx`, `host/place.jsx`, `js/bridge/host.js`, `agent/run.js` |
+| Backup | `Documents/VectorizerBridge/backups/<oldVersion>-<timestamp>` | Excludes `node_modules` and runtime artifacts; keeps `dist/` so a restore brings the old build back |
 | Apply | PowerShell applier, after the updater exits | robocopy mirror into the install, then re-reads the manifest to confirm the version |
 | Failure | rollback | The backup is copied back and the status says `rolledBack` |
 
@@ -40,10 +40,13 @@ startup; no release without a digest can be installed.
 1. Bump `CSXS/manifest.xml` → both `ExtensionBundleVersion` values (e.g. `2.3.1`). Keep it plain
    `x.y.z` — CEP rejects anything else, and the updater refuses non-numeric tags.
 2. Update `CHANGELOG.md` and, if the install layout changed, `install.ps1`.
-3. Build the zip from the repository contents, with the archive root containing `CSXS/`, `index.html`,
-   `host/`, `js/`, `modules/`, `agent/` (no `node_modules`, no `*.md`):
+3. Build `modern-ui` and build the zip from the repository contents, with the archive root containing
+   `CSXS/`, `dist/`, `index.html`, `host/`, `js/`, `modules/`, `agent/` (no `node_modules`, no
+   `modern-ui/` sources, no `*.md`). **`dist/` is not optional since 2.6.0**: `CSXS/manifest.xml`
+   points `MainPath` at `./dist/index.html`, and the updater refuses an archive without it.
    ```powershell
-   Compress-Archive -Path CSXS,css,host,js,modules,agent,index.html -DestinationPath mockup-studio.zip -Force
+   cd modern-ui; npm install; npm run build; cd ..
+   Compress-Archive -Path CSXS,dist,css,host,js,modules,agent,index.html -DestinationPath mockup-studio.zip -Force
    ```
 4. Create a GitHub release whose **tag** is the version (`2.3.1`, with or without a `v` prefix),
    attach `mockup-studio.zip`, and confirm the asset shows a SHA-256 digest (GitHub computes it for

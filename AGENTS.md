@@ -19,8 +19,8 @@ the `Vectorizer` layer fitted to original bounds. Supports bounded parallel per-
 history/re-place, optional warm Chrome daemon, a safe opt-in updater, and a customizable keyboard
 shortcut for vectorize (default `Ctrl+Shift+Ç`, panel focus only).
 
-Current release: **2.3.10** — `CSXS/manifest.xml` (two places, bundle and extension) and
-`CHANGELOG.md` carry the version. Keep all three plus `README.md` in agreement when releasing.
+Current release: **2.6.0** — `CSXS/manifest.xml` (bundle and both extensions) and `CHANGELOG.md`
+carry the version. Keep them plus `README.md` in agreement when releasing.
 
 ## Paths
 
@@ -35,7 +35,13 @@ Current release: **2.3.10** — `CSXS/manifest.xml` (two places, bundle and exte
 
 ## Architecture (layers & boundaries)
 
-- **Panel/UI (CEP, `index.html`)** — plain HTML/CSS/ES5-style JS in the CEP Chromium. **No framework,
+- **Panel build (2.6.0+):** the UI is the React/Vite app in `modern-ui/`; `CSXS/manifest.xml` loads
+  `dist/index.html`. Build with `cd modern-ui && npm install && npm run build`, then copy
+  `modern-ui/dist/*` over `../dist/` and re-sync to the installed extension. `dist/` is committed and
+  is required by the updater and both installers — a release without it installs a panel that cannot
+  open. The native `index.html`/`js/`/`modules/` files below are kept in the tree but are no longer
+  the panel's `MainPath`.
+- **Legacy panel/UI (pre-2.6.0, not loaded)** — plain HTML/CSS/ES5-style JS in the CEP Chromium. **No framework,
   no bundler, no build step.** Script order in `index.html` is meaningful:
   `js/csinterface.js` → `js/locales/en.js` → `js/locales/pt.js` → `js/core/app.js` →
   `js/bridge/host.js` → `js/queue/batch.js` → `modules/vectorizer/vectorizer.js` → `js/panel.js`.
