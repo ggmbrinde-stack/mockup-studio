@@ -42,7 +42,7 @@ startup; no release without a digest can be installed.
 2. Update `CHANGELOG.md` and, if the install layout changed, `install.ps1`.
 3. Build `modern-ui` and build the zip from the repository contents, with the archive root containing
    `CSXS/`, `dist/`, `index.html`, `host/`, `js/`, `modules/`, `agent/` (no `node_modules`, no
-   `modern-ui/` sources, no `*.md`). **`dist/` is not optional since 2.6.0**: `CSXS/manifest.xml`
+   `modern-ui/` sources, no `*.md`). **`dist/` is not optional since 3.0.0**: `CSXS/manifest.xml`
    points `MainPath` at `./dist/index.html`, and the updater refuses an archive without it.
    ```powershell
    cd modern-ui; npm install; npm run build; cd ..

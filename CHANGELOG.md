@@ -1,6 +1,6 @@
 # Changelog — Mockup Studio
 
-## 2.6.0 — 2026-11-24
+## 3.0.0 — 2026-11-24
 
 ### Added
 - **The panel is a React app now (`modern-ui/`).** The interface moved from hand-written DOM code to a Vite + React + Tailwind build that ships as `dist/`; `CSXS/manifest.xml` loads `./dist/index.html` (and the floating-window variant). Everything the panel did is still there — settings, history and re-place, bounded parallel batches with per-item progress, updates, the AI image editor, the setup wizard and both locales — but the UI renders from a single state store instead of several scripts mutating the DOM behind each other.
