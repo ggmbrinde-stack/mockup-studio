@@ -52,6 +52,14 @@
     width: 100%;
     height: 100%;
   }
+  /* The React entry point sits between body and .app, which is the scroll container
+     (height:100%; overflow-y:auto in css/style.css). Without a height here the 100%
+     resolves against an auto-height parent, .app grows to its content and body's
+     overflow:hidden clips the panel instead of scrolling it. */
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
   html {
     overflow: hidden;
   }
