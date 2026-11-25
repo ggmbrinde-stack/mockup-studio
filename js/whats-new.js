@@ -13,6 +13,16 @@
    with no entry never shows a card, so patch releases stay quiet.
 */
 window.VBWHATSNEW = {
+  "3.0.2": {
+    bullets: ["wn302_1", "wn302_2"],
+    tour: [
+      {
+        target: "vectorizeBtn",
+        titleKey: "wnTourBatch302Title",
+        bodyKey: "wnTourBatch302Body"
+      }
+    ]
+  },
   "3.0.1": {
     bullets: ["wn301_1", "wn301_2", "wn301_3"],
     tour: [

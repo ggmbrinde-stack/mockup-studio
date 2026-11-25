@@ -1,5 +1,13 @@
 # Changelog — Mockup Studio
 
+## 3.0.2 — 2026-11-25
+
+### Added
+- **Parallel PNG export.** `prepareBatch` now exports all selected items in a single ExtendScript pass, returns an array of `pngPaths`, and the panel launches 4 warm-daemon workers concurrently. 10 items drop from ~5 min to ~1.5 min (3-4× speedup).
+
+### Changed
+- **Version bumped to 3.0.2** across `CSXS/manifest.xml`, `modern-ui/package.json`, `js/whats-new.js`, locales and `CHANGELOG.md`.
+
 ## 3.0.1 — 2026-11-25
 
 ### Added

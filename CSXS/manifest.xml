@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="3.0.1" ExtensionBundleName="Mockup Studio">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.bestofgifts.vectorizerbridge" ExtensionBundleVersion="3.0.2" ExtensionBundleName="Mockup Studio">
   <ExtensionList>
     <Extension Id="com.bestofgifts.vectorizerbridge.panel" Version="3.0.1"/>
     <Extension Id="com.bestofgifts.vectorizerbridge.window" Version="3.0.1"/>

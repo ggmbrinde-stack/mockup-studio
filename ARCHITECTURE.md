@@ -1,8 +1,8 @@
-# Mockup Studio architecture (v3.0.1)
+# Mockup Studio architecture (v3.0.2)
 
 ## Status
 - **Panel UI is React (3.0.0+); host and agent layers are unchanged.** UI work does not alter `host/*.jsx` or `agent/*` contracts, batch/placement semantics or the runtime flow. Keep source and the installed CEP copy in sync on every change.
-- Current release **3.0.1** adds a proactive update banner, two-step update confirmation, and opt-in What's New tour on top of the React panel shipped in 3.0.0.
+- Current release **3.0.2** adds parallel PNG export (3-4× batch speedup) on top of 3.0.1's proactive update banner, two-step update confirmation, and opt-in What's New tour, all on the React panel shipped in 3.0.0.
 
 ## Runtime layers
 

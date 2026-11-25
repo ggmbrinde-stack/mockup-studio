@@ -305,4 +305,8 @@ export const en = {
   wnTourUpdateBannerBody: "When a new version is ready, a banner appears at the top with the version number. Click Download update to arm the two-step confirm flow, or Dismiss to hide it for this session.",
   wnTourUpdates301Title: "Two-step update confirmation",
   wnTourUpdates301Body: "The Update now button changes to Confirm update? on first click. Click it again within 8 seconds to download and install. This prevents accidental updates.",
+  wn302_1: "Parallel PNG export — all items exported in one pass, then 4 daemon workers upload and vectorize simultaneously. 10 items drop from ~5 min to ~1.5 min.",
+  wn302_2: "Single prepareBatch call returns all PNG paths; panel dispatches daemon jobs in parallel. Same warm Chrome, same results, 3-4× faster.",
+  wnTourBatch302Title: "Parallel batch export",
+  wnTourBatch302Body: "Click Vectorize once: the panel exports all selected items together, then launches 4 workers at once. The warm Chrome pool handles them concurrently instead of one by one.",
 };

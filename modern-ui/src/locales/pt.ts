@@ -305,4 +305,8 @@ export const pt = {
   wnTourUpdateBannerBody: "Quando há uma nova versão, um banner aparece no topo com o número da versão. Clique em Baixar atualização para armar a confirmação em dois passos, ou Dispensar para o esconder nesta sessão.",
   wnTourUpdates301Title: "Confirmação de atualização em dois passos",
   wnTourUpdates301Body: "O botão Atualizar agora muda para Confirmar atualização? no primeiro clique. Clique novamente dentro de 8 segundos para descarregar e instalar. Isto evita atualizações acidentais.",
+  wn302_1: "Exportação PNG paralela — todos os itens exportados de uma vez, depois 4 workers do daemon carregam e vetorizam simultaneamente. 10 itens caem de ~5 min para ~1,5 min.",
+  wn302_2: "Uma única chamada prepareBatch devolve todos os caminhos dos PNGs; o painel dispara jobs do daemon em paralelo. Mesmo Warm Chrome, mesmos resultados, 3-4× mais rápido.",
+  wnTourBatch302Title: "Exportação de lote paralela",
+  wnTourBatch302Body: "Clique em Vectorize uma vez: o painel exporta todos os itens selecionados de uma só vez e lança 4 workers ao mesmo tempo. O pool de Warm Chrome processa-os em concorrência em vez de um a um.",
 };
