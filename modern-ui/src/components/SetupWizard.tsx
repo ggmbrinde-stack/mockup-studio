@@ -94,9 +94,11 @@ export function SetupWizard() {
     autoRef.current.busy = true;
     setSignText(actions.t("setupSignInStatus") || "Opening the sign-in window…");
     setSignState("waiting");
-    (window as any).VBPanel.vectorizer.signIn();
-    pollSignIn(0);
-  }, [actions, signFail, pollSignIn]);
+    bridge.evalJsx("VB.agentStart('login','')", (started: any) => {
+      if (String(started || "").indexOf("started") !== 0) { signFail(String(started || "")); return; }
+      pollSignIn(0);
+    });
+  }, [signFail, pollSignIn]);
 
   const cancelSignIn = useCallback(() => {
     clearTimer();

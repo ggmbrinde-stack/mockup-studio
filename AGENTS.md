@@ -19,7 +19,7 @@ the `Vectorizer` layer fitted to original bounds. Supports bounded parallel per-
 history/re-place, optional warm Chrome daemon, a safe opt-in updater, and a customizable keyboard
 shortcut for vectorize (default `Ctrl+Shift+Ç`, panel focus only).
 
-Current release: **3.0.0** — `CSXS/manifest.xml` (bundle and both extensions) and `CHANGELOG.md`
+Current release: **3.0.1** — `CSXS/manifest.xml` (bundle and both extensions) and `CHANGELOG.md`
 carry the version. Keep them plus `README.md` in agreement when releasing.
 
 ## Paths

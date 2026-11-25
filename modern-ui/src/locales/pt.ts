@@ -298,4 +298,11 @@ export const pt = {
   wnTourUpdates300Body: "Verificar atualizações instala esta versão pelo mesmo atualizador; Restaurar versão anterior devolve o painel que tinha.",
   wnTourImagePromptTitle: "Modelos e prompt",
   wnTourImagePromptBody: "Escolha um modelo para preencher o prompt com uma instrução inicial, edite-o e abra o Gemini. Os downloads recentes da pasta de resultados aparecem em Colocar no Illustrator, por isso um resultado anterior está a um clique.",
+  wn301_1: "O banner de atualização agora mostra “Nova versão disponível” com um botão Baixar e um Dispensar que guarda a sua escolha para a sessão.",
+  wn301_2: "O atualizador usa uma confirmação em dois passos: o primeiro clique arma-o, o segundo descarrega e instala.",
+  wn301_3: "A visita às Novidades é opcional — prima “Mostrar-me” para percorrer o novo banner de atualização e a secção Atualizações revista.",
+  wnTourUpdateBannerTitle: "Banner de atualização proativo",
+  wnTourUpdateBannerBody: "Quando há uma nova versão, um banner aparece no topo com o número da versão. Clique em Baixar atualização para armar a confirmação em dois passos, ou Dispensar para o esconder nesta sessão.",
+  wnTourUpdates301Title: "Confirmação de atualização em dois passos",
+  wnTourUpdates301Body: "O botão Atualizar agora muda para Confirmar atualização? no primeiro clique. Clique novamente dentro de 8 segundos para descarregar e instalar. Isto evita atualizações acidentais.",
 };

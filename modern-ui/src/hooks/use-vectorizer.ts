@@ -260,6 +260,16 @@ export function useVectorizer() {
     return value ? s.replace("{version}", value) : s;
   }, [actions]);
 
+  /* Centralized disarm: clears the confirm ref + timer and resets updateArmed.
+     Called whenever the armed state must be dropped so the ref and the banner
+     can never drift out of sync. */
+  const disarmUpdate = useCallback(() => {
+    updateConfirmArmedRef.current = false;
+    if (updateConfirmTimerRef.current) try { clearTimeout(updateConfirmTimerRef.current); } catch { }
+    updateConfirmTimerRef.current = null;
+    actions.setState({ updateArmed: false });
+  }, [actions]);
+
   const renderUpdate = useCallback((r: any) => {
     if (!r || !r.state) return;
     const u = live.current.update;
@@ -298,6 +308,7 @@ export function useVectorizer() {
         needsRestart: staged || st === "restored",
       },
     });
+    if (st !== "available") disarmUpdate();
   }, [live, actions, updateText]);
 
   const refreshUpdateInfo = useCallback(() => {
@@ -342,21 +353,16 @@ export function useVectorizer() {
 
   const armOrApplyUpdate = useCallback(() => {
     if (updateConfirmArmedRef.current) {
-      updateConfirmArmedRef.current = false;
-      if (updateConfirmTimerRef.current) try { clearTimeout(updateConfirmTimerRef.current); } catch { }
-      updateConfirmTimerRef.current = null;
-      actions.setState({ updateArmed: false });
+      disarmUpdate();
       startUpdate("apply");
       return;
     }
     updateConfirmArmedRef.current = true;
     actions.setState({ updateArmed: true });
     updateConfirmTimerRef.current = setTimeout(() => {
-      updateConfirmArmedRef.current = false;
-      updateConfirmTimerRef.current = null;
-      actions.setState({ updateArmed: false });
+      disarmUpdate();
     }, 8000);
-  }, [actions, startUpdate]);
+  }, [actions, startUpdate, disarmUpdate]);
 
   const autoCheckUpdates = useCallback(() => {
     if (!hostBridge.hostOk) return;
@@ -418,9 +424,9 @@ export function useVectorizer() {
       actions.events.off("batch:finished", onBatchFinished);
       if (daemonPollTimerRef.current) try { clearTimeout(daemonPollTimerRef.current); } catch { }
       if (updatePollTimerRef.current) try { clearTimeout(updatePollTimerRef.current); } catch { }
-      if (updateConfirmTimerRef.current) try { clearTimeout(updateConfirmTimerRef.current); } catch { }
+      disarmUpdate();
     };
-  }, [init, pollOnce, refreshSvgHistory, refreshDaemonStatus, actions.events, live.current.settings.warmDaemon]);
+  }, [init, pollOnce, refreshSvgHistory, refreshDaemonStatus, actions.events, live.current.settings.warmDaemon, disarmUpdate]);
 
   // Expose on window.VBPanel: the components reach the vectorizer through it.
   useEffect(() => {

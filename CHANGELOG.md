@@ -1,5 +1,15 @@
 # Changelog — Mockup Studio
 
+## 3.0.1 — 2026-11-25
+
+### Added
+- **Proactive update banner.** When a new version is available, a banner appears at the top of the panel with the version number, a Download update button and a Dismiss button that remembers the choice for the session.
+- **Two-step update confirmation.** The Update now button arms on first click (showing “Confirm update?”), and a second click within 8 seconds downloads and installs — preventing accidental updates.
+- **Opt-in What's New tour.** The What's New card now has a “Show me” button that walks through the new update banner and the updated Updates section; it no longer auto-plays on version change.
+
+### Changed
+- **Version bumped to 3.0.1** across `CSXS/manifest.xml`, `modern-ui/package.json`, `js/whats-new.js` and `CHANGELOG.md`.
+
 ## 3.0.0 — 2026-11-24
 
 ### Added

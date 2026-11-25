@@ -1,0 +1,548 @@
+/* Vectorizer Bridge — CEP panel styles (Illustrator 2025+, Windows) */
+/*
+  Two states, one DOM (see js/core/app.js):
+  - Full State (docked panel, canvas width 380px): header, live status, selection
+    text, primary Vectorize button, actions row, Settings accordion, History,
+    Updates, footer. Everything stacks vertically and fills the docked width.
+  - Mini State (modeless window, ?view=window): a compact toolbar with header,
+    status, the primary button and a footer. The other sections are hidden, not
+    merely moved, so the window stays one small strip.
+
+  Layout rules:
+  - Nothing is sized in fixed pixels that a narrow or short panel cannot honour. The
+    app column fills the window, History/Log grow into the free space and scroll
+    internally, and every text block wraps instead of forcing a horizontal scrollbar.
+  - Breakpoints: single column up to 360px (rail), the designed 380px column, roomier
+    from 620px, and a two-column grid from 820px where History and Log sit side by
+    side under the controls.
+*/
+:root {
+  /* --- Canvas design tokens (design/VectorizerBridge-UI.pen) -----------------
+     Values are the canvas variables verbatim; the canvas names are used directly
+     (var(--panel-bg), $accent → var(--accent)) and the panel's older aliases map
+     onto them, so one palette drives both the design and the code. */
+  --panel-bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface-alt: #F2F2F2;
+  --border: #DDDDDD;
+  --border-strong: #999999;
+  --text-primary: #111111;
+  --text-body: #333333;
+  --text-muted: #767676;
+  --text-hint: #666666;       /* the hint line in the canvas */
+  --accent: #0066CC;
+  --accent-hover: #0052A3;
+  --accent-tint: #E8F1FB;
+  --status-info: #1A73E8;     /* live status line in the canvas */
+  --success: #2E7D32;
+  --danger: #C62828;
+  --warning: #B26A00;
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+
+  /* aliases the rest of the stylesheet already uses */
+  --bg: var(--panel-bg);
+  --fg: var(--text-primary);
+  --muted: var(--text-muted);
+  --muted-2: #888888;
+  --border-soft: #EEEEEE;
+  --accent-soft: var(--accent-tint);
+  --focus: var(--accent);
+  --radius: 4px;        /* buttons, inputs, badges (NOTES-v1 §1) */
+  --radius-card: 6px;   /* cards and panels */
+  --pad: 16px;          /* app inset, uniform (NOTES-v1 §1) */
+  --pad-sm: 10px;       /* card padding (NOTES-v1 §5E) */
+  --gap: 10px;          /* between stacked sections */
+  --fs: clamp(12px, 2.9vw, 13px);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
+}
+html { overflow: hidden; }
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs);
+  color: var(--fg); background: var(--bg);
+  overflow: hidden; /* the app column owns scrolling */
+}
+.app {
+  height: 100%;
+  padding: var(--pad);
+  display: flex; flex-direction: column; gap: var(--gap);
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+/* Only the content panels absorb spare height; everything else keeps its size. */
+.app > * { flex: 0 0 auto; min-width: 0; }
+
+/* Header */
+.toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  border-bottom: 1px solid var(--border); padding-bottom: var(--space-2);
+}
+.title {
+  font-weight: 700; font-size: clamp(14px, 3.6vw, 15px); color: var(--text-primary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.badge {
+  display: inline-block; padding: 1px 6px; border-radius: var(--radius);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; line-height: 1.6; white-space: nowrap;
+  flex: 0 0 auto;
+}
+.badge-legacy {
+  background: var(--surface-alt); color: var(--muted); border: 1px solid var(--border);
+}
+.badge-modern {
+  background: var(--accent-tint); color: var(--accent); border: 1px solid var(--accent);
+}
+.spacer { flex: 1 1 auto; }
+#langBtn { font-size: 12px; flex: 0 0 auto; }
+
+/* Buttons */
+.btn {
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary);
+  padding: 5px 10px; border-radius: var(--radius); cursor: pointer;
+  font-size: 12px; font-family: inherit; min-height: 26px;
+  max-width: 100%; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.btn:hover { background: var(--surface-alt); }
+.btn:active { background: #E6E6E6; }
+/* Primary action: 38px tall, 6px radius, 13px semibold white (NOTES-v1 §5E). */
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; font-weight: 600; font-size: 13px; min-height: 38px; border-radius: 6px; white-space: normal; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.primary:active { background: #062f78; }
+.btn.small { padding: 3px 8px; font-size: 11.5px; min-height: 24px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--surface); }
+.btn.primary:disabled:hover { background: var(--accent); }
+.btn:focus-visible,
+.settingsSummary:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* Status */
+.status { font-weight: 600; font-size: 13px; color: var(--accent); padding: 2px 0; line-height: 1.35; overflow-wrap: anywhere; }
+/* Status colour carries the state (NOTES-v1 §3). */
+.status.tone-accent { color: var(--accent); }
+.status.tone-success { color: var(--success); }
+.status.tone-danger { color: var(--danger); }
+.status.tone-warning { color: var(--warning); }
+.statusDetail { font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+/* The status block is status + selection and sizes to its content (~32px with both
+   lines), as NOTES-v1 §5E specifies; a fixed slot left a gap under the status. */
+/* Live selection line, fed by host/watch.jsx over CSXS events. */
+.selection { font-size: 11.5px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+.selection.on { color: var(--fg); font-weight: 600; }
+
+/* Hint */
+.hint { font-size: 11px; color: var(--text-hint); line-height: 1.4; overflow-wrap: anywhere; }
+
+/* Actions: text links in the V1 frame, not boxed buttons. */
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.actions .btn {
+  flex: 0 1 auto; border-color: transparent; background: transparent;
+  color: var(--accent); padding-left: 4px; padding-right: 4px;
+}
+.actions .btn:hover { background: var(--accent-tint); }
+.actions .btn:active { background: var(--accent-tint); }
+.actions .btn:disabled { opacity: .45; }
+.actions .btn:disabled:hover { background: transparent; }
+
+/* Settings */
+/* Settings can be taller than the whole panel. Cap it and let the form scroll inside,
+   keeping its summary row visible, so the sections below always get real space. */
+.settings {
+  border: 1px solid var(--border-soft); border-radius: var(--radius-card); background: var(--surface);
+  flex: 0 0 auto; overflow: visible;
+}
+.settingsSummary {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 700; padding: 7px 10px; cursor: pointer; list-style: none;
+  position: sticky; top: 0; z-index: 1; background: var(--surface);
+}
+.settingsSummary::-webkit-details-marker { display: none; }
+.settingsSummary::before { content: "▸"; color: var(--muted); font-size: 10px; line-height: 1; }
+details[open] > .settingsSummary::before { content: "▾"; }
+/* The canvas keeps the form in one column at the docked width (420px frame, 380px
+   of content); two columns only once the panel is genuinely wide. */
+.settingsGrid { display: grid; grid-template-columns: 1fr; gap: var(--space-2); padding: var(--space-2) var(--pad-sm); align-items: end; }
+@media (min-width: 620px) {
+  .settingsGrid { grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+}
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 12px; color: var(--text-body); overflow-wrap: anywhere; }
+.field .checkbox { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; font-size: 12px; color: var(--text-body); }
+.field .checkbox span { overflow-wrap: anywhere; }
+.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.row input { flex: 1 1 8ch; min-width: 0; }
+input[type=text], input[type=number], input[type=password], textarea, select { padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: 12px; width: 100%; max-width: 100%; min-width: 0; font-family: inherit; color: var(--fg); background: var(--surface); }
+input[type=checkbox] { width: auto; margin: 2px 0 0; flex: 0 0 auto; }
+/* The AI image prompt can be grown by hand when the instruction is long. */
+.field .aiPrompt { min-height: 46px; resize: vertical; line-height: 1.35; }
+
+/* AI image editor (Gemini in Chrome): source and result sit in a short row, a
+   64px thumbnail beside the file name and its buttons, so the block stays
+   compact at the docked width. */
+.aiImgRow { display: flex; gap: 8px; align-items: flex-start; }
+.aiImgThumb {
+  flex: 0 0 64px; width: 64px; height: 64px; overflow: hidden;
+  border: 1px solid var(--border-soft); border-radius: var(--radius); background: #fafafa;
+  display: flex; align-items: center; justify-content: center;
+}
+.aiImgThumb img { max-width: 100%; max-height: 100%; display: block; }
+.aiImgThumb img[hidden] { display: none; }
+.aiImgEmpty { font-size: 10px; color: var(--muted-2); text-align: center; padding: 2px; }
+.aiImgInfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.aiImgName { font-size: 11.5px; color: var(--fg); overflow-wrap: anywhere; }
+.aiImgStatus.ok { color: var(--success); }
+.aiImgStatus.bad { color: var(--danger); }
+.aiImgResults { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
+.aiImgResultRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px; border: 1px solid var(--border-soft); border-radius: var(--radius); }
+.aiImgResultMeta { min-width: 0; flex: 1 1 auto; }
+.aiImgResultName { font-size: 11.5px; color: var(--fg); overflow-wrap: anywhere; }
+
+/* History / log panels */
+.panel {
+  border: 1px solid var(--border-soft); border-radius: var(--radius-card); background: var(--surface);
+  /* basis 0 + grow: these are the only blocks that take spare height, so making the
+     panel taller really does give History/Log more room instead of leaving the page
+     scrollable at a fixed size. */
+  /* Output panels take the spare height and scroll their own body, so History and Log
+     stay usable however tall the dock is. */
+  flex: 1 1 0%; min-height: clamp(64px, 11vh, 150px);
+  display: flex; flex-direction: column;
+  overflow: hidden auto;
+  resize: none;
+}
+.panelTitleRow { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 6px var(--pad-sm); border-bottom: 1px solid #f0f0f0; }
+.panelTitle { font-weight: 700; font-size: 12px; padding: 6px var(--pad-sm); border-bottom: 1px solid var(--border-soft); color: var(--text-body); }
+.panelTitleRow .panelTitle { padding: 0; border-bottom: 0; }
+.panelTitleRow .btn { flex: 0 0 auto; }
+.list, .log { flex: 1 1 0%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px var(--pad-sm); font-size: 12px; }
+.panel > summary { list-style: none; }
+.panel > summary::-webkit-details-marker { display: none; }
+.history-item { padding: 4px 0; border-bottom: 1px solid #f5f5f5; font-size: 11.5px; overflow-wrap: anywhere; }
+.history-item.ok { color: var(--success); }
+.history-item.bad { color: var(--danger); }
+.log div { padding: 2px 0; border-bottom: 1px solid #f5f5f5; white-space: pre-wrap; overflow-wrap: anywhere; font-family: Consolas, monospace; font-size: 11px; }
+
+/* Footer: one row, version left and the maker line right, as in the V1 full frame. */
+.appFooter { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+/* No margin-top:auto here: an auto margin would absorb the spare height and keep
+   History/Log at their minimum instead of letting them grow with the panel. */
+.version { font-size: 11px; color: var(--muted-2); }
+.attribution { font-size: 10px; color: #AAAAAA; text-align: right; overflow-wrap: anywhere; }
+
+.panelSubTitle { font-weight: 600; font-size: 11.5px; color: var(--muted); margin: var(--space-2) var(--pad-sm) var(--space-1) }
+.svg-history-item { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 5px 6px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--surface); margin-bottom: 4px }
+.svg-history-meta { min-width: 0; flex: 1 1 60%; }
+.svg-history-name { font-size: 11.5px; color: var(--fg); overflow-wrap: anywhere }
+.svg-history-sub { font-size: 11px; color: var(--muted) }
+.svg-history-actions { display: flex; gap: 4px; flex: 0 0 auto }
+
+/* Release notes shown in Updates: plain text from the GitHub release body, wrapping
+   and scrolling instead of stretching the panel. */
+/* Release notes as they were shown before: wrapped text in a marked, scrollable box. */
+.updateNotes { display: none; margin: 6px 0 2px; padding: 6px 8px; border-left: 3px solid var(--border); background: #f7f7f7; border-radius: var(--radius); font-size: 11.5px; color: #3f3f3f; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 150px; overflow-y: auto; }
+.updateNotes.show { display: block; }
+/* Shown only when the update needs Illustrator to be restarted, which closes documents. */
+.updateWarn { margin: 6px 0 0; padding: 6px 8px; border-left: 3px solid #c47f00; background: #fff8e6; border-radius: var(--radius); font-size: 11.5px; color: #6b4500; line-height: 1.45; }
+.updateWarn[hidden] { display: none; }
+.updateNotes b, .updateNotes strong { font-weight: 600; }
+
+/* Inline JS error box (was inline styles in index.html) */
+.error-box { display: none; padding: 8px; background: #ffebee; border: 1px solid #b71c1c; color: #8e1c17; font-size: 11px; margin-top: 8px; overflow: auto; max-height: 30vh; overflow-wrap: anywhere; }
+
+/* Very narrow panel: one column, buttons share the row, tighter chrome */
+@media (max-width: 340px) {
+  .app { padding: 8px; gap: 6px; }
+  .actions { gap: 4px; }
+  .actions .btn { flex: 1 1 auto; }
+  .panel { min-height: 84px; }
+  .svg-history-actions { flex: 1 1 100%; justify-content: flex-end; }
+}
+
+/* ---------------------------------------------------------------- States --
+   Full State is the default and the docked width on the canvas is 380px; the
+   column stacks vertically in this order: header, live status, selection, primary
+   button, actions, Settings, History, Updates, footer. Mini State is the same
+   markup reduced to header, status, primary button and footer. */
+/* V1 frames: 16px uniform app inset, 10px between sections (NOTES-v1 §1). */
+.app.mode-full {
+  display: flex; flex-direction: column;
+  gap: var(--gap); padding: var(--pad);
+}
+.app.mode-mini {
+  display: flex; flex-direction: column;
+  gap: 6px; padding: var(--pad-sm);
+}
+
+/* Mini State: the sections that need a full-width dock are removed from the flow
+   entirely (display:none, not visibility) so nothing can leave a gap or scroll.
+   The .windowMode selectors cover the moment before app.js has set the class. */
+.mode-mini #settingsBox,
+.mode-mini #aiImageBox,
+.mode-mini #historyBox,
+.mode-mini #updatesBox,
+.mode-mini #logBox,
+.mode-mini #setupOverlay,
+.mode-mini .attribution,
+.mode-mini > .hint:not(#lastExport),
+.windowMode #settingsBox,
+.windowMode #aiImageBox,
+.windowMode #tourCard,
+.windowMode #historyBox,
+.windowMode #updatesBox,
+.windowMode #logBox,
+.windowMode #setupOverlay,
+.windowMode .attribution,
+.windowMode .app > .hint:not(#lastExport) { display: none !important; }
+/* The setup tour belongs to the docked panel; the mini window never shows it. */
+body[data-mode="mini"] #setupOverlay { display: none !important; }
+
+.mode-mini .toolbar { padding-bottom: 6px; border-bottom-color: var(--border-soft); }
+.mode-mini .title { font-size: 13px; }
+.mode-mini .status { font-size: 12.5px; }
+.mode-mini .statusDetail:empty,
+.mode-mini .selection:empty,
+.mode-mini #lastExport:empty { display: none; }
+.mode-mini .selection { font-size: 11px; }
+.mode-mini #vectorizeBtn { min-height: 34px; font-size: 13px; }
+/* The only button that can appear in the mini row is Cancel, as a compact link. */
+.mode-mini .actions { gap: 4px; }
+.mode-mini .actions .btn { flex: 0 0 auto; font-size: 11px; padding: 2px 6px; min-height: 22px; }
+.mode-mini .appFooter { display: none; }
+/* The mini frame ends with the compact-mode caption instead of the version line. */
+.miniCaption { display: none; font-size: 10.5px; color: var(--text-muted); }
+.mode-mini .miniCaption { display: block; }
+/* 26×26 boxed close control with a centred ✕ (NOTES-v1 §5D). */
+.miniClose {
+  display: none; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text-primary); font-size: 11px; line-height: 1;
+  cursor: pointer; flex: 0 0 auto;
+}
+.mode-mini .miniClose { display: inline-flex; }
+.miniClose:hover { background: var(--surface-alt); color: var(--text-primary); }
+/* Output panels keep their hint and section label: they explain where files land. */
+/* Mini State keeps the shortcut row out of the way, except Cancel: body.canCancel is set
+   from core.updateButtons() while a run is active, and then only Cancel comes back. */
+.mode-mini .actions { display: none; }
+body.canCancel .mode-mini .actions { display: flex; justify-content: flex-end; }
+body.canCancel .mode-mini #signInBtn,
+body.canCancel .mode-mini #openSvgsBtn,
+body.canCancel .mode-mini #openLogBtn { display: none; }
+.windowMode #vectorizeBtn { min-height: 34px; }
+
+/* Extremely narrow dock: nothing may push the layout wider than the panel. */
+@media (max-width: 280px) {
+  .attribution { display: none; }
+  .title { font-size: 13px; }
+  .actions .btn { flex: 1 1 100%; }
+}
+
+/* Short panel (docked in a shallow strip): keep the actionable parts visible */
+@media (max-height: 520px) {
+  .app { gap: 6px; }
+  .panel { min-height: 72px; }
+  .attribution { display: none; }
+  .statusDetail { max-height: 5.6em; overflow-y: auto; }
+}
+
+/* Wide panel: the form and the lists spread out instead of staying a narrow column. */
+@media (min-width: 620px) {
+  .app { padding: 14px 18px; }
+  .btn { padding: 5px 12px; }
+}
+
+/* Very wide dock: controls on the left, History and Log side by side under the
+   header, so a dragged-out panel uses its width instead of one long scroll. */
+@media (min-width: 820px) {
+  /* Scoped to mode-full so it outranks the base .app.mode-full column layout, and so
+     a wide Mini State window still stays a single compact column. */
+  .app.mode-full {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch; align-content: stretch;
+    column-gap: 14px;
+  }
+  .app > .toolbar,
+  .app > .status,
+  .app > .statusDetail,
+  .app > #vectorizeBtn,
+  .app > .hint,
+  .app > .actions,
+  .app > #lastExport,
+  .app > .error-box,
+  .app > .version,
+  .app > .attribution,
+  .app > .settings,
+  .app > #updatesBox,
+  .app > .appFooter { grid-column: 1 / -1; }
+  .app > #historyBox { grid-column: 1; }
+  .app > #logBox { grid-column: 2; }
+  .panel { min-height: 130px; }
+}
+
+/* Short panel: drop the long explanatory line only when the height is really tight.
+   The canvas screens are 640px tall and keep the hint under the button, so this must
+   not trigger there. */
+@media (max-height: 560px) {
+  .app { gap: 6px; }
+  .app > .hint:not(#lastExport) { display: none; }
+  details[open].settings { min-height: 88px; }
+  .panel { min-height: clamp(60px, 10vh, 110px); }
+}
+
+/* The height floor only matters while the form is expanded. */
+details[open].settings { min-height: 96px; }
+/* Updates holds a title, a line of text and a button: keep room for all three. */
+#updatesBox[open] { min-height: 104px; }
+
+/* Collapsible sections: History, Log and Updates behave like Settings. The whole
+   header row is the summary, so one click folds the section away and the open ones
+   take the freed height. */
+.panel > summary {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; list-style: none; user-select: none;
+  flex: 0 0 auto;
+}
+.panel > summary::-webkit-details-marker { display: none; }
+.panel > summary::before {
+  content: "▸"; color: var(--muted); font-size: 10px; line-height: 1; flex: 0 0 auto;
+}
+.panel[open] > summary::before { content: "▾"; }
+.panel > summary:hover { background: #f7f7f7; }
+.panel > summary.panelTitleRow { justify-content: space-between; }
+.panel > summary.panelTitle { display: flex; justify-content: flex-start; }
+/* A collapsed section keeps only its header and hands its space to the open ones. */
+.panel:not([open]) { flex: 0 0 auto; min-height: 0; }
+.panel:not([open]) > summary { border-bottom: 0; }
+
+/* Header with a trailing button: the title takes the spare space so it stays left
+   aligned next to the chevron instead of being pushed to the middle. */
+.panel > summary.panelTitleRow .panelTitle { flex: 1 1 auto; }
+
+/* First-run setup --------------------------------------------------------
+   A modal over the panel: on a docked, narrow panel the card is full width and
+   scrolls internally, so the Finish/Skip buttons stay reachable at any height. */
+.setupOverlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--pad);
+  background: rgba(20, 20, 20, 0.55);
+}
+.setupOverlay[hidden] { display: none; }
+.setupCard {
+  width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: var(--pad);
+  background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.setupStep[hidden] { display: none; }
+.setupStep { display: flex; flex-direction: column; gap: 8px; }
+.setupTitle { font-weight: 700; font-size: clamp(14px, 3.6vw, 16px); }
+.setupText { margin: 0; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+.setupList { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.5; }
+.setupRow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.setupLabel { font-weight: 600; }
+.setupLang[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.setupActions {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding-top: 8px; margin-top: 2px; border-top: 1px solid var(--border-soft);
+}
+.setupActions .spacer { flex: 1 1 auto; }
+@media (max-height: 520px) {
+  .setupOverlay { align-items: flex-start; }
+  .setupCard { gap: 6px; }
+}
+
+/* "What's new" card and the feature tour -------------------------------
+   Anchored to the bottom instead of centred like the setup wizard: the tour
+   highlights real controls, so the card must not cover the one being explained.
+   .tourTarget is the outline on the highlighted control. */
+.tourCard {
+  position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 120;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  font-size: 12px;
+}
+.tourCard[hidden] { display: none; }
+.tourHead { display: flex; align-items: baseline; gap: 8px; }
+.tourTitle { font-weight: 700; }
+.tourStep { margin-left: auto; color: var(--text-muted); font-size: 10.5px; white-space: nowrap; }
+.tourBody { color: var(--text-body); line-height: 1.45; overflow-wrap: anywhere; }
+.tourBody ul { margin: 0; padding-left: 16px; }
+.tourBody li { margin: 2px 0; }
+.tourTarget { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius); }
+/* The card lives outside .app, so it is hidden by the body flag rather than by the
+   .mode-mini scope. The tour module also refuses to start in the floating window. */
+body.windowMode #tourCard,
+body[data-mode="mini"] #tourCard { display: none !important; }
+
+
+/* vectorizer.ai export settings block */
+.vxTitle { font-weight: 600; font-size: 12px; margin: 4px 0 2px; color: var(--text-primary); opacity: .9; }
+
+/* ------------------------------------------------- Canvas breakpoints ----
+   380px is the designed docked width: below it the panel is a rail and the rows
+   stack tighter, above 620px it gets roomier, and from 820px the grid takes over
+   (History and Log side by side). Mini State ignores all of them: its window is
+   resized by hand and only the toolbar metrics matter. */
+@media (max-width: 379px) {
+  .mode-full { padding: 8px; gap: 6px; }
+  .mode-full .toolbar { gap: 6px; }
+  .mode-full .actions .btn { flex: 1 1 auto; }
+}
+@media (min-width: 380px) and (max-width: 619px) {
+  .mode-full { padding: 10px 12px; }
+}
+@media (max-width: 380px) {
+  .mode-mini { padding: 6px 8px; gap: 5px; }
+}
+
+/* Collapsed-settings summary pill from the V1 frame
+   ("PNG long side: 1700px · Preset: General purpose"). */
+.settingsPill {
+  margin-left: auto; max-width: 72%;
+  font-weight: 400; font-size: 10.5px; color: var(--text-muted);
+  background: var(--surface-alt); border-radius: 999px; padding: 2px 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+
+/* Update banner (proactive notification) */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin: 0 0 8px 0;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius, 4px);
+  background: var(--surface, #ffffff);
+  font-size: 12px;
+}
+.update-banner[hidden] { display: none !important; }
+.update-banner-text { flex: 1; min-width: 0; color: var(--text-body, #333333); }
+.mode-mini .update-banner { display: none !important; }

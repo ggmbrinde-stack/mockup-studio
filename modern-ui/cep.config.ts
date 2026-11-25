@@ -1,7 +1,7 @@
 export default {
   extensionId: "com.bestofgifts.vectorizerbridge",
   extensionName: "Mockup Studio",
-  version: "3.0.0",
+  version: "3.0.1",
   host: "ILST",
   minVersion: "29.0",
   maxVersion: "99.9",

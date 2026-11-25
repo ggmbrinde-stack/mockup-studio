@@ -298,4 +298,11 @@ export const en = {
   wnTourUpdates300Body: "Check for updates installs this build through the same updater as before; Restore previous version returns to the panel you had.",
   wnTourImagePromptTitle: "Templates and prompt",
   wnTourImagePromptBody: "Pick a template to fill the prompt with a starting instruction, edit it, then open Gemini. Recent downloads in the results folder are listed under Place in Illustrator, so an earlier result is one click away.",
+  wn301_1: "Update banner now shows “New version available” with a Download button and a Dismiss button that remembers your choice for the session.",
+  wn301_2: "The updater uses a two-step confirmation: first click arms it, second click downloads and installs.",
+  wn301_3: "What's New tour is opt-in — press “Show me” to walk through the new update banner and the updated Updates section.",
+  wnTourUpdateBannerTitle: "Proactive update banner",
+  wnTourUpdateBannerBody: "When a new version is ready, a banner appears at the top with the version number. Click Download update to arm the two-step confirm flow, or Dismiss to hide it for this session.",
+  wnTourUpdates301Title: "Two-step update confirmation",
+  wnTourUpdates301Body: "The Update now button changes to Confirm update? on first click. Click it again within 8 seconds to download and install. This prevents accidental updates.",
 };

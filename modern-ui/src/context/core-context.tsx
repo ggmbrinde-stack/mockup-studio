@@ -266,6 +266,12 @@ export function CoreProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  const settingsRef = useRef(state.settings);
+  settingsRef.current = state.settings;
+
+  const langRef = useRef(state.lang);
+  langRef.current = state.lang;
+
   const listenersRef = useRef<Record<string, Array<Function>>>({});
   const miniRef = useRef<{ lang: Lang; table: Array<{ full: string; mini: string }> } | null>(null);
   const extensionVersionRef = useRef("");
@@ -586,17 +592,19 @@ export function CoreProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const updateSettings = useCallback((patch: Partial<PanelSettings>) => {
-    setStateRaw(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }));
-    const cur = stateRef.current;
-    persist(clampSettings({ ...cur.settings, ...patch }), cur.lang);
+    const next = clampSettings({ ...settingsRef.current, ...patch });
+    settingsRef.current = next;
+    setStateRaw(prev => ({ ...prev, settings: next }));
+    persist(next, langRef.current);
   }, [persist, clampSettings]);
 
   const updateVx = useCallback((patch: Partial<VxSettings>) => {
-    const cur = stateRef.current;
-    const vx = normalizeVx({ ...cur.settings.vx, ...patch });
-    setStateRaw(prev => ({ ...prev, settings: { ...prev.settings, vx } }));
-    persist({ ...cur.settings, vx }, cur.lang);
-  }, [normalizeVx, persist]);
+    const vx = normalizeVx({ ...settingsRef.current.vx, ...patch });
+    const next = clampSettings({ ...settingsRef.current, vx });
+    settingsRef.current = next;
+    setStateRaw(prev => ({ ...prev, settings: next }));
+    persist(next, langRef.current);
+  }, [normalizeVx, persist, clampSettings]);
 
   const setLang = useCallback((lang: Lang) => {
     const cur = stateRef.current;
@@ -614,6 +622,10 @@ export function CoreProvider({ children }: { children: ReactNode }) {
     setStateRaw(prev => ({ ...prev, selection: info || null }));
   }, []);
 
+  const isWindowMode = useCallback((): boolean => {
+    try { return String(window.location.search || "").indexOf("view=window") >= 0; } catch { return false; }
+  }, []);
+
   const selectionText = useCallback((info: any): string => {
     if (!info) return "";
     const doc = (info && info.doc) ? String(info.doc) : "";
@@ -623,7 +635,7 @@ export function CoreProvider({ children }: { children: ReactNode }) {
     if (!info || !info.open) return t("selectionNoDoc") || "No document open";
     if (n === 0) return (t("selectionNothing") || "Nothing selected") + suffix;
     return (t(n === 1 ? "selectionCount" : "selectionCountMany") || "{count} layers selected").replace("{count}", String(n)) + suffix;
-  }, [t]);
+  }, [t, isWindowMode]);
 
   const syncSettingsFromHost = useCallback((done?: (ok: boolean) => void) => {
     try {
@@ -663,10 +675,6 @@ export function CoreProvider({ children }: { children: ReactNode }) {
   const updateButtons = useCallback(() => {
     const hostOk = getHostOk();
     setStateRaw(prev => (prev._hostOk === hostOk ? prev : { ...prev, _hostOk: hostOk }));
-  }, []);
-
-  const isWindowMode = useCallback((): boolean => {
-    try { return String(window.location.search || "").indexOf("view=window") >= 0; } catch { return false; }
   }, []);
 
   const layoutMode = useCallback((): string => (isWindowMode() ? "mini" : "full"), [isWindowMode]);

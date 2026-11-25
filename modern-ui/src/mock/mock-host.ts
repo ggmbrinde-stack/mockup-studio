@@ -12,7 +12,7 @@ type Core = any;
 const EXT_PATH = "C:/mock/extension";
 const DAEMON = { state: "running", busy: false, port: 9222, token: "mock-token", workers: 4 };
 const BRIDGE_FOLDER = "C:/Users/user/Documents/VectorizerBridge";
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.0.1";
 
 const now = (): number => Date.now();
 const stamp = (): string => new Date().toLocaleTimeString();

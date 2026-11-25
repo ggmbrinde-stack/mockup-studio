@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Studio</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- Full State (docked panel) is the default; js/core/app.js switches this element to
+     mode-mini for the modeless window (?view=window). Both states share this markup. -->
+<div class="app mode-full" data-mode="full">
+  <div id="updateBanner" class="update-banner" hidden>
+    <span id="updateBannerText" class="update-banner-text"></span>
+    <button id="updateBannerBtn" class="btn small primary" type="button" data-i18n="updateBannerBtn">Download update</button>
+    <button id="updateBannerClose" class="btn small" type="button" aria-label="Dismiss">&#x2715;</button>
+  </div>
+  <header class="toolbar">
+    <div class="title" data-i18n="appTitle">Mockup Studio</div>
+    <span class="badge badge-legacy" data-i18n="badgeLegacy">legacy</span>
+    <div class="spacer"></div>
+    <button id="langBtn" class="btn small">EN</button>
+    <button id="miniClose" class="miniClose" type="button" aria-label="Close" title="Close">✕</button>
+  </header>
+
+  <div class="status" id="statusBar" role="status" aria-live="polite">Ready</div>
+  <div id="statusDetail" class="statusDetail"></div>
+  <div id="selectionText" class="selection"></div>
+
+  <button id="vectorizeBtn" class="btn primary" data-i18n="vectorizeBtn">Vectorize selection</button>
+  <div class="hint" data-i18n="vectorizeHint">Everything happens inside Illustrator. The selection is exported, vectorized on vectorizer.ai in the background, and placed on the Vectorizer layer.</div>
+
+  <div class="actions">
+    <button id="signInBtn" class="btn small" data-i18n="signInBtn">Sign in to vectorizer.ai</button>
+    <button id="openSvgsBtn" class="btn small" data-i18n="openSvgsFolder">Open SVG folder</button>
+    <button id="openLogBtn" class="btn small" data-i18n="openLog">Open log folder</button>
+    <button id="cancelBtn" class="btn small" data-i18n="cancel">Cancel</button>
+  </div>
+
+  <div id="lastExport" class="hint"></div>
+
+  <details class="settings" id="settingsBox">
+    <summary class="settingsSummary"><span data-i18n="settings">Settings</span><span id="settingsPill" class="settingsPill"></span></summary>
+    <div class="settingsGrid">
+      <div class="field">
+        <label data-i18n="pngLongSide">PNG long side (px)</label>
+        <select id="settingsPngPreset">
+          <option value="1200" data-i18n="pngPresetFast">Fast (1200 px)</option>
+          <option value="1700" data-i18n="pngPresetBalanced">Balanced (1700 px)</option>
+          <option value="2400" data-i18n="pngPresetQuality">Quality (2400 px)</option>
+          <option value="0" data-i18n="pngPresetOriginal">Original (1 px/pt)</option>
+          <option value="custom" data-i18n="pngPresetCustom">Custom</option>
+        </select>
+        <input id="settingsPngSize" type="number" min="100" max="5000" value="1700">
+      </div>
+      <div class="field full">
+        <label class="checkbox">
+          <input id="settingsHideOriginal" type="checkbox">
+          <span data-i18n="hideOriginal">Hide original after placing</span>
+        </label>
+      </div>
+      <div class="field full">
+        <label class="checkbox">
+          <input id="settingsWarmDaemon" type="checkbox">
+          <span data-i18n="warmDaemon">Warm Chrome (faster runs)</span>
+        </label>
+        <div id="warmDaemonStatus" class="hint"></div>
+      </div>
+      <div class="field full">
+        <label for="settingsBatchWorkers" data-i18n="batchWorkers">Parallel batch workers</label>
+        <select id="settingsBatchWorkers">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+        <div class="hint" data-i18n="batchWorkersHint">1 = safest (sequential). 2+ uses warm Chrome pages in parallel for faster batches.</div>
+      </div>
+      <div class="field full">
+        <div class="vxTitle" data-i18n="vxTitle">vectorizer.ai export</div>
+        <div class="hint" data-i18n="vxHint">Applied on vectorizer.ai before each download, so the SVG arrives already set up. Nothing is opened in your browser.</div>
+      </div>
+      <div class="field">
+        <label for="vxPreset" data-i18n="vxPreset">Preset</label>
+        <select id="vxPreset">
+          <option value="general" data-i18n="vxPresetGeneral">General purpose</option>
+          <option value="editing" data-i18n="vxPresetEditing">Easy editing (grouped by colour)</option>
+          <option value="cutting" data-i18n="vxPresetCutting">Cutting and engraving</option>
+          <option value="custom" data-i18n="vxPresetCustom">Custom</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxSvgVersion" data-i18n="vxSvgVersion">SVG version</label>
+        <select id="vxSvgVersion">
+          <option value="svg_1_1">SVG 1.1</option>
+          <option value="svg_1_0">SVG 1.0</option>
+          <option value="svg_tiny_1_2">SVG Tiny 1.2</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxGroup" data-i18n="vxGroup">Group by</label>
+        <select id="vxGroup">
+          <option value="none" data-i18n="vxGroupNone">Nothing</option>
+          <option value="color" data-i18n="vxGroupColor">Colour</option>
+          <option value="parent" data-i18n="vxGroupParent">Parent shape</option>
+          <option value="layer" data-i18n="vxGroupLayer">Layer</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxStack" data-i18n="vxStack">Shape stacking</label>
+        <select id="vxStack">
+          <option value="cutouts" data-i18n="vxStackCutouts">Cut-outs</option>
+          <option value="stacked" data-i18n="vxStackStacked">Stacked</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxDraw" data-i18n="vxDraw">Draw style</label>
+        <select id="vxDraw">
+          <option value="fill_shapes" data-i18n="vxDrawFill">Filled shapes</option>
+          <option value="stroke_shapes" data-i18n="vxDrawStroke">Outlined shapes</option>
+          <option value="stroke_edges" data-i18n="vxDrawEdges">Edges only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxCurves" data-i18n="vxCurves">Curves</label>
+        <select id="vxCurves">
+          <option value="all" data-i18n="vxCurvesAll">All</option>
+          <option value="cubic" data-i18n="vxCurvesCubic">Cubic only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxLineFit" data-i18n="vxLineFit">Line fit</label>
+        <select id="vxLineFit">
+          <option value="fine" data-i18n="vxLineFine">Fine</option>
+          <option value="medium" data-i18n="vxLineMedium">Medium</option>
+          <option value="coarse" data-i18n="vxLineCoarse">Coarse</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="vxStrokeWidth" data-i18n="vxStrokeWidth">Stroke width (px)</label>
+        <input id="vxStrokeWidth" type="number" min="0" max="5" step="0.5" value="1">
+      </div>
+      <div class="field full">
+        <label class="checkbox">
+          <input id="vxAdobe" type="checkbox">
+          <span data-i18n="vxAdobe">Adobe-compatible SVG (lines and cubic curves only)</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxNativeShapes" type="checkbox">
+          <span data-i18n="vxNativeShapes">Keep native shapes (circles, rectangles, stars)</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxGapFiller" type="checkbox">
+          <span data-i18n="vxGapFiller">Fill gaps between shapes</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxStrokeFixed" type="checkbox">
+          <span data-i18n="vxStrokeFixed">Fixed stroke width</span>
+        </label>
+        <label class="checkbox">
+          <input id="vxFixedSize" type="checkbox">
+          <span data-i18n="vxFixedSize">Fix the SVG size</span>
+        </label>
+      </div>
+      <div class="field full">
+        <label for="settingsVectorizeShortcut" data-i18n="vectorizeShortcut">Vectorize shortcut</label>
+        <div class="row">
+          <input id="settingsVectorizeShortcut" type="text" readonly value="Ctrl+Shift+Ç">
+          <button id="setVectorizeShortcutBtn" class="btn small" type="button" data-i18n="setShortcut">Set</button>
+          <button id="resetVectorizeShortcutBtn" class="btn small" type="button" data-i18n="resetShortcut">Reset</button>
+        </div>
+        <div class="hint" data-i18n="vectorizeShortcutHint">Click Set and press keys (panel must have focus). Default: Ctrl+Shift+Ç.</div>
+      </div>
+      <div class="field full">
+        <button id="setupAgainBtn" type="button" class="btn small" data-i18n="setupRunAgain">Run setup again</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- Gemini in Chrome: uses the Google AI Plus subscription through the normal
+       Gemini site, so no API key and no billing. Nothing is uploaded automatically:
+       the user generates and downloads in Chrome, then brings the file back here. -->
+  <details class="settings" id="aiImageBox">
+    <summary class="settingsSummary"><span data-i18n="aiImgTitle">AI image editor (Gemini in Chrome)</span></summary>
+    <div class="settingsGrid">
+      <div class="field full">
+        <div class="hint" data-i18n="aiImgHint">Uses your normal Chrome session and Google AI Plus. Nothing is uploaded for you: you generate in Gemini and bring the image back.</div>
+      </div>
+      <div class="field full">
+        <div class="aiImgRow">
+          <div class="aiImgThumb">
+            <img id="aiImgSourcePreview" alt="" hidden>
+            <span id="aiImgSourceEmpty" class="aiImgEmpty" data-i18n="aiImgSource">Source</span>
+          </div>
+          <div class="aiImgInfo">
+            <div id="aiImgSourceName" class="aiImgName"></div>
+            <div id="aiImgSourceMeta" class="svg-history-sub"></div>
+            <div class="row">
+              <button id="aiImgUseSelection" class="btn small" type="button" data-i18n="aiImgUseSelection">Use selection</button>
+              <button id="aiImgShowSource" class="btn small" type="button" data-i18n="aiImgShowSource">Show file</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="field full">
+        <label for="aiImgPrompt" data-i18n="aiImgInstructions">Instructions</label>
+        <textarea id="aiImgPrompt" class="aiPrompt" rows="3" spellcheck="false" data-i18n-placeholder="aiImgPromptPlaceholder" placeholder="Describe the image you want Gemini to create or the edit to apply…"></textarea>
+      </div>
+      <div class="field full">
+        <label for="aiImgTemplate" data-i18n="aiImgTemplate">Prompt template</label>
+        <select id="aiImgTemplate">
+          <option value="" data-i18n="aiImgTplNone">None</option>
+          <option value="product" data-i18n="aiImgTplProduct">Product mockup</option>
+          <option value="background" data-i18n="aiImgTplBackground">Background edit</option>
+          <option value="photo" data-i18n="aiImgTplPhoto">Product photography</option>
+          <option value="general" data-i18n="aiImgTplGeneral">General image</option>
+        </select>
+        <div class="hint" data-i18n="aiImgTplHint">A template adds its text to the prompt; edit it afterwards as you like.</div>
+      </div>
+      <div class="field full">
+        <div class="row">
+          <button id="aiImgOpen" class="btn primary small" type="button" data-i18n="aiImgOpen">Open Gemini in Chrome</button>
+          <button id="aiImgCopy" class="btn small" type="button" data-i18n="aiImgCopy">Copy prompt</button>
+          <button id="aiImgResultsFolder" class="btn small" type="button" data-i18n="aiImgResultsFolder">Open results folder</button>
+        </div>
+        <div id="aiImgStatus" class="hint aiImgStatus" role="status" aria-live="polite"></div>
+      </div>
+      <div class="field full">
+        <div class="aiImgRow">
+          <div class="aiImgThumb">
+            <img id="aiImgResultPreview" alt="" hidden>
+            <span id="aiImgResultEmpty" class="aiImgEmpty" data-i18n="aiImgResult">Result</span>
+          </div>
+          <div class="aiImgInfo">
+            <div id="aiImgResultName" class="aiImgName"></div>
+            <div class="row">
+              <button id="aiImgPick" class="btn small" type="button" data-i18n="aiImgPick">Choose result…</button>
+              <button id="aiImgPlace" class="btn small" type="button" data-i18n="aiImgPlace">Place in Illustrator</button>
+            </div>
+          </div>
+        </div>
+        <div class="panelSubTitle" data-i18n="aiImgResultsTitle">Recent results</div>
+        <div id="aiImgResults" class="aiImgResults"></div>
+      </div>
+    </div>
+  </details>
+
+  <details class="panel" id="historyBox" open>
+    <summary class="panelTitleRow"><span class="panelTitle" data-i18n="history">History</span><button id="refreshSvgsBtn" class="btn small" data-i18n="refreshSvgs">Refresh</button></summary>
+    <div class="hint" data-i18n="svgHistoryHint">SVG files are saved in Documents/VectorizerBridge/agent-downloads.</div>
+    <div id="svgHistoryList" class="list"></div>
+    <div class="panelSubTitle" data-i18n="recentActivity">Recent activity</div>
+    <div id="historyList" class="list"></div>
+  </details>
+
+  <details class="panel" id="logBox" open>
+    <summary class="panelTitle" data-i18n="log">Log</summary>
+    <div id="panelLog" class="log"></div>
+  </details>
+
+  <details class="panel" id="updatesBox" open>
+    <summary class="panelTitle" data-i18n="updatesTitle">Updates</summary>
+    <div class="hint" id="updateVersionText"></div>
+    <div class="updateNotes" id="updateNotes"></div>
+    <div class="actions">
+      <button id="whatsNewBtn" class="btn small" type="button" data-i18n="whatsNewBtn">What's new</button>
+      <button id="releaseNotesBtn" class="btn small" type="button" data-i18n="releaseNotes">View release notes</button>
+      <button id="checkUpdateBtn" class="btn small" data-i18n="checkUpdates">Check for updates</button>
+      <button id="applyUpdateBtn" class="btn small" data-i18n="updateNow" style="display:none;">Update now</button>
+      <button id="restoreUpdateBtn" class="btn small" data-i18n="restorePrevious" style="display:none;">Restore previous version</button>
+    </div>
+    <div class="hint" id="updateStatusText"></div>
+    <div class="updateWarn" id="updateRestartWarn" data-i18n="updateRestartWarn" hidden></div>
+  </details>
+
+  <footer class="appFooter">
+    <div class="version" id="versionText"></div>
+    <div class="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
+  </footer>
+  <!-- Mini State footer: the floating window says what it is instead of repeating the
+       version line, matching the V1 mini frame. -->
+  <div class="miniCaption" id="miniCaption">Compact Window Mode</div>
+  <div id="jsError" class="error-box"></div>
+</div>
+
+<!-- What's new card and feature tour. Anchored to the bottom (not a centred
+     modal) so the control the tour points at stays visible; shown once per
+     version by modules/tour/tour.js, with the text from js/whats-new.js. -->
+<div id="tourCard" class="tourCard" role="dialog" aria-live="polite" hidden>
+  <div class="tourHead">
+    <span class="tourTitle" id="tourTitle"></span>
+    <span class="tourStep" id="tourStep"></span>
+  </div>
+  <div class="tourBody" id="tourBody"></div>
+  <div class="setupActions">
+    <button type="button" class="btn small" id="tourBack">Back</button>
+    <div class="spacer"></div>
+    <button type="button" class="btn small" id="tourSkip">Later</button>
+    <button type="button" class="btn primary" id="tourNext">Next</button>
+  </div>
+</div>
+
+<!-- First-run setup: three short steps, shown once. Reopened from Settings. -->
+<div id="setupOverlay" class="setupOverlay" hidden>
+  <div class="setupCard" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <div class="setupStep" data-setup-step="1">
+      <div class="setupTitle" id="setupTitle" data-i18n="setupWelcomeTitle">Welcome to Mockup Studio</div>
+      <p class="setupText" data-i18n="setupWelcomeText">Mockup Studio turns selected artwork into a real vector SVG with vectorizer.ai, then places it over the original on a “Vectorizer” layer. A quick setup, about a minute.</p>
+      <div class="setupRow">
+        <span class="setupLabel" data-i18n="setupLanguage">Language</span>
+        <button type="button" class="btn small setupLang" data-setup-lang="en" aria-pressed="true">English</button>
+        <button type="button" class="btn small setupLang" data-setup-lang="pt" aria-pressed="false">Português</button>
+      </div>
+      <ol class="setupList">
+        <li data-i18n="setupStepVectorize">Select artwork and click “Vectorize selection”.</li>
+        <li data-i18n="setupStepSignIn">Sign in once to vectorizer.ai; the session is kept for later runs.</li>
+        <li data-i18n="setupStepBatch">Select several objects to vectorize them one by one.</li>
+      </ol>
+    </div>
+    <div class="setupStep" data-setup-step="2" hidden>
+      <div class="setupTitle" data-i18n="setupSignInTitle">Sign in to vectorizer.ai</div>
+      <p class="setupText" data-i18n="setupSignInText">A normal Chrome window opens. Sign in there, then close it. The session stays in Documents/VectorizerBridge, so this is only needed once.</p>
+      <button type="button" class="btn small" id="setupSignInBtn" data-i18n="signInBtn">Sign in to vectorizer.ai</button>
+      <div class="hint" id="setupSignInStatus"></div>
+    </div>
+    <div class="setupStep" data-setup-step="3" hidden>
+      <div class="setupTitle" data-i18n="setupDefaultsTitle">Defaults</div>
+      <p class="setupText" data-i18n="setupDefaultsText">These can be changed at any time in Settings.</p>
+      <div class="field">
+        <label for="setupPngPreset" data-i18n="pngLongSide">PNG long side (px)</label>
+        <select id="setupPngPreset">
+          <option value="1200" data-i18n="pngPresetFast">Fast (1200 px)</option>
+          <option value="1700" data-i18n="pngPresetBalanced">Balanced (1700 px)</option>
+          <option value="2400" data-i18n="pngPresetQuality">Quality (2400 px)</option>
+          <option value="0" data-i18n="pngPresetOriginal">Original (1 px/pt)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input id="setupHideOriginal" type="checkbox">
+          <span data-i18n="hideOriginal">Hide original after placing</span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input id="setupWarmDaemon" type="checkbox">
+          <span data-i18n="warmDaemon">Warm Chrome (faster runs)</span>
+        </label>
+      </div>
+    </div>
+    <div class="setupActions">
+      <button type="button" class="btn small" id="setupBackBtn" data-i18n="setupBack">Back</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn small" id="setupSkipBtn" data-i18n="setupSkip">Skip setup</button>
+      <button type="button" class="btn primary" id="setupNextBtn" data-i18n="setupNext">Next</button>
+    </div>
+  </div>
+</div>
+<script src="js/csinterface.js"></script>
+<script src="js/admin-config.js"></script>
+<script src="js/locales/en.js"></script>
+<script src="js/locales/pt.js"></script>
+<script src="js/whats-new.js"></script>
+
+<script src="js/core/app.js"></script>
+<script src="js/bridge/host.js"></script>
+<script src="js/queue/batch.js"></script>
+<script src="modules/vectorizer/vectorizer.js"></script>
+<script src="modules/ai-image/ai-image.js"></script>
+<script src="modules/setup/setup.js"></script>
+<script src="modules/tour/tour.js"></script>
+<script src="js/panel.js"></script>
+</body>
+</html>

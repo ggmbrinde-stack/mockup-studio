@@ -80,6 +80,25 @@ export function useBatch() {
     actions.updateButtons();
   }, [live, actions, batchLabel, evalJsx]);
 
+  /* scheduleBatch must be defined before batchFailJob/batchSkipJob/vectorize which
+     reference it. It reads live.current for settings and batch, and calls
+     startBatchJob/finishBatch/updateBatchStatus. Deps mirror those reads. */
+  const scheduleBatch = useCallback((token: number, batchOverride?: any) => {
+    const b = live.current.batch || batchOverride;
+    if (!b || b.cancelled || token !== live.current.runToken) return;
+    const wanted = Math.max(1, Math.min(4, parseInt(String(live.current.settings.batchWorkers), 10) || 1));
+    const limit = live.current.settings.warmDaemon ? wanted : 1;
+    if (!live.current.settings.warmDaemon && wanted > 1 && !b.warnedSequential) {
+      b.warnedSequential = true;
+      actions.log("Parallel workers need Warm Chrome; running the batch one item at a time.");
+    }
+    while ((b.active || 0) < limit && b.next < b.total) {
+      const j = b.jobs[b.next++]; if (!j) continue;
+      startBatchJob(j, token, b);
+    }
+    if ((b.active || 0) <= 0 && (b.doneCount || 0) >= b.total) finishBatch();
+  }, [live, actions, startBatchJob, finishBatch, updateBatchStatus]);
+
   const batchMaybeFinish = useCallback(() => {
     const b = live.current.batch;
     if (!b || b.cancelled) return;
@@ -165,11 +184,6 @@ export function useBatch() {
     }
     let xhr: any;
     try { xhr = new XMLHttpRequest(); } catch { return false; }
-    daemonTriesRef.current[j.index] = tries + 1;
-    j.phase = "agent";
-    j.stageLabel = tries ? actions.t("statusWaitingSlot") : actions.t("statusUploading");
-    j.agentStartedAt = j.agentStartedAt || Date.now();
-    updateBatchStatus();
     const alive = () => token === live.current.runToken && !!live.current.batch && !live.current.batch.cancelled && !j.done;
     try {
       xhr.open("POST", "http://127.0.0.1:" + target.port + "/run", true);
@@ -206,6 +220,11 @@ export function useBatch() {
         png: j.pngPath, out: paths.out, profile: paths.profile, debug: paths.debug,
         work: paths.work, status: j.statusPath, timeout: 300000,
       }));
+      daemonTriesRef.current[j.index] = tries + 1;
+      j.phase = "agent";
+      j.stageLabel = tries ? actions.t("statusWaitingSlot") : actions.t("statusUploading");
+      j.agentStartedAt = j.agentStartedAt || Date.now();
+      updateBatchStatus();
     } catch { return false; }
     return true;
   }, [live, actions, daemonTarget, updateBatchStatus, refreshDaemon, evalJsx]);
@@ -395,23 +414,7 @@ export function useBatch() {
         beginParallelBatch();
       }
     });
-  }, [live, actions, evalJsx, parseResult, friendlyError, updateBatchStatus, ensureAgentPaths, waitForWarmDaemon, scheduleBatch]);
-
-  function scheduleBatch(token: number, batchOverride?: any) {
-    const b = live.current.batch || batchOverride;
-    if (!b || b.cancelled || token !== live.current.runToken) return;
-    const wanted = Math.max(1, Math.min(4, parseInt(String(live.current.settings.batchWorkers), 10) || 1));
-    const limit = live.current.settings.warmDaemon ? wanted : 1;
-    if (!live.current.settings.warmDaemon && wanted > 1 && !b.warnedSequential) {
-      b.warnedSequential = true;
-      actions.log("Parallel workers need Warm Chrome; running the batch one item at a time.");
-    }
-    while ((b.active || 0) < limit && b.next < b.total) {
-      const j = b.jobs[b.next++]; if (!j) continue;
-      startBatchJob(j, token, b);
-    }
-    if ((b.active || 0) <= 0 && (b.doneCount || 0) >= b.total) finishBatch();
-  }
+  }, [live, actions, evalJsx, parseResult, friendlyError, updateBatchStatus, ensureAgentPaths, waitForWarmDaemon, hostOk]);
 
   function startBatchJob(j: any, token: number, batchOverride?: any) {
     const b = live.current.batch || batchOverride;
