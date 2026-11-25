@@ -11,11 +11,16 @@ interface CardView {
   entry: any;
 }
 
+function prefersReducedMotion(): boolean {
+  try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch { return false; }
+}
+
 export function WhatsNewCard() {
   const { actions } = useCore();
   const [view, setView] = useState<CardView | null>(null);
   const viewRef = useRef<CardView | null>(null);
   const targetRef: { current: HTMLElement | null } = useRef(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   viewRef.current = view;
 
   const version = useCallback((): string => {
@@ -28,18 +33,9 @@ export function WhatsNewCard() {
     return (v && all[v]) ? all[v] : null;
   }, [version]);
 
-  const seen = useCallback((): string => {
-    try { return localStorage.getItem(SEEN_KEY) || ""; } catch { return ""; }
-  }, []);
-
   const markSeen = useCallback(() => {
     try { localStorage.setItem(SEEN_KEY, version()); } catch { }
   }, [version]);
-
-  const setupOpen = useCallback((): boolean => {
-    const el = document.getElementById("setupOverlay");
-    return !!(el && !el.hidden && (el as HTMLElement).style.display !== "none");
-  }, []);
 
   const clearHighlight = useCallback(() => {
     if (targetRef.current) {
@@ -48,13 +44,30 @@ export function WhatsNewCard() {
     targetRef.current = null;
   }, []);
 
+  /* The card is fixed-positioned; keep it out of the target's way by placing it just
+     below the target, flipping above when there is not enough room underneath. */
+  const placeCard = useCallback((el: HTMLElement | null) => {
+    const card = cardRef.current;
+    if (!card) return;
+    if (!el) { card.style.top = "auto"; card.style.bottom = "8px"; return; }
+    const r = el.getBoundingClientRect();
+    const gap = 10;
+    const cardH = card.offsetHeight || 140;
+    let top = r.bottom + gap;
+    if (top + cardH > window.innerHeight - 8) top = Math.max(8, r.top - gap - cardH);
+    card.style.top = top + "px";
+    card.style.bottom = "auto";
+  }, []);
+
   const highlight = useCallback((el: HTMLElement | null) => {
     clearHighlight();
-    if (!el) return;
+    if (!el) { placeCard(null); return; }
     targetRef.current = el;
     try { el.classList.add("tourTarget"); } catch { }
-    try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch { try { el.scrollIntoView(); } catch { } }
-  }, [clearHighlight]);
+    try { el.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" }); }
+    catch { try { el.scrollIntoView(); } catch { } }
+    placeCard(el);
+  }, [clearHighlight, placeCard]);
 
   const reveal = useCallback((el: HTMLElement) => {
     let node: HTMLElement | null = el;
@@ -106,17 +119,8 @@ export function WhatsNewCard() {
     renderStep(nv);
   }, [renderStep, highlight]);
 
-  const maybeShow = useCallback((): boolean => {
-    if (setupOpen()) return false;
-    const data = announcement();
-    if (!data) { markSeen(); return false; }
-    if (seen() === version()) return false;
-    const v: CardView = { mode: "bullets", step: 0, entry: data };
-    setView(v);
-    highlight(null);
-    return true;
-  }, [setupOpen, announcement, markSeen, seen, version, highlight]);
-
+  /* Opt-in entry point: the What's new button in the Updates panel starts the tour.
+     Finishing setup no longer opens it (see SetupWizard). */
   const start = useCallback((): boolean => {
     const data = announcement();
     if (!data || !data.tour || !data.tour.length) return false;
@@ -125,15 +129,6 @@ export function WhatsNewCard() {
     renderStep(v);
     return true;
   }, [announcement, renderStep]);
-
-  useEffect(() => {
-    try { if (actions.isWindowMode && actions.isWindowMode()) return; } catch { }
-    try { actions.events.on("setup:finished", maybeShow); } catch { }
-    maybeShow();
-    return () => {
-      try { actions.events.off("setup:finished", maybeShow); } catch { }
-    };
-  }, [actions, maybeShow]);
 
   /* The button lives in UpdatesPanel; a listener is enough, no DOM writes. */
   useEffect(() => {
@@ -181,20 +176,30 @@ export function WhatsNewCard() {
   }
 
   return (
-    <div id="tourCard" className="tourCard" role="dialog" aria-live="polite">
-      <div className="tourHead">
-        <span className="tourTitle" id="tourTitle">{title}</span>
-        <span className="tourStep" id="tourStep">{stepText}</span>
+    <>
+      {view.mode === "steps" && <div className="tourScrim" aria-hidden="true" />}
+      <div id="tourCard" className="tourCard" role="dialog" aria-live="polite" ref={cardRef}>
+        <div className="tourHead">
+          <span className="tourTitle" id="tourTitle">{title}</span>
+          <span className="tourStep" id="tourStep">{stepText}</span>
+        </div>
+        {view.mode === "steps" && (
+          <div className="tourDots" aria-hidden="true">
+            {tour.map((_: any, i: number) => (
+              <span key={i} className={"tourDot" + (i === view.step ? " isCurrent" : i < view.step ? " isDone" : "")} />
+            ))}
+          </div>
+        )}
+        <div className="tourBody" id="tourBody">{body}</div>
+        <div className="setupActions">
+          <button type="button" className="btn small" id="tourBack" style={{ display: showBack ? "" : "none" }} onClick={back}>
+            {t("setupBack") || "Back"}
+          </button>
+          <div className="spacer" />
+          <button type="button" className="btn small" id="tourSkip" onClick={finish}>{skipText}</button>
+          <button type="button" className="btn primary" id="tourNext" onClick={next}>{nextText}</button>
+        </div>
       </div>
-      <div className="tourBody" id="tourBody">{body}</div>
-      <div className="setupActions">
-        <button type="button" className="btn small" id="tourBack" style={{ display: showBack ? "" : "none" }} onClick={back}>
-          {t("setupBack") || "Back"}
-        </button>
-        <div className="spacer" />
-        <button type="button" className="btn small" id="tourSkip" onClick={finish}>{skipText}</button>
-        <button type="button" className="btn primary" id="tourNext" onClick={next}>{nextText}</button>
-      </div>
-    </div>
+    </>
   );
 }

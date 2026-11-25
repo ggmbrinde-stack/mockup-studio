@@ -86,3 +86,26 @@
 .error-box > .errorDismiss {
   flex: 0 0 auto;
 }
+
+.setupProgress{display:flex;align-items:center;gap:8px;margin-bottom:12px;}.setupStepLabel{font-size:12px;color:var(--muted-foreground);margin-right:auto;}.setupDot{width:8px;height:8px;border-radius:50%;background:var(--muted);}.setupDot.active{background:var(--primary);}
+
+/* --- Setup wizard (React): step progress + sign-in states --- */
+.setupProgress{display:flex;align-items:center;gap:8px;margin-bottom:0;}
+.setupStepText{font-size:11px;color:var(--muted);}
+.setupDots{display:inline-flex;gap:4px;margin-left:auto;}
+.setupDot{width:7px;height:7px;border-radius:999px;background:var(--border-strong);opacity:.45;}
+.setupDot.isDone{background:var(--accent);opacity:.7;}
+.setupDot.isCurrent{background:var(--accent);opacity:1;}
+.setupSignIn{display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
+.setupSignStatus{min-height:1.2em;}
+/* --- What's new tour: spotlight scrim + progress dots --- */
+.tourScrim{position:fixed;inset:0;z-index:110;background:rgba(20,20,20,.5);}
+.tourTarget{position:relative;z-index:111;outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--radius);}
+.tourDots{display:flex;gap:4px;}
+.tourDot{width:7px;height:7px;border-radius:999px;background:var(--border-strong);opacity:.45;}
+.tourDot.isDone{background:var(--accent);opacity:.7;}
+.tourDot.isCurrent{background:var(--accent);opacity:1;}
+@media (prefers-reduced-motion: reduce){.tourCard,.setupCard{transition:none !important;}}
+
+.setupOverlay{position:fixed;inset:0;z-index:200;background:var(--panel-bg);display:flex;align-items:center;justify-content:center;}.setupCard{width:min(420px,90vw);max-width:420px;margin:0;border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,.25);}
+

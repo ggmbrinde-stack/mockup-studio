@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useCore } from "../context/core-context";
 import { hostBridge, useHost } from "../hooks/use-host";
 
+/* The AI image editor is switched off in the panel: the section stays visible but grey
+   and non-openable. Flip this to true to bring it back; nothing else changes. */
+const AI_SECTION_ENABLED = false;
+
 const GEMINI_URL = "https://gemini.google.com/app";
 const LAYER_NAME = "Gemini Image";
 const MAX_INLINE_PREVIEW = 8 * 1024 * 1024;
@@ -366,6 +370,21 @@ export function AiImageSection() {
   const needSource = !source;
   const needResult = !result;
   const lock = busy || !hostOk;
+
+  if (!AI_SECTION_ENABLED) {
+    return (
+      <details
+        className="settings isDisabled"
+        id="aiImageBox"
+        aria-disabled="true"
+        onToggle={(e) => { if (e.currentTarget.open) e.currentTarget.open = false; }}
+      >
+        <summary className="settingsSummary" aria-disabled="true" onClick={(e) => e.preventDefault()}>
+          <span>{t("aiImgTitle")}</span>
+        </summary>
+      </details>
+    );
+  }
 
   return (
     <details className="settings" id="aiImageBox">

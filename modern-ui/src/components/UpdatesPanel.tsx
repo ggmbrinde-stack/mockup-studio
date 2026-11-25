@@ -21,7 +21,7 @@ export function UpdatesPanel() {
       </div>
       <div className={u.notes ? "updateNotes show" : "updateNotes"} id="updateNotes">{u.notes}</div>
       <div className="actions">
-        <button id="whatsNewBtn" className="btn small" type="button">{actions.t("whatsNewBtn")}</button>
+        <button id="whatsNewBtn" className="btn small" type="button" aria-haspopup="dialog">{actions.t("whatsNewBtn")}</button>
         <button id="releaseNotesBtn" className="btn small" type="button" onClick={openReleaseNotes}>{actions.t("releaseNotes")}</button>
         <button id="checkUpdateBtn" className="btn small" onClick={() => v()?.startUpdate?.("check")}>{actions.t("checkUpdates")}</button>
         {u.available && (
