@@ -387,7 +387,14 @@ export function useBatch() {
       const count = parseInt(String(r.count), 10) || 0;
       if (count <= 0) { actions.setState({ busy: false }); actions.updateButtons(); actions.setStatus(actions.t("batchNoItems")); return; }
       const jobs: any[] = [];
-      for (let i = 0; i < count; i++) jobs.push({ index: i, phase: "pending", done: false, union: null, pngPath: "", statusPath: "", stageLabel: "", startedAt: 0, exportMs: 0, agentStartedAt: 0, lastStatusAt: 0, busyRetries: 0, _startRetries: 0, docFullName: "", docName: "", jobId: "" });
+      const pngPaths = Array.isArray(r.pngPaths) ? r.pngPaths : [];
+      const items = Array.isArray(r.items) ? r.items : [];
+      for (let i = 0; i < count; i++) {
+        const it = items[i] || {};
+        const union = it.union || null;
+        const pngPath = pngPaths[i] || it.pngPath || "";
+        jobs.push({ index: i, phase: "pending", done: false, union: union, pngPath: pngPath, statusPath: "", stageLabel: "", startedAt: 0, exportMs: 0, agentStartedAt: 0, lastStatusAt: 0, busyRetries: 0, _startRetries: 0, docFullName: "", docName: "", jobId: "" });
+      }
       const batch = {
         total: count, next: 0, ok: 0, failed: 0, skipped: 0, doneCount: 0, active: 0, cancelled: false,
         docFullName: r.docFullName || "", docName: r.docName || "", jobId: r.jobId || String(Date.now()), jobs: jobs,
@@ -419,27 +426,17 @@ export function useBatch() {
   function startBatchJob(j: any, token: number, batchOverride?: any) {
     const b = live.current.batch || batchOverride;
     if (!b || b.cancelled || token !== live.current.runToken || !j || j.done) return;
-    j.phase = "exporting"; j.startedAt = Date.now(); b.active = (b.active || 0) + 1;
-    j.stageLabel = actions.t("statusExporting"); updateBatchStatus();
+    j.phase = "agent"; j.startedAt = Date.now(); b.active = (b.active || 0) + 1;
+    j.stageLabel = actions.t("statusUploading"); updateBatchStatus();
     actions.setState({ busy: (b.active > 0), waiting: (b.active > 0) });
     actions.updateButtons();
-    let size = parseInt(String(live.current.settings.pngLongSide), 10); if (!isFinite(size)) size = 1700;
-    const exportT0 = Date.now();
-    evalJsx(`VB.exportBatchItem(${j.index},${size},${JSON.stringify(b.jobId || "")})`, (result: string) => {
-      if (token !== live.current.runToken || !live.current.batch || live.current.batch.cancelled) return;
-      const r = parseResult(result);
-      j.exportMs = Date.now() - exportT0;
-      if (!r.ok) return batchFailJob(j, (r.error || "") + " - " + friendlyError(String(r.error || "")), token);
-      if (r.pixelCapped) actions.log("Item #" + (j.index + 1) + ": PNG reduced to " + (r.megapixels || "?") + " MP to fit the site input limit.");
-      j.union = r.union || null; j.pngPath = r.pngPath || "";
-      j.docFullName = r.docFullName || b.docFullName || ""; j.docName = r.docName || b.docName || "";
-      j.jobId = r.jobId || b.jobId || "";
-      if (!j.union) return batchSkipJob(j, "emptyBounds", token);
-      if (!j.pngPath) return batchFailJob(j, "export produced no PNG", token);
-      j.phase = "agent"; j.stageLabel = actions.t("statusUploading"); j.statusPath = batchJobStatusPath(j); j.agentStartedAt = Date.now(); j.lastStatusAt = 0; j.busy = 0; j.busyRetries = 0; j._startRetries = 0;
-      updateBatchStatus();
-      launchBatchAgent(j, token);
-    });
+    j.docFullName = j.docFullName || b.docFullName || ""; j.docName = j.docName || b.docName || "";
+    j.jobId = j.jobId || b.jobId || "";
+    if (!j.union) return batchSkipJob(j, "emptyBounds", token);
+    if (!j.pngPath) return batchFailJob(j, "export produced no PNG", token);
+    j.statusPath = batchJobStatusPath(j); j.agentStartedAt = Date.now(); j.lastStatusAt = 0; j.busy = 0; j.busyRetries = 0; j._startRetries = 0;
+    updateBatchStatus();
+    launchBatchAgent(j, token);
   }
 
   // Expose on window.VBPanel: the components trigger vectorize through it

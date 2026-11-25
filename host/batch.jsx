@@ -94,8 +94,83 @@ VB.prepareBatch = function (pngLongSide) {
     VB._batch = { pngLongSide: pngLongSide, docFullName: docFullName, docName: docName, count: refs.length, jobId: jobId, meta: meta };
     VB._batchItems = refs;
     VB._currentOriginalItem = null;
-    VB.log("prepareBatch: " + refs.length + " item(s), job=" + jobId);
-    return VB.toJSON({ ok: true, count: refs.length, docFullName: docFullName, docName: docName, jobId: jobId, items: items });
+
+    /* Export all PNGs in one pass so the panel can dispatch daemon jobs in parallel. */
+    var pngPaths = [];
+    var originalDoc = null;
+    try { originalDoc = app.activeDocument; } catch (odE) { originalDoc = null; }
+    for (var ei = 0; ei < refs.length; ei++) {
+      var src = refs[ei];
+      var union = null;
+      try { union = VB.itemBox(src); } catch (ubE) { union = null; }
+      if (!union || !(union.width > 0.01) || !(union.height > 0.01)) {
+        VB.log("prepareBatch export skip (no bounds): " + ei);
+        return VB.toJSON({ ok: false, error: "exportFailed", failedIndex: ei });
+      }
+      var size = pngLongSide;
+      if (size !== 0) { if (size < 100) size = 1700; if (size > 5000) size = 5000; }
+      VB.ensureBridgeFolder();
+      var bf = new Folder(VB.getBridgeFolderPath());
+      if (!bf.exists) bf.create();
+      var pngFile = new File(bf.fsName + "/vectorizer_export_batch_" + String(jobId) + "_" + ei + ".png");
+      if (pngFile.exists) pngFile.remove();
+
+      var tempDoc = null;
+      var ddoc = app.activeDocument;
+      var dupOk = false;
+      try {
+        tempDoc = app.documents.add();
+        if (!tempDoc) throw new Error("duplicateFailed");
+        try { src.duplicate(tempDoc, ElementPlacement.PLACEATBEGINNING); dupOk = true; } catch (dupErr1) {
+          try { src.duplicate(tempDoc); dupOk = true; } catch (dupErr2) {
+            VB.log("prepareBatch duplicate error " + ei + " (" + src.typename + "): " + dupErr1 + " / " + dupErr2);
+          }
+        }
+        if (!dupOk || tempDoc.pageItems.length === 0) throw new Error("duplicateFailed");
+        try { app.activeDocument = tempDoc; } catch (actErr) { }
+
+        var tempBounds = [];
+        for (var k = 0; k < tempDoc.pageItems.length; k++) {
+          try { tempBounds.push(VB.itemBox(tempDoc.pageItems[k])); } catch (tbErr) { }
+        }
+        var tempUnion = VB.unionBounds(tempBounds);
+        if (!tempUnion || !(tempUnion.width > 0.01) || !(tempUnion.height > 0.01)) tempUnion = union;
+        if (!VB.fitArtboard(tempDoc, tempUnion)) throw new Error("artboardFailed");
+
+        var exportOpts = new ExportOptionsPNG24();
+        exportOpts.antiAliasing = true;
+        exportOpts.transparency = true;
+        exportOpts.artBoardClipping = true;
+        var fit = VB.exportResolution(size, tempUnion.width, tempUnion.height);
+        exportOpts.resolution = fit.resolution;
+        tempDoc.exportFile(pngFile, ExportType.PNG24, exportOpts);
+        if (!pngFile.exists || pngFile.length < 10) throw new Error("exportFailed");
+        var byteGuard = 0;
+        while (pngFile.length > VB.MAX_INPUT_BYTES && fit.resolution > 8 && byteGuard < 3) {
+          byteGuard++;
+          fit.resolution = Math.max(8, Math.floor(fit.resolution * 0.7));
+          exportOpts.resolution = fit.resolution;
+          try { pngFile.remove(); } catch (rmE) { }
+          tempDoc.exportFile(pngFile, ExportType.PNG24, exportOpts);
+        }
+        if (!pngFile.exists || pngFile.length < 10) throw new Error("exportFailed");
+        VB.log("prepareBatch item " + ei + " resolution=" + fit.resolution + " px=" + fit.pixels);
+        pngPaths.push(pngFile.fsName);
+        items[ei].pngPath = pngFile.fsName;
+      } catch (expE) {
+        VB.log("prepareBatch export error item " + ei + ": " + expE);
+        if (tempDoc) { try { tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (ce) { } }
+        try { if (ddoc) app.activeDocument = ddoc; } catch (ae) { }
+        return VB.toJSON({ ok: false, error: "exportFailed", failedIndex: ei });
+      } finally {
+        if (tempDoc) { try { tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (ce2) { } }
+        try { if (ddoc) app.activeDocument = ddoc; } catch (ae2) { }
+      }
+    }
+    try { if (originalDoc) app.activeDocument = originalDoc; } catch (odE2) { }
+
+    VB.log("prepareBatch: " + refs.length + " item(s), job=" + jobId + ", pngs=" + pngPaths.length);
+    return VB.toJSON({ ok: true, count: refs.length, docFullName: docFullName, docName: docName, jobId: jobId, items: items, pngPaths: pngPaths });
   } catch (e) {
     VB.log("prepareBatch error: " + e);
     return VB.toJSON({ ok: false, error: String(e) });
