@@ -271,8 +271,7 @@ function sendNativeMessage(msg) {
   const lenBuf = Buffer.alloc(4);
   lenBuf.writeUInt32LE(buf.length, 0);
   try {
-    process.stdout.write(lenBuf);
-    process.stdout.write(buf);
+    process.stdout.write(Buffer.concat([lenBuf, buf]));
   } catch (e) {
     console.error('[Flow Bridge] Failed to send native message:', e);
   }
