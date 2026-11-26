@@ -29,90 +29,50 @@ function getMime(filePath) {
   return mimeMap[ext] || 'application/octet-stream';
 }
 
-// jobs: Map<jobId, { jobId, jobStartTime, downloadFolder, results: [], watcher, settleTimer, initialTimer, processedDownloads: Set, cleanupTimer }>
+// jobs: Map<jobId, { jobId, jobStartTime, downloadFolder, results: [], settleTimer, initialTimer, processedDownloads: Set, cleanupTimer }>
 const jobs = new Map();
 
-function startDownloadWatcher(jobId, jobStartTime, downloadFolder) {
-  // Close any existing watcher for this job
-  stopDownloadWatcher(jobId);
+// Single active job — only one job watches the download folder at a time
+let activeJobId = null;
+let activeJobStartTime = null;
+let activeJobDownloadFolder = null;
+let downloadWatcher = null;
+let downloadWatcherFolder = null;
 
-  // Stop all other active job watchers — only one job can watch the download
-  // folder at a time to prevent cross-job file contamination
-  jobs.forEach((j, id) => {
-    if (id !== jobId) {
-      stopDownloadWatcher(id);
-      jobs.delete(id);
-    }
-  });
-
-  const job = {
-    jobId,
-    jobStartTime,
-    downloadFolder: downloadFolder || DOWNLOAD_FOLDER,
-    results: [],
-    watcher: null,
-    settleTimer: null,
-    initialTimer: null,
-    processedDownloads: new Set(),
-    cleanupTimer: null,
-  };
-  jobs.set(jobId, job);
-
-  writeStatus(jobId, { state: 'waiting', jobId, message: 'Watching for downloads...', jobStartTime });
-
-  if (!fs.existsSync(downloadFolder)) {
-    writeStatus(jobId, { state: 'error', error: 'Download folder not found', jobId });
-    jobs.delete(jobId);
-    return;
+function ensureWatcher(downloadFolder) {
+  if (downloadWatcher && downloadWatcherFolder === downloadFolder) return;
+  if (downloadWatcher) {
+    downloadWatcher.close();
+    downloadWatcher = null;
+    downloadWatcherFolder = null;
   }
-
-  // Initial timeout: if no downloads arrive within INITIAL_TIMEOUT_MS, fail the job
-  job.initialTimer = setTimeout(() => {
-    const j = jobs.get(jobId);
-    if (!j || j.results.length === 0) {
-      writeStatus(jobId, { state: 'error', error: 'No downloads detected within timeout period', jobId });
-    }
-    stopDownloadWatcher(jobId);
-  }, INITIAL_TIMEOUT_MS);
-
-  job.watcher = chokidar.watch(downloadFolder, { ignoreInitial: true, persistent: true });
-  job.watcher.on('add', filePath => {
-    handleDownloadFile(jobId, filePath);
+  if (!fs.existsSync(downloadFolder)) return;
+  downloadWatcher = chokidar.watch(downloadFolder, { ignoreInitial: true, persistent: true });
+  downloadWatcherFolder = downloadFolder;
+  downloadWatcher.on('add', filePath => {
+    handleDownloadFile(filePath);
   });
-  job.watcher.on('change', filePath => {
-    handleDownloadFile(jobId, filePath);
+  downloadWatcher.on('change', filePath => {
+    handleDownloadFile(filePath);
   });
-  job.watcher.on('error', err => {
-    const j = jobs.get(jobId);
-    if (!j) return;
+  downloadWatcher.on('error', err => {
     // EBUSY on Windows during file write is transient — log and continue watching
-    if (!err.message.includes('EBUSY') && !err.message.includes('resource busy')) {
-      writeStatus(jobId, { state: 'error', error: String(err), jobId });
-      stopDownloadWatcher(jobId);
+    if (!err.message.includes('EBUSY') && !err.message.includes('resource busy') && activeJobId) {
+      writeStatus(activeJobId, { state: 'error', error: String(err), jobId: activeJobId });
+      stopActiveWatcher();
     }
   });
 }
 
-function stopDownloadWatcher(jobId) {
-  const job = jobs.get(jobId);
-  if (!job) return;
-
-  if (job.initialTimer) {
-    clearTimeout(job.initialTimer);
-    job.initialTimer = null;
+function stopActiveWatcher() {
+  if (downloadWatcher) {
+    downloadWatcher.close();
+    downloadWatcher = null;
+    downloadWatcherFolder = null;
   }
-  if (job.settleTimer) {
-    clearTimeout(job.settleTimer);
-    job.settleTimer = null;
-  }
-  if (job.cleanupTimer) {
-    clearTimeout(job.cleanupTimer);
-    job.cleanupTimer = null;
-  }
-  if (job.watcher) {
-    job.watcher.close();
-    job.watcher = null;
-  }
+  activeJobId = null;
+  activeJobStartTime = null;
+  activeJobDownloadFolder = null;
 }
 
 function isDownloadComplete(filePath) {
@@ -151,23 +111,26 @@ function resetSettleTimer(jobId) {
     }
     // Schedule cleanup after completion
     j.cleanupTimer = setTimeout(() => {
-      stopDownloadWatcher(jobId);
       jobs.delete(jobId);
+      if (activeJobId === jobId) stopActiveWatcher();
     }, JOB_CLEANUP_MS);
   }, SETTLE_DELAY_MS);
 }
 
-function handleDownloadFile(jobId, filePath) {
-  const job = jobs.get(jobId);
+function handleDownloadFile(filePath) {
+  // Only process files belonging to the active job
+  if (!activeJobId) return;
+
+  const job = jobs.get(activeJobId);
   if (!job) return;
   if (job.processedDownloads.has(filePath)) return;
 
-  // Only process files created after the job started
+  // Only process files created after the active job started
   try {
     const stat = fs.statSync(filePath);
     // Use birthtime (file creation time) because copyFileSync preserves source mtime/ctime
     const creationTime = stat.birthtime ? stat.birthtime.getTime() : stat.ctime.getTime();
-    if (creationTime < job.jobStartTime - 5000) {
+    if (creationTime < activeJobStartTime - 5000) {
       return;
     }
   } catch {
@@ -194,16 +157,76 @@ function handleDownloadFile(jobId, filePath) {
   if (!job.results) job.results = [];
   job.results.push(filePath);
 
-  writeStatus(jobId, {
+  writeStatus(activeJobId, {
     state: 'waiting',
-    jobId,
+    jobId: activeJobId,
     results: [...job.results],
     filePath: filePath,
     mime: getMime(filePath),
     message: `Downloading ${job.results.length} file(s)…`,
   });
 
-  resetSettleTimer(jobId);
+  resetSettleTimer(activeJobId);
+}
+
+function startJob(jobId, jobStartTime, downloadFolder) {
+  // Stop any previous active job's timers but keep its status on disk
+  if (activeJobId && activeJobId !== jobId) {
+    const prevJob = jobs.get(activeJobId);
+    if (prevJob) {
+      if (prevJob.initialTimer) { clearTimeout(prevJob.initialTimer); prevJob.initialTimer = null; }
+      if (prevJob.settleTimer) { clearTimeout(prevJob.settleTimer); prevJob.settleTimer = null; }
+      if (prevJob.cleanupTimer) { clearTimeout(prevJob.cleanupTimer); prevJob.cleanupTimer = null; }
+    }
+  }
+
+  activeJobId = jobId;
+  activeJobStartTime = jobStartTime || Date.now();
+  activeJobDownloadFolder = downloadFolder || DOWNLOAD_FOLDER;
+
+  ensureWatcher(activeJobDownloadFolder);
+
+  const job = {
+    jobId,
+    jobStartTime: activeJobStartTime,
+    downloadFolder: activeJobDownloadFolder,
+    results: [],
+    settleTimer: null,
+    initialTimer: null,
+    processedDownloads: new Set(),
+    cleanupTimer: null,
+  };
+  jobs.set(jobId, job);
+
+  writeStatus(jobId, { state: 'waiting', jobId, message: 'Watching for downloads...', jobStartTime: activeJobStartTime });
+
+  if (!fs.existsSync(activeJobDownloadFolder)) {
+    writeStatus(jobId, { state: 'error', error: 'Download folder not found', jobId });
+    stopActiveWatcher();
+    return;
+  }
+
+  // Initial timeout: if no downloads arrive within INITIAL_TIMEOUT_MS, fail the job
+  job.initialTimer = setTimeout(() => {
+    const j = jobs.get(jobId);
+    if (!j || j.results.length === 0) {
+      writeStatus(jobId, { state: 'error', error: 'No downloads detected within timeout period', jobId });
+    }
+    stopActiveWatcher();
+  }, INITIAL_TIMEOUT_MS);
+}
+
+function stopJob(jobId) {
+  if (activeJobId === jobId) {
+    stopActiveWatcher();
+  }
+  const job = jobs.get(jobId);
+  if (job) {
+    if (job.initialTimer) { clearTimeout(job.initialTimer); job.initialTimer = null; }
+    if (job.settleTimer) { clearTimeout(job.settleTimer); job.settleTimer = null; }
+    if (job.cleanupTimer) { clearTimeout(job.cleanupTimer); job.cleanupTimer = null; }
+    jobs.delete(jobId);
+  }
 }
 
 function processJobFile(filePath) {
@@ -216,7 +239,7 @@ function processJobFile(filePath) {
       // Delete the job file after reading to avoid reprocessing
       try { fs.unlinkSync(filePath); } catch {}
 
-      startDownloadWatcher(job.jobId, job.jobStartTime || Date.now(), job.downloadFolder);
+      startJob(job.jobId, job.jobStartTime || Date.now(), job.downloadFolder);
     }
   } catch (e) {
     console.error('[Flow Bridge] Error processing job file:', e);
@@ -240,8 +263,6 @@ function checkExistingJobs() {
 
 // ---------- Native Messaging (stdio) support for Chrome extension ----------
 
-// Native messaging protocol: 4-byte little-endian length prefix + JSON body.
-// Uses an accumulator buffer to handle partial reads correctly.
 let stdinBuffer = Buffer.alloc(0);
 
 function sendNativeMessage(msg) {
@@ -261,19 +282,13 @@ function handleNativeMessage(msg) {
   switch (msg.type) {
     case 'startJob':
       if (msg.jobId) {
-        startDownloadWatcher(msg.jobId, msg.jobStartTime || Date.now(), msg.downloadFolder || DOWNLOAD_FOLDER);
+        startJob(msg.jobId, msg.jobStartTime || Date.now(), msg.downloadFolder || DOWNLOAD_FOLDER);
         sendNativeMessage({ type: 'jobStarted', jobId: msg.jobId });
       }
       break;
     case 'stopJob':
-      stopDownloadWatcher(msg.jobId || 'all');
-      if (msg.jobId) {
-        const job = jobs.get(msg.jobId);
-        if (job) {
-          jobs.delete(msg.jobId);
-        }
-      } else {
-        jobs.forEach((_, id) => stopDownloadWatcher(id));
+      stopJob(msg.jobId || 'all');
+      if (msg.jobId === 'all' || !msg.jobId) {
         jobs.clear();
       }
       sendNativeMessage({ type: 'jobStopped', jobId: msg.jobId || 'all' });
@@ -281,8 +296,10 @@ function handleNativeMessage(msg) {
     case 'downloadDetected':
       if (msg.filePath && msg.jobId) {
         const job = jobs.get(msg.jobId);
-        if (job) {
-          handleDownloadFile(msg.jobId, msg.filePath);
+        if (job && msg.jobId === activeJobId) {
+          handleDownloadFile(msg.filePath);
+        } else if (job) {
+          console.error(`[Flow Bridge] downloadDetected: job ${msg.jobId} is not the active job (active: ${activeJobId})`);
         } else {
           console.error(`[Flow Bridge] downloadDetected: no active job for jobId=${msg.jobId}`);
         }
