@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCore } from '../context/core-context';
 import { useHost } from '../hooks/use-host';
 
+const JOBS_SUBFOLDER = 'flow-jobs';
 const STATUS_SUBFOLDER = 'flow-status';
 const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SIMULATOR_URL = 'http://127.0.0.1:47821';
@@ -240,11 +241,11 @@ export function FlowSection() {
 
   const writeJobFile = async (job: FlowJob) => {
     const bridgeFolder = actions.live.bridgeFolder || '';
-    const statusDir = `${bridgeFolder.replace(/\\/g, '/')}/${STATUS_SUBFOLDER}`;
-    const statusPath = `${statusDir}/flow-${job.jobId}.json`;
+    const jobsDir = `${bridgeFolder.replace(/\\/g, '/')}/${JOBS_SUBFOLDER}`;
+    const statusPath = `${jobsDir}/flow-${job.jobId}.json`;
     const json = JSON.stringify(job);
     await new Promise<void>((resolve) => {
-      evalJsx(`new Folder("${statusDir}").create();`, () => resolve());
+      evalJsx(`new Folder("${jobsDir}").create();`, () => resolve());
     });
     return new Promise<void>((resolve, reject) => {
       evalJsx(`VB.writeTextFile("${statusPath}", ${JSON.stringify(json)});`, result => {
@@ -308,6 +309,7 @@ export function FlowSection() {
         quantity,
         jobStartTime: startTime,
         downloadFolder: 'C:\\Users\\user\\Downloads\\MockupStudioFlow',
+        referenceImages,
       };
 
       await writeJobFile(job);

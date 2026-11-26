@@ -1,7 +1,7 @@
 ﻿{
   "name": "com.bestofgifts.mockupstudio.flow",
   "description": "Mockup Studio Flow Bridge Native Messaging Host",
-  "path": "C:\\Users\\user\\Videos\\BestOfGifts_Master\\repos\\mockup-studio\\flow-poc\\agent\\flow-bridge.bat",
+  "path": "C:\\Users\\user\\Videos\\BestOfGifts_Master\\repos\\mockup-studio\\flow-poc\\agent\\flow-bridge-native.bat",
   "type": "stdio",
 "allowed_origins": [
     "chrome-extension://mkpfhanfafdcloghagbdokekjjplfbcg/"
