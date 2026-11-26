@@ -4,6 +4,7 @@ import { useHost } from '../hooks/use-host';
 
 const STATUS_SUBFOLDER = 'flow-status';
 const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_SIMULATOR_URL = 'http://127.0.0.1:47821';
 
 interface FlowJob {
   type: 'generation' | 'upscaling';
@@ -31,6 +32,22 @@ interface FlowStatus {
 interface FlowResult {
   filePath: string;
   name: string;
+}
+
+interface SimulatorJob {
+  id: string;
+  state: 'queued' | 'generating' | 'complete' | 'error' | 'cancelled';
+  prompt: string;
+  model: string;
+  aspectRatio: string;
+  quantity: number;
+  tool: string;
+  referenceImages: string[];
+  createdAt: number;
+  updatedAt: number;
+  results: string[];
+  error: string | null;
+  estimatedCredits: number;
 }
 
 function generateJobId() {
@@ -66,6 +83,11 @@ export function FlowSection() {
   const pollRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const manualFileRef = useRef<string | null>(null);
+
+  // Simulation mode state
+  const [simulationMode, setSimulationMode] = useState(false);
+  const [simulatorUrl, setSimulatorUrl] = useState(DEFAULT_SIMULATOR_URL);
+  const [simulatorConnected, setSimulatorConnected] = useState(false);
 
   const models = MODELS;
 
@@ -136,7 +158,48 @@ export function FlowSection() {
     return () => stopAll();
   }, [stopAll]);
 
+  // Simulator health check
+  const checkSimulatorHealth = useCallback(async () => {
+    try {
+      const res = await fetch(`${simulatorUrl}/api/health`);
+      if (res.ok) {
+        const data = await res.json();
+        setSimulatorConnected(data.ok === true);
+        return data.ok === true;
+      }
+    } catch {}
+    setSimulatorConnected(false);
+    return false;
+  }, [simulatorUrl]);
+
+  // Submit job to simulator
+  const submitToSimulator = async (job: FlowJob) => {
+    try {
+      const res = await fetch(`${simulatorUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: job.prompt || '',
+          model: job.model || 'nano-banana-2.1',
+          aspectRatio: job.aspectRatio || '1:1',
+          quantity: job.quantity || 1,
+          tool: job.type,
+          referenceImages: [], // reference images handled by bridge via export
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.errors?.join(', ') || `Simulator error: ${res.status}`);
+      }
+      const data = await res.json();
+      return data.job;
+    } catch (e) {
+      throw new Error(`Simulator submission failed: ${e}`);
+    }
+  };
+
   const copyPromptToClipboard = async (text: string) => {
+    if (simulationMode) return; // no need to copy in simulation mode
     try {
       await navigator.clipboard.writeText(text);
     } catch {}
@@ -146,11 +209,12 @@ export function FlowSection() {
     if (tool === 'generation') {
       return prompt.trim() || '';
     }
-    // Upscaling: describe what to do with the source image
     return prompt.trim() || 'Upscale this image, preserving all details, logos, text, colours and proportions.';
   };
 
   const openFlow = async () => {
+    if (simulationMode) return; // simulation mode doesn't open Chrome
+
     const promptText = buildPrompt();
     await copyPromptToClipboard(promptText);
 
@@ -218,7 +282,7 @@ export function FlowSection() {
       setStatus({ state: 'error', jobId: 'local', error: 'Host not loaded. Wait for "Ready to vectorize" first.' });
       return;
     }
-    if (tool === 'generation' && !prompt.trim()) {
+    if (tool === 'generation' && !prompt.trim() && !simulationMode) {
       setStatus({ state: 'error', jobId: 'local', error: 'Please enter a prompt first.' });
       return;
     }
@@ -227,13 +291,14 @@ export function FlowSection() {
     const startTime = Date.now();
     setJobId(newJobId);
     setJobStartTime(startTime);
-    setStatus({ state: 'waiting', jobId: newJobId, message: 'Preparing export…' });
+    setStatus({ state: 'waiting', jobId: newJobId, message: simulationMode ? 'Submitting to simulator…' : 'Preparing export…' });
     setResults([]);
     manualFileRef.current = null;
     stopAll();
 
     try {
       await exportReferences();
+
       const job: FlowJob = {
         type: tool,
         state: 'waiting',
@@ -245,9 +310,42 @@ export function FlowSection() {
         jobStartTime: startTime,
         downloadFolder: 'C:\\Users\\user\\Downloads\\MockupStudioFlow',
       };
+
       await writeJobFile(job);
-      setStatus({ state: 'waiting', jobId: newJobId, message: 'Flow opened. Use the Agent, paste your prompt, generate, and download.' });
-      openFlow();
+
+      if (simulationMode) {
+        // Submit to simulator instead of opening Chrome
+        // Small delay to ensure bridge starts watching before simulator generates
+        await new Promise(r => setTimeout(r, 500));
+        const simJob = await submitToSimulator(job);
+        setStatus({ state: 'waiting', jobId: newJobId, message: `Simulator job ${simJob.id} submitted. Waiting for results…` });
+        // Poll simulator jobs periodically
+        const simPoll = setInterval(async () => {
+          try {
+            const res = await fetch(`${simulatorUrl}/api/jobs/${simJob.id}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.ok && data.job) {
+                const sj = data.job as SimulatorJob;
+                if (sj.state === 'complete' || sj.state === 'error') {
+                  clearInterval(simPoll);
+                  if (sj.state === 'complete' && sj.results.length > 0) {
+                    setStatus({ state: 'complete', jobId: newJobId, results: sj.results, message: `Simulation complete: ${sj.results.length} result(s)` });
+                    // Results will also be detected by bridge; give it a moment
+                  } else if (sj.state === 'error') {
+                    setStatus({ state: 'error', jobId: newJobId, error: sj.error || 'Simulator job failed' });
+                  }
+                }
+              }
+            }
+          } catch {}
+        }, 1000);
+        setTimeout(() => clearInterval(simPoll), JOB_TIMEOUT_MS);
+      } else {
+        setStatus({ state: 'waiting', jobId: newJobId, message: 'Flow opened. Use the Agent, paste your prompt, generate, and download.' });
+        openFlow();
+      }
+
       startPoll();
       startTimeout();
     } catch (e) {
@@ -309,11 +407,60 @@ export function FlowSection() {
     <details className="panel" id="flowBox">
       <summary className="panelTitleRow">
         <span className="panelTitle">{actions.t('flowTitle') || 'Google Flow AI'}</span>
-        <span className="badge badge-flow" style={{ marginLeft: 8, fontSize: '10px', background: '#e8f0fe', color: '#1a73e8' }}>BETA</span>
+        <span className="badge badge-flow" style={{ marginLeft: 8, fontSize: '10px', background: simulationMode ? '#fff3e0' : '#e8f0fe', color: simulationMode ? '#e65100' : '#1a73e8' }}>
+          {simulationMode ? 'SIM' : 'BETA'}
+        </span>
       </summary>
       <div className="hint">{actions.t('flowHint') || 'Generate or upscale images using Google Flow with your Workspace account. All generation is manual in Flow; results auto-detected on download.'}</div>
 
       <div className="settingsGrid" style={{ paddingTop: 8 }}>
+        {/* Simulation mode controls */}
+        <div className="field full">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={simulationMode}
+              onChange={e => setSimulationMode(e.target.checked)}
+              disabled={isRunning}
+            />
+            <strong>Simulation Mode</strong> (testing only — no live Google automation)
+          </label>
+          <div className="hint" style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            When enabled, jobs go to the local Flow simulator instead of opening Chrome.
+            Live Google automation remains disabled until authorization is established.
+          </div>
+        </div>
+
+        {simulationMode && (
+          <>
+            <div className="field">
+              <label>{actions.t('flowSimulatorUrl') || 'Simulator URL'}</label>
+              <input
+                type="text"
+                value={simulatorUrl}
+                onChange={e => setSimulatorUrl(e.target.value)}
+                disabled={isRunning || simulatorConnected}
+                style={{ width: '100%', fontSize: 11, padding: '4px' }}
+              />
+            </div>
+            <div className="field full">
+              <button
+                className={`btn ${simulatorConnected ? 'secondary' : 'primary'}`}
+                onClick={checkSimulatorHealth}
+                disabled={isRunning || simulatorConnected}
+                style={{ width: '100%', fontSize: 11, padding: '6px' }}
+              >
+                {simulatorConnected ? 'Simulator Connected' : 'Connect to Simulator'}
+              </button>
+              {simulatorConnected && (
+                <div className="hint" style={{ fontSize: 11, color: '#4caf50', marginTop: 4 }}>
+                  Simulator ready at {simulatorUrl}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         <div className="field">
           <label>{actions.t('flowTool') || 'Tool'}</label>
           <select value={tool} onChange={e => setTool(e.target.value === 'upscaling' ? 'upscaling' : 'generation')} disabled={isRunning}>
@@ -362,7 +509,7 @@ export function FlowSection() {
               <textarea
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder={actions.t('flowPromptPlaceholder') || 'Describe the image you want to generate...'}
+                placeholder={simulationMode ? actions.t('flowPromptPlaceholderSim') || 'Describe the image (simulator will generate a placeholder)...' : actions.t('flowPromptPlaceholder') || 'Describe the image you want to generate...'}
                 disabled={isRunning}
                 style={{ minHeight: 80 }}
               />
@@ -381,7 +528,7 @@ export function FlowSection() {
         )}
 
         <div className="field full">
-          <button className="btn primary" onClick={startJob} disabled={isRunning || (tool === 'generation' && !prompt.trim())} style={{ width: '100%' }}>
+          <button className="btn primary" onClick={startJob} disabled={isRunning || (tool === 'generation' && !prompt.trim() && !simulationMode)} style={{ width: '100%' }}>
             {isRunning ? (actions.t('flowJobRunning') || 'Job Running...') : startLabel}
           </button>
         </div>

@@ -1,0 +1,12 @@
+{
+  "name": "flow-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simulated Google Flow environment for Phase C automation validation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "license": "MIT"
+}

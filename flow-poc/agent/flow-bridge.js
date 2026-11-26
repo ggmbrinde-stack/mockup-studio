@@ -5,6 +5,7 @@ const chokidar = require('chokidar');
 const BRIDGE_FOLDER = path.join(process.env.USERPROFILE || process.env.HOME, 'Documents', 'VectorizerBridge');
 const STATUS_FOLDER = path.join(BRIDGE_FOLDER, 'flow-status');
 const DOWNLOAD_FOLDER = path.join(process.env.USERPROFILE || process.env.HOME, 'Downloads', 'MockupStudioFlow');
+const SETTLE_DELAY_MS = 3000; // wait for downloads to settle before marking complete
 
 function ensureFolders() {
   [BRIDGE_FOLDER, STATUS_FOLDER, DOWNLOAD_FOLDER].forEach(f => {
@@ -25,12 +26,18 @@ function getMime(filePath) {
   return mimeMap[ext] || 'application/octet-stream';
 }
 
-let activeJob = null; // { jobId, jobStartTime, downloadFolder, results: [] }
+let activeJob = null; // { jobId, jobStartTime, downloadFolder, results: [], settleTimer: null }
 let downloadWatcher = null;
 let processedDownloads = new Set(); // track already-processed download paths
 
 function startDownloadWatcher(jobId, jobStartTime, downloadFolder) {
-  activeJob = { jobId, jobStartTime, downloadFolder: downloadFolder || DOWNLOAD_FOLDER, results: [] };
+  activeJob = {
+    jobId,
+    jobStartTime,
+    downloadFolder: downloadFolder || DOWNLOAD_FOLDER,
+    results: [],
+    settleTimer: null,
+  };
   writeStatus(jobId, { state: 'waiting', jobId, message: 'Watching for downloads...', jobStartTime });
 
   if (!fs.existsSync(downloadFolder)) {
@@ -43,7 +50,6 @@ function startDownloadWatcher(jobId, jobStartTime, downloadFolder) {
     handleDownloadFile(filePath);
   });
   downloadWatcher.on('change', filePath => {
-    // A file that was already being tracked may now be complete
     handleDownloadFile(filePath);
   });
   downloadWatcher.on('error', err => {
@@ -54,6 +60,10 @@ function startDownloadWatcher(jobId, jobStartTime, downloadFolder) {
 }
 
 function stopDownloadWatcher() {
+  if (activeJob && activeJob.settleTimer) {
+    clearTimeout(activeJob.settleTimer);
+    activeJob.settleTimer = null;
+  }
   if (downloadWatcher) {
     downloadWatcher.close();
     downloadWatcher = null;
@@ -64,12 +74,37 @@ function stopDownloadWatcher() {
 function isDownloadComplete(filePath) {
   try {
     const stat = fs.statSync(filePath);
-    // A file that is still being written may have a changing size.
-    // Check if size is stable by reading it twice with a small delay.
     return stat.isFile() && stat.size > 0;
   } catch {
     return false;
   }
+}
+
+function resetSettleTimer() {
+  if (!activeJob) return;
+  if (activeJob.settleTimer) {
+    clearTimeout(activeJob.settleTimer);
+  }
+  activeJob.settleTimer = setTimeout(() => {
+    if (!activeJob) return;
+    if (activeJob.results.length === 0) {
+      writeStatus(activeJob.jobId, {
+        state: 'error',
+        error: 'No downloads detected within settle period',
+        jobId: activeJob.jobId,
+      });
+    } else {
+      writeStatus(activeJob.jobId, {
+        state: 'complete',
+        jobId: activeJob.jobId,
+        results: [...activeJob.results],
+        filePath: activeJob.results[activeJob.results.length - 1],
+        mime: getMime(activeJob.results[activeJob.results.length - 1]),
+        message: `Downloaded ${activeJob.results.length} file(s)`,
+      });
+    }
+    stopDownloadWatcher();
+  }, SETTLE_DELAY_MS);
 }
 
 function handleDownloadFile(filePath) {
@@ -77,12 +112,10 @@ function handleDownloadFile(filePath) {
   if (processedDownloads.has(filePath)) return;
 
   // Only process files that started downloading after the job started
-  // chokidar doesn't give us start time directly, so we check file mtime
   try {
     const stat = fs.statSync(filePath);
     const mtime = stat.mtime.getTime();
     if (mtime < activeJob.jobStartTime - 5000) {
-      // File existed before the job started (5 second buffer) — ignore
       return;
     }
   } catch {
@@ -110,15 +143,15 @@ function handleDownloadFile(filePath) {
   activeJob.results.push(filePath);
 
   writeStatus(activeJob.jobId, {
-    state: 'complete',
+    state: 'waiting',
     jobId: activeJob.jobId,
-    results: activeJob.results,
+    results: [...activeJob.results],
     filePath: filePath,
     mime: getMime(filePath),
-    message: `Downloaded ${activeJob.results.length} file(s)`,
+    message: `Downloading ${activeJob.results.length} file(s)…`,
   });
 
-  stopDownloadWatcher();
+  resetSettleTimer();
 }
 
 function processJobFile(filePath) {
