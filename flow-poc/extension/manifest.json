@@ -7,26 +7,9 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["*://flow.google.com/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "permissions": [
     "nativeMessaging",
     "downloads",
-    "downloads.open",
-    "debugger",
-    "scripting",
-    "tabs",
-    "storage"
-  ],
-  "host_permissions": [
-    "*://flow.google.com/*"
-  ],
-  "externally_connectable": {
-    "matches": ["*://flow.google.com/*"]
-  }
+    "downloads.open"
+  ]
 }
