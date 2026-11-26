@@ -156,7 +156,7 @@ function Panel() {
       <LogPanel />
       <UpdatesPanel />
       <footer className="appFooter">
-        <div className="version" id="versionText">{actions.t("appTitle") + (state._appVersion ? " v" + state._appVersion : "")}</div>
+        <div className="version" id="versionText">{actions.t("appTitle") + (state._appVersion ? " v" + state._appVersion : "") + (typeof __VB_BUILD_ID__ !== "undefined" ? " build " + __VB_BUILD_ID__ : "")}</div>
         <div className="attribution" id="attribution">Made by Gonçalo Mendonça : )</div>
       </footer>
       <div className="miniCaption" id="miniCaption">Compact Window Mode</div>

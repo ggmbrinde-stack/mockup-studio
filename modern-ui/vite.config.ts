@@ -17,6 +17,9 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    __VB_BUILD_ID__: JSON.stringify(new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 13)),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
