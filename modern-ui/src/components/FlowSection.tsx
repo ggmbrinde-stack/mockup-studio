@@ -5,6 +5,8 @@ import { useHost } from '../hooks/use-host';
 const STATUS_SUBFOLDER = 'flow-status';
 const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SIMULATOR_URL = 'http://127.0.0.1:47821';
+const DEFAULT_FLOW_PROJECT_URL = 'https://flow.google.com/project/a4627e24-447a-4dc0-b4fc-3eedceef27e6';
+const DEFAULT_FLOW_HOME_URL = 'https://labs.google/fx/tools/flow';
 
 interface FlowJob {
   type: 'generation' | 'restoration' | 'upscaling';
@@ -73,6 +75,13 @@ export function FlowSection() {
   const [simulationMode, setSimulationMode] = useState(false);
   const [simulatorUrl, setSimulatorUrl] = useState(DEFAULT_SIMULATOR_URL);
   const [simulatorConnected, setSimulatorConnected] = useState(false);
+  const [flowProjectUrl, setFlowProjectUrl] = useState(() => {
+    try { return localStorage.getItem('vb.flowProjectUrl') || DEFAULT_FLOW_PROJECT_URL; } catch { return DEFAULT_FLOW_PROJECT_URL; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('vb.flowProjectUrl', flowProjectUrl); } catch {}
+  }, [flowProjectUrl]);
 
   const models = MODELS;
 
@@ -205,22 +214,22 @@ export function FlowSection() {
     const promptText = buildPrompt();
     await copyPromptToClipboard(promptText);
 
-    const bridgeFolder = actions.live.bridgeFolder || '';
-    const batPath = `${bridgeFolder.replace(/\\/g, '/')}/open_flow.bat`;
-    const escBatPath = batPath.replace(/\\/g, '\\\\');
-    const flowUrl = 'https://labs.google/fx/tools/flow';
-    const escUrl = flowUrl.replace(/"/g, '\\"').replace(/\\/g, '\\\\');
+    const url = flowProjectUrl && flowProjectUrl.trim() ? flowProjectUrl.trim() : DEFAULT_FLOW_HOME_URL;
+    const escUrl = url.replace(/"/g, '\\"').replace(/\\/g, '\\\\');
 
+    const bridgeFolder = actions.live.bridgeFolder || '';
+    const vbsPath = `${bridgeFolder.replace(/\\/g, '/')}/open_flow.vbs`;
+
+    // Hidden VBScript launcher: no CMD window, reuses existing Chrome window when possible.
     const script = `
       try {
-        var bat = new File("${escBatPath}");
-        bat.encoding = "UTF-8";
-        if (bat.open("w")) {
-          bat.writeln('start "" "C:/Program Files/Google/Chrome/Application/chrome.exe" --new-window "${escUrl}"');
-          bat.writeln('start "" "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe" --new-window "${escUrl}"');
-          bat.writeln('start "" "%LOCALAPPDATA%/Google/Chrome/Application/chrome.exe" --new-window "${escUrl}"');
-          bat.close();
-          bat.execute();
+        var vbs = new File("${vbsPath.replace(/\\/g, '/')}");
+        vbs.encoding = "UTF-8";
+        if (vbs.open("w")) {
+          vbs.writeln('Set wshShell = CreateObject("WScript.Shell")');
+          vbs.writeln('wshShell.Run "chrome.exe --url ${escUrl}", 0, False');
+          vbs.close();
+          vbs.execute();
         }
       } catch(e) {
         VB.openUrl("${escUrl}");
@@ -424,6 +433,20 @@ export function FlowSection() {
             </div>
           </>
         )}
+
+        <div className="field">
+          <label>{actions.t('flowProjectUrl') || 'Flow Project URL'}</label>
+          <input
+            type="text"
+            value={flowProjectUrl}
+            onChange={e => setFlowProjectUrl(e.target.value)}
+            disabled={isRunning}
+            style={{ width: '100%', fontSize: 11, padding: '4px' }}
+          />
+          <div className="hint" style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            {actions.t('flowProjectUrlHint') || 'Persistent per employee. Defaults to your Flow project. Falls back to the Flow homepage if empty or unreachable.'}
+          </div>
+        </div>
 
         <div className="field">
           <label>{actions.t('flowTool') || 'Tool'}</label>

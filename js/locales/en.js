@@ -315,7 +315,9 @@ wnTourImagePromptTitle: "Templates and prompt",
     flowManualPath: "Or enter file path:",
     flowUseFile: "Use Selected File",
     flowPlaceInIllustrator: "Place in Illustrator",
-    flowAgentHint: "Tip: In Flow, enable the Agent, paste the copied prompt, and generate. Download results to the folder above."
+    flowAgentHint: "Tip: In Flow, enable the Agent, paste the copied prompt, and generate. Download results to the folder above.",
+    flowProjectUrl: "Flow Project URL",
+    flowProjectUrlHint: "Persistent per employee. Defaults to your Flow project. Falls back to the Flow homepage if empty or unreachable."
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.en);

@@ -314,7 +314,9 @@ wnTourImagePromptTitle: "Modelos e prompt",
     flowManualPath: "Ou insira o caminho do ficheiro:",
     flowUseFile: "Usar Ficheiro Selecionado",
     flowPlaceInIllustrator: "Colocar no Illustrator",
-    flowAgentHint: "Dica: no Flow, ative o Agente, cole o prompt copiado e gere. Descarregue os resultados para a pasta acima."
+    flowAgentHint: "Dica: no Flow, ative o Agente, cole o prompt copiado e gere. Descarregue os resultados para a pasta acima.",
+    flowProjectUrl: "URL do Projeto Flow",
+    flowProjectUrlHint: "Persistente por colaborador. Por defeito o seu projeto Flow. Recorre à página inicial do Flow se estiver vazio ou inacessível."
   };
   for (var key in extra) { if (extra.hasOwnProperty(key)) dictionary[key] = extra[key]; }
 })(window.LOCALES.pt);
