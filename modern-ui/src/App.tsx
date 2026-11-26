@@ -14,6 +14,7 @@ import { LogPanel } from "@/components/LogPanel";
 import { UpdatesPanel } from "@/components/UpdatesPanel";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { AiImageSection } from "@/components/AiImageSection";
+import { FlowSection } from "@/components/FlowSection";
 import { WhatsNewCard } from "@/components/WhatsNewCard";
 import { SetupWizard } from "@/components/SetupWizard";
 
@@ -150,6 +151,7 @@ function Panel() {
       <div id="lastExport" className="hint"></div>
       <SettingsAccordion />
       <AiImageSection />
+      <FlowSection />
       <HistoryPanel />
       <LogPanel />
       <UpdatesPanel />

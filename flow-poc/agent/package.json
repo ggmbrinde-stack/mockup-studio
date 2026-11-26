@@ -1,0 +1,8 @@
+{
+  "name": "flow-poc-agent",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "chokidar": "^3.6.0"
+  }
+}
