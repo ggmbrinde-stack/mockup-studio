@@ -23,7 +23,15 @@ const AVAILABLE_MODELS = [
   'nano-banana-2-lite',
 ];
 
+// Models that support image input (for upscaling/restoration with reference images)
+const MODEL_CAPABILITIES = {
+  'nano-banana-2.1': { imageInput: false },
+  'nano-banana-pro': { imageInput: true },
+  'nano-banana-2-lite': { imageInput: false },
+};
+
 const DEFAULT_MODEL = 'nano-banana-2.1';
+const DEFAULT_IMAGE_MODEL = 'nano-banana-pro';
 const DEFAULT_ASPECT_RATIO = '1:1';
 const DEFAULT_QUANTITY = 1;
 
@@ -110,6 +118,20 @@ function validateJob(body) {
     errors.push(`Model "${model}" not available. Options: ${AVAILABLE_MODELS.join(', ')}`);
   }
 
+  const tool = body.tool || 'generation';
+  const referenceImages = body.referenceImages || [];
+  const hasReferenceImages = referenceImages.length > 0;
+
+  // Upscaling/restoration require image input. Auto-switch to an image-capable model
+  // when reference images are provided but the selected model doesn't support them.
+  let resolvedModel = model;
+  if (hasReferenceImages && (tool === 'upscaling' || tool === 'restoration')) {
+    const caps = MODEL_CAPABILITIES[model];
+    if (!caps || !caps.imageInput) {
+      resolvedModel = DEFAULT_IMAGE_MODEL;
+    }
+  }
+
   const aspectRatio = body.aspectRatio || DEFAULT_ASPECT_RATIO;
   const validRatios = ['1:1', '16:9', '9:16', '4:3', '3:4'];
   if (!validRatios.includes(aspectRatio)) {
@@ -122,7 +144,7 @@ function validateJob(body) {
   }
 
   // Pre-spend credit check (Flow Pilot pattern)
-  const estimatedCredits = quantity * 1; // 1 credit per image (Nano Banana is 0 on Pro, but we simulate)
+  const estimatedCredits = quantity * 1;
   if (monthlyCreditsUsed + estimatedCredits > CREDIT_LIMITS.monthly) {
     errors.push(`Monthly credit limit would be exceeded (used ${monthlyCreditsUsed}/${CREDIT_LIMITS.monthly})`);
   }
@@ -130,7 +152,7 @@ function validateJob(body) {
     errors.push(`Per-job credit limit exceeded (${estimatedCredits} > ${CREDIT_LIMITS.perJob})`);
   }
 
-  return { errors, model, aspectRatio, quantity, estimatedCredits };
+  return { errors, model: resolvedModel, aspectRatio, quantity, estimatedCredits, tool, hasReferenceImages };
 }
 
 function createJob(body) {

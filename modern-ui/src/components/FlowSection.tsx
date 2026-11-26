@@ -22,7 +22,7 @@ interface FlowJob {
 }
 
 interface FlowStatus {
-  state: 'waiting' | 'complete' | 'error' | 'timeout' | 'placed';
+  state: 'waiting' | 'processing' | 'complete' | 'error' | 'timeout' | 'placed';
   jobId: string;
   results?: string[];
   filePath?: string;
@@ -315,7 +315,7 @@ export function FlowSection() {
       if (simulationMode) {
         await new Promise(r => setTimeout(r, 500));
         const simJob = await submitToSimulator({ ...job, referenceImages });
-        setStatus({ state: 'waiting', jobId: newJobId, message: `Simulator job ${simJob.id} submitted. Waiting for results…` });
+        setStatus({ state: 'processing', jobId: newJobId, message: `Simulator job ${simJob.id} submitted. Processing…` });
       } else {
         setStatus({ state: 'waiting', jobId: newJobId, message: 'Flow opened. Use the Agent, paste your prompt, generate, and download.' });
         openFlow();
