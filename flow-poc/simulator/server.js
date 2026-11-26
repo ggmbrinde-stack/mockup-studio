@@ -225,49 +225,6 @@ async function runJob(job) {
     job.updatedAt = Date.now();
     monthlyCreditsUsed += job.estimatedCredits;
     persistJob(job);
-
-    // Write status file for the bridge to detect (same format as FlowSection expects)
-    const statusFile = path.join(
-      process.env.USERPROFILE || process.env.HOME,
-      'Documents',
-      'VectorizerBridge',
-      'flow-status',
-      `flow-${job.id.replace('sim-', '')}.json`
-    );
-    // Ensure the job ID format matches what FlowSection expects (flow-<timestamp>-<random>)
-    // The simulator uses sim- prefix, so we need to map it
-    const flowJobId = 'flow-' + Date.now() + '-' + crypto.randomBytes(4).toString('hex');
-    const flowStatusFile = path.join(
-      process.env.USERPROFILE || process.env.HOME,
-      'Documents',
-      'VectorizerBridge',
-      'flow-status',
-      `flow-${flowJobId}.json`
-    );
-
-    // Write a job file that the bridge will pick up (state: waiting)
-    const flowJob = {
-      type: job.tool,
-      state: 'waiting',
-      jobId: flowJobId,
-      prompt: job.prompt,
-      model: job.model,
-      aspectRatio: job.aspectRatio,
-      quantity: job.quantity,
-      jobStartTime: job.createdAt,
-      downloadFolder: DOWNLOAD_FOLDER,
-    };
-    fs.writeFileSync(flowStatusFile + '.tmp', JSON.stringify(flowJob), 'utf8');
-    fs.renameSync(flowStatusFile + '.tmp', flowStatusFile);
-
-    // Now write the result files with names that include the flow job ID
-    // so the bridge can match them by timestamp
-    for (let i = 0; i < results.length; i++) {
-      const resultName = `flow-${flowJobId}-${i + 1}.png`;
-      const resultPath = path.join(DOWNLOAD_FOLDER, resultName);
-      fs.copyFileSync(results[i], resultPath);
-    }
-
   } catch (e) {
     job.state = 'error';
     job.error = String(e);

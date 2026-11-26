@@ -7,7 +7,7 @@ const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SIMULATOR_URL = 'http://127.0.0.1:47821';
 
 interface FlowJob {
-  type: 'generation' | 'upscaling';
+  type: 'generation' | 'restoration' | 'upscaling';
   state: 'waiting';
   jobId: string;
   prompt?: string;
@@ -16,6 +16,7 @@ interface FlowJob {
   quantity?: number;
   jobStartTime: number;
   downloadFolder: string;
+  referenceImages?: string[];
 }
 
 interface FlowStatus {
@@ -32,22 +33,6 @@ interface FlowStatus {
 interface FlowResult {
   filePath: string;
   name: string;
-}
-
-interface SimulatorJob {
-  id: string;
-  state: 'queued' | 'generating' | 'complete' | 'error' | 'cancelled';
-  prompt: string;
-  model: string;
-  aspectRatio: string;
-  quantity: number;
-  tool: string;
-  referenceImages: string[];
-  createdAt: number;
-  updatedAt: number;
-  results: string[];
-  error: string | null;
-  estimatedCredits: number;
 }
 
 function generateJobId() {
@@ -71,7 +56,7 @@ const MODELS = [
 export function FlowSection() {
   const { actions } = useCore();
   const { evalJsx } = useHost(actions.t);
-  const [tool, setTool] = useState<'generation' | 'upscaling'>('generation');
+  const [tool, setTool] = useState<'generation' | 'restoration' | 'upscaling'>('generation');
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('nano-banana-2.1');
   const [aspectRatio, setAspectRatio] = useState('1:1');
@@ -105,6 +90,8 @@ export function FlowSection() {
             filePath: fp,
             name: fp.split('\\').pop() || `result-${i + 1}`,
           })));
+          // Auto-import each result onto a new layer — no Place button required
+          data.results.forEach(fp => placeResult(fp));
           stopPoll();
           stopTimeout();
         } else if (data.state === 'error') {
@@ -173,7 +160,7 @@ export function FlowSection() {
   }, [simulatorUrl]);
 
   // Submit job to simulator
-  const submitToSimulator = async (job: FlowJob) => {
+  const submitToSimulator = async (job: FlowJob, referenceImages: string[] = []) => {
     try {
       const res = await fetch(`${simulatorUrl}/api/jobs`, {
         method: 'POST',
@@ -184,7 +171,7 @@ export function FlowSection() {
           aspectRatio: job.aspectRatio || '1:1',
           quantity: job.quantity || 1,
           tool: job.type,
-          referenceImages: [], // reference images handled by bridge via export
+          referenceImages,
         }),
       });
       if (!res.ok) {
@@ -263,7 +250,9 @@ export function FlowSection() {
   };
 
   const exportReferences = async () => {
-    const script = `VB.prepareBatch(1700)`;
+    if (tool === 'generation') return { ok: true };
+    const pngLongSide = tool === 'upscaling' || tool === 'restoration' ? 0 : 1700;
+    const script = `VB.prepareBatch(${pngLongSide})`;
     return new Promise<any>((resolve, reject) => {
       evalJsx(script, result => {
         try {
@@ -297,7 +286,8 @@ export function FlowSection() {
     stopAll();
 
     try {
-      await exportReferences();
+      const exportResult = await exportReferences();
+      const referenceImages = exportResult?.pngPaths || [];
 
       const job: FlowJob = {
         type: tool,
@@ -314,33 +304,9 @@ export function FlowSection() {
       await writeJobFile(job);
 
       if (simulationMode) {
-        // Submit to simulator instead of opening Chrome
-        // Small delay to ensure bridge starts watching before simulator generates
         await new Promise(r => setTimeout(r, 500));
-        const simJob = await submitToSimulator(job);
+        const simJob = await submitToSimulator({ ...job, referenceImages });
         setStatus({ state: 'waiting', jobId: newJobId, message: `Simulator job ${simJob.id} submitted. Waiting for results…` });
-        // Poll simulator jobs periodically
-        const simPoll = setInterval(async () => {
-          try {
-            const res = await fetch(`${simulatorUrl}/api/jobs/${simJob.id}`);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.ok && data.job) {
-                const sj = data.job as SimulatorJob;
-                if (sj.state === 'complete' || sj.state === 'error') {
-                  clearInterval(simPoll);
-                  if (sj.state === 'complete' && sj.results.length > 0) {
-                    setStatus({ state: 'complete', jobId: newJobId, results: sj.results, message: `Simulation complete: ${sj.results.length} result(s)` });
-                    // Results will also be detected by bridge; give it a moment
-                  } else if (sj.state === 'error') {
-                    setStatus({ state: 'error', jobId: newJobId, error: sj.error || 'Simulator job failed' });
-                  }
-                }
-              }
-            }
-          } catch {}
-        }, 1000);
-        setTimeout(() => clearInterval(simPoll), JOB_TIMEOUT_MS);
       } else {
         setStatus({ state: 'waiting', jobId: newJobId, message: 'Flow opened. Use the Agent, paste your prompt, generate, and download.' });
         openFlow();
@@ -362,10 +328,6 @@ export function FlowSection() {
       console.log('Import result:', result);
       setStatus({ state: 'placed', jobId: jobId || 'manual', message: `Image placed on "${layerName}" layer` });
     });
-  };
-
-  const placeAllResults = () => {
-    results.forEach(r => placeResult(r.filePath));
   };
 
   const chooseManualResult = () => {
@@ -401,7 +363,9 @@ export function FlowSection() {
   const quantityDisabled = tool === 'upscaling';
   const startLabel = tool === 'upscaling'
     ? (actions.t('flowStartUpscaling') || 'Start Upscaling')
-    : (actions.t('flowStartGeneration') || 'Start Generation');
+    : tool === 'restoration'
+      ? (actions.t('flowStartRestoration') || 'Start Restoration')
+      : (actions.t('flowStartGeneration') || 'Start Generation');
 
   return (
     <details className="panel" id="flowBox">
@@ -463,8 +427,9 @@ export function FlowSection() {
 
         <div className="field">
           <label>{actions.t('flowTool') || 'Tool'}</label>
-          <select value={tool} onChange={e => setTool(e.target.value === 'upscaling' ? 'upscaling' : 'generation')} disabled={isRunning}>
+          <select value={tool} onChange={e => setTool(e.target.value === 'upscaling' ? 'upscaling' : e.target.value === 'restoration' ? 'restoration' : 'generation')} disabled={isRunning}>
             <option value="generation">{actions.t('flowGeneration') || 'Image Generation'}</option>
+            <option value="restoration">{actions.t('flowRestoration') || 'Image Restoration'}</option>
             <option value="upscaling">{actions.t('flowUpscaling') || 'Image Upscaling'}</option>
           </select>
         </div>
@@ -518,11 +483,11 @@ export function FlowSection() {
           </>
         )}
 
-        {tool === 'upscaling' && (
+        {(tool === 'upscaling' || tool === 'restoration') && (
           <div className="field full">
             <div className="hint" style={{ padding: '8px', background: '#e8f5e9', borderRadius: '4px', border: '1px solid #c8e6c9' }}>
-              <strong>{actions.t('flowUpscaleHint') || 'Upscaling workflow:'}</strong> Select an image in Illustrator, click Start.
-              Flow opens — upload the exported image, choose upscale settings, generate, and download.
+              <strong>{actions.t('flowUpscaleHint') || 'Upscaling/Restoration workflow:'}</strong> Select an image in Illustrator, click Start.
+              The selection is exported at original resolution, processed, and the result is automatically placed on a new layer.
             </div>
           </div>
         )}
@@ -567,14 +532,12 @@ export function FlowSection() {
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: '#f5f5f5', borderRadius: 4, border: '1px solid #eee' }}>
                     <img src={`file:///${r.filePath.replace(/\\/g, '/')}`} alt={`Result ${i + 1}`} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4 }} />
                     <div style={{ flex: 1, fontSize: 11, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                    <button className="btn secondary" onClick={() => placeResult(r.filePath)} style={{ padding: '4px 12px', fontSize: 11, whiteSpace: 'nowrap' }}>
-                      {actions.t('flowPlaceResult') || 'Place'}
-                    </button>
+                    <span style={{ fontSize: 10, color: '#4caf50', fontWeight: 600 }}>{actions.t('flowPlaced') || 'Placed'}</span>
                   </div>
                 ))}
-                <button className="btn primary" onClick={placeAllResults} style={{ width: '100%', marginTop: 6, fontSize: 11, padding: '6px' }}>
-                  {actions.t('flowPlaceAll') || 'Place All Results'}
-                </button>
+              </div>
+              <div className="hint" style={{ fontSize: 11, color: '#4caf50', marginTop: 4 }}>
+                {actions.t('flowAutoPlaced') || 'Results automatically placed on new Illustrator layers.'}
               </div>
             </div>
 
