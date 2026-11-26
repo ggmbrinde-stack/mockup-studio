@@ -367,3 +367,15 @@ if (isNativeHost()) {
 
 process.on('SIGINT', () => process.exit(0));
 process.on('SIGTERM', () => process.exit(0));
+process.on('uncaughtException', err => {
+  console.error('[Flow Bridge] Uncaught exception:', err.message);
+  console.error('[Flow Bridge] Stack:', err.stack);
+  process.exit(1);
+});
+process.on('unhandledRejection', reason => {
+  console.error('[Flow Bridge] Unhandled rejection:', reason);
+  process.exit(1);
+});
+process.on('exit', code => {
+  console.error('[Flow Bridge] Process exiting with code:', code);
+});
