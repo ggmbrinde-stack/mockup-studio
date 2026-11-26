@@ -341,9 +341,10 @@ function onStdinData(chunk) {
 }
 
 function startNativeMessaging() {
-  if (process.stdin.setRawMode) {
-    try { process.stdin.setRawMode(true); } catch { }
-  }
+  // In native messaging mode, stdout is the protocol channel.
+  // Redirect all console.log to stderr so only length-prefixed JSON goes to stdout.
+  const origLog = console.log;
+  console.log = (...args) => console.error(...args);
   process.stdin.resume();
   process.stdin.on('data', onStdinData);
   console.log('[Flow Bridge] Native messaging stdio ready');
