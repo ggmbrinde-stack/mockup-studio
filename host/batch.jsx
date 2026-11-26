@@ -27,6 +27,7 @@ VB.prepareBatch = function (pngLongSide) {
     var refs = [];
     var meta = [];
     var seen = {};
+    var maxEffDpi = 0;
     for (var i = 0; i < sel.length; i++) {
       var it = sel[i];
       try {
@@ -71,6 +72,9 @@ VB.prepareBatch = function (pngLongSide) {
         refs.push(it);
         meta.push({ marker: marker, noteHad: originalNote });
         items.push({ index: refs.length - 1, typename: it.typename, width: box.width, height: box.height, id: marker });
+        if (it.typename === "PlacedItem") {
+          try { var _eff = Number(it.effectiveResolution); if (isFinite(_eff) && _eff > 0 && _eff > maxEffDpi) maxEffDpi = _eff; } catch (_effE) {}
+        }
       } catch (e) { VB.log("prepareBatch skip item " + i + ": " + e); }
     }
     if (refs.length === 0) {
@@ -109,6 +113,15 @@ VB.prepareBatch = function (pngLongSide) {
       }
       var size = pngLongSide;
       if (size !== 0) { if (size < 100) size = 1700; if (size > 5000) size = 5000; }
+      // When pngLongSide===0 (preserve resolution), compute export size from the
+      // selected placed item's effective DPI so original raster pixel dimensions
+      // are preserved instead of defaulting to 72 DPI (1 px per pt).
+      if (size === 0 && maxEffDpi > 0 && union) {
+        var longPts = Math.max(union.width, union.height);
+        size = Math.round(longPts * maxEffDpi / 72);
+        if (size < 100) size = 100;
+        if (size > 5000) size = 5000;
+      }
       VB.ensureBridgeFolder();
       var bf = new Folder(VB.getBridgeFolderPath());
       if (!bf.exists) bf.create();
