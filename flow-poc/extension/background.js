@@ -1,74 +1,93 @@
-const NATIVE_HOST = 'com.bestofgifts.mockupstudio.flow';
+const fs = require('fs');
+const path = require('path');
 
-let port = null;
+const BRIDGE_FOLDER = path.join(require('os').homedir(), 'Documents', 'VectorizerBridge');
+const JOBS_FOLDER = path.join(BRIDGE_FOLDER, 'flow-jobs');
+const STATUS_FOLDER = path.join(BRIDGE_FOLDER, 'flow-status');
 
-function connectNativeHost() {
+let currentJobId = null;
+let jobStartTime = null;
+
+function ensureFolders() {
+  [BRIDGE_FOLDER, JOBS_FOLDER, STATUS_FOLDER].forEach(f => {
+    if (!fs.existsSync(f)) fs.mkdirSync(f, { recursive: true });
+  });
+}
+
+function writeJobFile(jobId, jobStartTime, downloadFolder) {
+  ensureFolders();
+  const file = path.join(JOBS_FOLDER, `flow-${jobId}.json`);
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify({
+    type: 'waiting',
+    state: 'waiting',
+    jobId,
+    jobStartTime: jobStartTime || Date.now(),
+    downloadFolder: downloadFolder || path.join(require('os').homedir(), 'Downloads', 'MockupStudioFlow'),
+  }), 'utf8');
+  fs.renameSync(tmp, file);
+  console.log('[Flow Bridge] Job file written:', file);
+}
+
+function readStatusFile(jobId) {
+  const file = path.join(STATUS_FOLDER, `flow-${jobId}.json`);
   try {
-    port = chrome.runtime.connectNative(NATIVE_HOST);
-    port.onMessage.addListener(handleNativeMessage);
-    port.onDisconnect.addListener(() => {
-      console.log('[Flow Bridge] Native host disconnected');
-      port = null;
-    });
-    console.log('[Flow Bridge] Connected to native host');
-    sendToNative({ type: 'extensionReady', extensionId: chrome.runtime.id });
-  } catch (e) {
-    console.error('[Flow Bridge] Failed to connect native host:', e);
+    const content = fs.readFileSync(file, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return null;
   }
 }
 
-function handleNativeMessage(msg) {
-  switch (msg.type) {
-    case 'jobStarted':
-      console.log('[Flow Bridge] Job started (native):', msg.jobId);
-      break;
-    case 'jobStopped':
-      console.log('[Flow Bridge] Job stopped (native):', msg.jobId);
-      break;
-    case 'pong':
-      console.log('[Flow Bridge] Pong from native host');
-      break;
-    case 'jobList':
-      console.log('[Flow Bridge] Job list (native):', msg.jobs);
-      break;
-    default:
-      console.log('[Flow Bridge] Unknown native message:', msg.type);
-  }
+function deleteJobFile(jobId) {
+  try { fs.unlinkSync(path.join(JOBS_FOLDER, `flow-${jobId}.json`)); } catch {}
 }
 
-function sendToNative(msg) {
-  if (port) {
-    try {
-      port.postMessage(msg);
-    } catch (e) {
-      console.error('[Flow Bridge] Failed to send to native:', e);
+function sendToPanel(msg) {
+  // Relay to panel via runtime message (if panel is listening)
+  try {
+    chrome.runtime.sendMessage(msg);
+  } catch {}
+}
+
+function pollStatus(jobId) {
+  const status = readStatusFile(jobId);
+  if (status) {
+    console.log('[Flow Bridge] Status poll:', status.state, status.message || '');
+    if (status.state === 'complete' || status.state === 'error') {
+      deleteJobFile(jobId);
+      chrome.runtime.sendMessage({ type: 'flowStatus', jobId, ...status });
     }
-  } else {
-    console.error('[Flow Bridge] No native port available');
+    return status;
   }
+  return null;
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case 'startJob':
-      sendToNative({
-        type: 'startJob',
-        jobId: msg.jobId,
-        jobStartTime: msg.jobStartTime || Date.now(),
-        downloadFolder: msg.downloadFolder,
-      });
+      currentJobId = msg.jobId;
+      jobStartTime = msg.jobStartTime || Date.now();
+      writeJobFile(msg.jobId, msg.jobStartTime, msg.downloadFolder);
       sendResponse({ ok: true, jobId: msg.jobId });
       break;
     case 'stopJob':
-      sendToNative({ type: 'stopJob', jobId: msg.jobId || 'all' });
+      if (currentJobId) {
+        deleteJobFile(currentJobId);
+        currentJobId = null;
+        jobStartTime = null;
+      }
       sendResponse({ ok: true });
       break;
     case 'ping':
-      sendToNative({ type: 'ping' });
       sendResponse({ ok: true });
       break;
     case 'getExtensionId':
       sendResponse({ extensionId: chrome.runtime.id });
+      break;
+    case 'pollStatus':
+      const status = pollStatus(msg.jobId);
+      sendResponse({ ok: true, status });
       break;
     default:
       sendResponse({ ok: false, error: 'unknown message: ' + msg.type });
@@ -84,8 +103,12 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-chrome.runtime.onStartup.addListener(connectNativeHost);
-chrome.runtime.onInstalled.addListener(connectNativeHost);
-connectNativeHost();
+chrome.runtime.onStartup.addListener(() => {
+  ensureFolders();
+});
+chrome.runtime.onInstalled.addListener(() => {
+  ensureFolders();
+});
+ensureFolders();
 
-console.log('[Flow Bridge] Background service worker loaded');
+console.log('[Flow Bridge] Background service worker loaded (file-based mode)');
