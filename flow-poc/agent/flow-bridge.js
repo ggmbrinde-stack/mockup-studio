@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const chokidar = require('chokidar');
-const { spawn } = require('child_process');
 
 const BRIDGE_FOLDER = path.join(process.env.USERPROFILE || process.env.HOME, 'Documents', 'VectorizerBridge');
 const JOBS_FOLDER = path.join(BRIDGE_FOLDER, 'flow-jobs');
@@ -9,6 +8,7 @@ const STATUS_FOLDER = path.join(BRIDGE_FOLDER, 'flow-status');
 const DOWNLOAD_FOLDER = path.join(process.env.USERPROFILE || process.env.HOME, 'Downloads', 'MockupStudioFlow');
 const SETTLE_DELAY_MS = 3000; // wait for downloads to settle before marking complete
 const INITIAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes: if no downloads arrive, fail the job
+const JOB_CLEANUP_MS = 5 * 60 * 1000; // clean up completed job state after 5 minutes
 
 function ensureFolders() {
   [BRIDGE_FOLDER, JOBS_FOLDER, STATUS_FOLDER, DOWNLOAD_FOLDER].forEach(f => {
@@ -29,73 +29,90 @@ function getMime(filePath) {
   return mimeMap[ext] || 'application/octet-stream';
 }
 
-let activeJob = null; // { jobId, jobStartTime, downloadFolder, results: [], settleTimer: null, initialTimer: null }
-let downloadWatcher = null;
-let processedDownloads = new Set(); // track already-processed download paths
-let nativePort = null; // native messaging stdio port
+// jobs: Map<jobId, { jobId, jobStartTime, downloadFolder, results: [], watcher, settleTimer, initialTimer, processedDownloads: Set, cleanupTimer }>
+const jobs = new Map();
 
 function startDownloadWatcher(jobId, jobStartTime, downloadFolder) {
-  // Close any previous watcher to prevent the infinite loop
-  stopDownloadWatcher();
+  // Close any existing watcher for this job
+  stopDownloadWatcher(jobId);
 
-  activeJob = {
+  // Stop all other active job watchers — only one job can watch the download
+  // folder at a time to prevent cross-job file contamination
+  jobs.forEach((j, id) => {
+    if (id !== jobId) {
+      stopDownloadWatcher(id);
+      jobs.delete(id);
+    }
+  });
+
+  const job = {
     jobId,
     jobStartTime,
     downloadFolder: downloadFolder || DOWNLOAD_FOLDER,
     results: [],
+    watcher: null,
     settleTimer: null,
     initialTimer: null,
+    processedDownloads: new Set(),
+    cleanupTimer: null,
   };
+  jobs.set(jobId, job);
+
   writeStatus(jobId, { state: 'waiting', jobId, message: 'Watching for downloads...', jobStartTime });
 
   if (!fs.existsSync(downloadFolder)) {
     writeStatus(jobId, { state: 'error', error: 'Download folder not found', jobId });
-    activeJob = null;
+    jobs.delete(jobId);
     return;
   }
 
   // Initial timeout: if no downloads arrive within INITIAL_TIMEOUT_MS, fail the job
-  activeJob.initialTimer = setTimeout(() => {
-    if (!activeJob || activeJob.jobId !== jobId) return;
-    if (activeJob.results.length === 0) {
+  job.initialTimer = setTimeout(() => {
+    const j = jobs.get(jobId);
+    if (!j || j.results.length === 0) {
       writeStatus(jobId, { state: 'error', error: 'No downloads detected within timeout period', jobId });
     }
-    stopDownloadWatcher();
+    stopDownloadWatcher(jobId);
   }, INITIAL_TIMEOUT_MS);
 
-  downloadWatcher = chokidar.watch(downloadFolder, { ignoreInitial: true, persistent: true });
-  downloadWatcher.on('add', filePath => {
-    handleDownloadFile(filePath);
+  job.watcher = chokidar.watch(downloadFolder, { ignoreInitial: true, persistent: true });
+  job.watcher.on('add', filePath => {
+    handleDownloadFile(jobId, filePath);
   });
-  downloadWatcher.on('change', filePath => {
-    handleDownloadFile(filePath);
+  job.watcher.on('change', filePath => {
+    handleDownloadFile(jobId, filePath);
   });
-  downloadWatcher.on('error', err => {
-    if (activeJob && activeJob.jobId === jobId) {
-      // EBUSY on Windows during file write is transient — log and continue watching
-      console.error('[Flow Bridge] Watcher error:', err.message);
-      if (!err.message.includes('EBUSY') && !err.message.includes('resource busy')) {
-        writeStatus(activeJob.jobId, { state: 'error', error: String(err), jobId });
-        stopDownloadWatcher();
-      }
+  job.watcher.on('error', err => {
+    const j = jobs.get(jobId);
+    if (!j) return;
+    // EBUSY on Windows during file write is transient — log and continue watching
+    if (!err.message.includes('EBUSY') && !err.message.includes('resource busy')) {
+      writeStatus(jobId, { state: 'error', error: String(err), jobId });
+      stopDownloadWatcher(jobId);
     }
   });
 }
 
-function stopDownloadWatcher() {
-  if (activeJob && activeJob.initialTimer) {
-    clearTimeout(activeJob.initialTimer);
-    activeJob.initialTimer = null;
+function stopDownloadWatcher(jobId) {
+  const job = jobs.get(jobId);
+  if (!job) return;
+
+  if (job.initialTimer) {
+    clearTimeout(job.initialTimer);
+    job.initialTimer = null;
   }
-  if (activeJob && activeJob.settleTimer) {
-    clearTimeout(activeJob.settleTimer);
-    activeJob.settleTimer = null;
+  if (job.settleTimer) {
+    clearTimeout(job.settleTimer);
+    job.settleTimer = null;
   }
-  if (downloadWatcher) {
-    downloadWatcher.close();
-    downloadWatcher = null;
+  if (job.cleanupTimer) {
+    clearTimeout(job.cleanupTimer);
+    job.cleanupTimer = null;
   }
-  activeJob = null;
+  if (job.watcher) {
+    job.watcher.close();
+    job.watcher = null;
+  }
 }
 
 function isDownloadComplete(filePath) {
@@ -107,43 +124,50 @@ function isDownloadComplete(filePath) {
   }
 }
 
-function resetSettleTimer() {
-  if (!activeJob) return;
-  if (activeJob.settleTimer) {
-    clearTimeout(activeJob.settleTimer);
+function resetSettleTimer(jobId) {
+  const job = jobs.get(jobId);
+  if (!job) return;
+  if (job.settleTimer) {
+    clearTimeout(job.settleTimer);
   }
-  activeJob.settleTimer = setTimeout(() => {
-    if (!activeJob) return;
-    if (activeJob.results.length === 0) {
-      writeStatus(activeJob.jobId, {
+  job.settleTimer = setTimeout(() => {
+    const j = jobs.get(jobId);
+    if (!j) return;
+    if (j.results.length === 0) {
+      writeStatus(jobId, {
         state: 'error',
         error: 'No downloads detected within settle period',
-        jobId: activeJob.jobId,
+        jobId,
       });
     } else {
-      writeStatus(activeJob.jobId, {
+      writeStatus(jobId, {
         state: 'complete',
-        jobId: activeJob.jobId,
-        results: [...activeJob.results],
-        filePath: activeJob.results[activeJob.results.length - 1],
-        mime: getMime(activeJob.results[activeJob.results.length - 1]),
-        message: `Downloaded ${activeJob.results.length} file(s)`,
+        jobId,
+        results: [...j.results],
+        filePath: j.results[j.results.length - 1],
+        mime: getMime(j.results[j.results.length - 1]),
+        message: `Downloaded ${j.results.length} file(s)`,
       });
     }
-    stopDownloadWatcher();
+    // Schedule cleanup after completion
+    j.cleanupTimer = setTimeout(() => {
+      stopDownloadWatcher(jobId);
+      jobs.delete(jobId);
+    }, JOB_CLEANUP_MS);
   }, SETTLE_DELAY_MS);
 }
 
-function handleDownloadFile(filePath) {
-  if (!activeJob) return;
-  if (processedDownloads.has(filePath)) return;
+function handleDownloadFile(jobId, filePath) {
+  const job = jobs.get(jobId);
+  if (!job) return;
+  if (job.processedDownloads.has(filePath)) return;
 
-  // Only process files that started downloading after the job started
+  // Only process files created after the job started
   try {
     const stat = fs.statSync(filePath);
     // Use birthtime (file creation time) because copyFileSync preserves source mtime/ctime
     const creationTime = stat.birthtime ? stat.birthtime.getTime() : stat.ctime.getTime();
-    if (creationTime < activeJob.jobStartTime - 5000) {
+    if (creationTime < job.jobStartTime - 5000) {
       return;
     }
   } catch {
@@ -165,21 +189,21 @@ function handleDownloadFile(filePath) {
   // Verify the file is complete (not being written)
   if (!isDownloadComplete(filePath)) return;
 
-  processedDownloads.add(filePath);
+  job.processedDownloads.add(filePath);
 
-  if (!activeJob.results) activeJob.results = [];
-  activeJob.results.push(filePath);
+  if (!job.results) job.results = [];
+  job.results.push(filePath);
 
-  writeStatus(activeJob.jobId, {
+  writeStatus(jobId, {
     state: 'waiting',
-    jobId: activeJob.jobId,
-    results: [...activeJob.results],
+    jobId,
+    results: [...job.results],
     filePath: filePath,
     mime: getMime(filePath),
-    message: `Downloading ${activeJob.results.length} file(s)…`,
+    message: `Downloading ${job.results.length} file(s)…`,
   });
 
-  resetSettleTimer();
+  resetSettleTimer(jobId);
 }
 
 function processJobFile(filePath) {
@@ -216,15 +240,18 @@ function checkExistingJobs() {
 
 // ---------- Native Messaging (stdio) support for Chrome extension ----------
 
+// Native messaging protocol: 4-byte little-endian length prefix + JSON body.
+// Uses an accumulator buffer to handle partial reads correctly.
+let stdinBuffer = Buffer.alloc(0);
+
 function sendNativeMessage(msg) {
-  if (!nativePort) return;
   const data = JSON.stringify(msg);
   const buf = Buffer.from(data, 'utf8');
   const lenBuf = Buffer.alloc(4);
   lenBuf.writeUInt32LE(buf.length, 0);
   try {
-    nativePort.write(lenBuf);
-    nativePort.write(buf);
+    process.stdout.write(lenBuf);
+    process.stdout.write(buf);
   } catch (e) {
     console.error('[Flow Bridge] Failed to send native message:', e);
   }
@@ -239,67 +266,69 @@ function handleNativeMessage(msg) {
       }
       break;
     case 'stopJob':
-      stopDownloadWatcher();
-      sendNativeMessage({ type: 'jobStopped' });
+      stopDownloadWatcher(msg.jobId || 'all');
+      if (msg.jobId) {
+        const job = jobs.get(msg.jobId);
+        if (job) {
+          jobs.delete(msg.jobId);
+        }
+      } else {
+        jobs.forEach((_, id) => stopDownloadWatcher(id));
+        jobs.clear();
+      }
+      sendNativeMessage({ type: 'jobStopped', jobId: msg.jobId || 'all' });
       break;
     case 'downloadDetected':
-      if (msg.filePath && activeJob && activeJob.jobId === msg.jobId) {
-        handleDownloadFile(msg.filePath);
+      if (msg.filePath && msg.jobId) {
+        const job = jobs.get(msg.jobId);
+        if (job) {
+          handleDownloadFile(msg.jobId, msg.filePath);
+        } else {
+          console.error(`[Flow Bridge] downloadDetected: no active job for jobId=${msg.jobId}`);
+        }
       }
       break;
     case 'ping':
       sendNativeMessage({ type: 'pong' });
       break;
+    case 'listJobs':
+      const jobList = Array.from(jobs.values()).map(j => ({
+        jobId: j.jobId,
+        state: j.results.length > 0 ? 'complete' : 'waiting',
+        resultCount: j.results.length,
+      }));
+      sendNativeMessage({ type: 'jobList', jobs: jobList });
+      break;
   }
 }
 
-function readNativeMessageLength(callback) {
-  const lenBuf = Buffer.alloc(4);
-  let bytesRead = 0;
-  function onData(chunk) {
-    chunk.copy(lenBuf, bytesRead);
-    bytesRead += chunk.length;
-    if (bytesRead >= 4) {
-      process.stdin.removeListener('data', onData);
-      const len = lenBuf.readUInt32LE(0);
-      if (len > 0 && len < 10 * 1024 * 1024) {
-        readNativeMessageBody(len, callback);
-      } else {
-        console.error('[Flow Bridge] Invalid native message length:', len);
-        process.exit(1);
-      }
+function onStdinData(chunk) {
+  stdinBuffer = Buffer.concat([stdinBuffer, chunk]);
+  // Parse as many complete messages as possible from the buffer
+  while (stdinBuffer.length >= 4) {
+    const len = stdinBuffer.readUInt32LE(0);
+    if (len <= 0 || len > 10 * 1024 * 1024) {
+      console.error('[Flow Bridge] Invalid native message length:', len);
+      process.exit(1);
+    }
+    if (stdinBuffer.length < 4 + len) break; // incomplete message, wait for more
+    const body = stdinBuffer.subarray(4, 4 + len);
+    stdinBuffer = stdinBuffer.subarray(4 + len);
+    try {
+      const msg = JSON.parse(body.toString('utf8'));
+      handleNativeMessage(msg);
+    } catch (e) {
+      console.error('[Flow Bridge] Failed to parse native message:', e);
     }
   }
-  process.stdin.on('data', onData);
-}
-
-function readNativeMessageBody(len, callback) {
-  const bodyBuf = Buffer.alloc(len);
-  let bytesRead = 0;
-  function onData(chunk) {
-    chunk.copy(bodyBuf, bytesRead);
-    bytesRead += chunk.length;
-    if (bytesRead >= len) {
-      process.stdin.removeListener('data', onData);
-      try {
-        const msg = JSON.parse(bodyBuf.toString('utf8'));
-        callback(msg);
-      } catch (e) {
-        console.error('[Flow Bridge] Failed to parse native message:', e);
-      }
-      readNativeMessageLength(callback); // read next message
-    }
-  }
-  process.stdin.on('data', onData);
 }
 
 function startNativeMessaging() {
-  // Set stdin to binary mode on Windows
   if (process.stdin.setRawMode) {
     try { process.stdin.setRawMode(true); } catch { }
   }
   process.stdin.resume();
-  readNativeMessageLength(handleNativeMessage);
+  process.stdin.on('data', onStdinData);
   console.log('[Flow Bridge] Native messaging stdio ready');
 }
 
