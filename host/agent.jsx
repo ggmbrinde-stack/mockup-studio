@@ -1,7 +1,10 @@
 /* Vectorizer Bridge - launches the Node agent that drives vectorizer.ai.
-   All shell work goes through a hidden VBScript because Illustrator's
-   ExtendScript has no `system` object. v2: per-job status paths + unique
-   launchers for bounded parallel batch (same profile; never concurrent Chrome). */
+   Illustrator's ExtendScript has no `system` object, so work is started from launcher
+   files instead of a process API. The launcher is PowerShell: Windows 11 ships without
+   VBScript and managed PCs block .vbs outright, which made every agent start vanish with
+   no trace and left the panel waiting for a status that never came.
+   v2: per-job status paths + unique launchers for bounded parallel batch
+   (same profile; never concurrent Chrome). */
 
 var VB = $.global.VB;
 
@@ -55,6 +58,15 @@ VB.getNodeExe = function () {
   for (var i = 0; i < candidates.length; i++) {
     try { var f = new File(candidates[i]); if (f.exists) return f.fsName; } catch (e3) { }
   }
+  // Anywhere else on PATH (nvm-windows, Chocolatey, a custom folder).
+  try {
+    var parts = String($.getenv("PATH") || "").split(";");
+    for (var j = 0; j < parts.length; j++) {
+      var dir = parts[j].replace(/"/g, "").replace(/\\/g, "/").replace(/\/+$/, "");
+      if (!dir) continue;
+      try { var g = new File(dir + "/node.exe"); if (g.exists) return g.fsName; } catch (e4) { }
+    }
+  } catch (ePath) { }
   return "node";
 };
 
@@ -62,6 +74,45 @@ VB.ensureFolder = function (path) {
   try { var f = new Folder(path); if (!f.exists) f.create(); return true; } catch (e) { return false; }
 };
 VB.quote = function (value) { return '"' + String(value).replace(/"/g, "") + '"'; };
+VB.NODE_MISSING = "Node.js was not found on this PC, so the vectorizer cannot start. Install Node.js LTS from nodejs.org, then run Install-Mockup-Studio.cmd again.";
+
+/* PowerShell body that starts a written .cmd hidden. ExtendScript cannot start a process
+   itself, so the .ps1 is started by a one-line .cmd trampoline (see _psLaunch). */
+VB._startHiddenCmd = function (cmdPath) {
+  return "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','" + String(cmdPath).replace(/\//g, "\\") + "' -WindowStyle Hidden";
+};
+
+/* Launch a PowerShell script hidden. VBScript used to do this; Windows 11 no longer
+   ships it by default and some managed PCs block .vbs, so a start could disappear
+   silently. The .ps1 holds the work; a .cmd trampoline starts PowerShell with
+   -WindowStyle Hidden and returns at once, so nothing stays on screen.
+   Returns "ok" or "error: ...". */
+VB._psLaunch = function (p, key, psBody) {
+  try {
+    if (!p || !p.work) return "error: no work folder for launcher";
+    VB._launchSeq = (VB._launchSeq || 0) + 1;
+    var seq = String(VB._launchSeq);
+    var psPath = p.work + "/agent-" + key + "-" + seq + ".ps1";
+    var ps = new File(psPath); ps.encoding = "UTF-8";
+    if (!ps.open("w")) return "error: cannot write " + psPath;
+    ps.write("$ErrorActionPreference = 'Continue'\r\n" + String(psBody) + "\r\n");
+    ps.close();
+    var psCheck = new File(psPath);
+    if (!psCheck.exists || psCheck.length < 10) return "error: launcher not written: " + psPath;
+    var cmdPath = p.work + "/agent-" + key + "-" + seq + ".cmd";
+    var cmd = new File(cmdPath); cmd.encoding = "ASCII";
+    if (!cmd.open("w")) return "error: cannot write " + cmdPath;
+    cmd.writeln("@echo off");
+    cmd.writeln('start "" /b powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + String(psPath).replace(/\//g, "\\") + '"');
+    cmd.writeln("exit /b 0");
+    cmd.close();
+    var cmdCheck = new File(cmdPath);
+    if (!cmdCheck.exists || cmdCheck.length < 12) return "error: launcher not written: " + cmdPath;
+    cmdCheck.execute();
+    VB.log("psLaunch " + key + " (" + psPath + ")");
+    return "ok";
+  } catch (e) { return "error: " + e; }
+};
 
 VB._agentStatusDefault = function () {
   try { var p = VB.agentPaths(); return p.status; } catch (e) { return ""; }
@@ -91,6 +142,12 @@ VB.agentStart = function (mode, pngPath, extra) {
     VB.ensureFolder(p.profile); VB.ensureFolder(p.out); VB.ensureFolder(p.debug); VB.ensureFolder(p.work);
 
     var node = VB.getNodeExe();
+    // Refuse loudly instead of writing a launcher that fails inside cmd.exe and leaves
+    // the panel waiting for a status file that will never appear.
+    if (!(new File(node)).exists) {
+      VB.log("agentStart blocked: node.exe not found");
+      return "error: " + VB.NODE_MISSING;
+    }
     var script = p.run;
     if (mode === "login") script = p.login;
     else if (mode === "autologin") script = p.autologin;
@@ -140,8 +197,9 @@ VB.agentStart = function (mode, pngPath, extra) {
             if (ds && parseInt(ds.pid, 10) > 0) dPids.push(parseInt(ds.pid, 10));
             if (ds && parseInt(ds.browserPid, 10) > 0 && parseInt(ds.browserPid, 10) !== parseInt(ds.pid, 10)) dPids.push(parseInt(ds.browserPid, 10));
             if (dPids.length) {
-              var dv = new File(p.work + "/agent-daemon-stop.vbs"); dv.encoding = "ASCII";
-              if (dv.open("w")) { dv.writeln('Dim sh'); dv.writeln('Set sh = CreateObject("WScript.Shell")'); for (var di2 = 0; di2 < dPids.length; di2++) dv.writeln('sh.Run "taskkill /PID ' + dPids[di2] + ' /T /F", 0, False'); dv.close(); dv.execute(); }
+              var killLines = [];
+              for (var di2 = 0; di2 < dPids.length; di2++) killLines.push("& taskkill.exe /PID " + dPids[di2] + " /T /F 2>&1 | Out-Null");
+              VB._psLaunch(p, "daemon-stop", killLines.join("\r\n"));
             }
           } catch (eDs) {}
         }
@@ -167,13 +225,12 @@ VB.agentStart = function (mode, pngPath, extra) {
     }
 
     var launchKey = (mode === "run" && customStatus) ? VB._statusKey(statusPath) : "run";
-    // Every attempt gets its own launcher files. Rewriting the same .vbs while Windows
+    // Every attempt gets its own launcher files. Rewriting the same file while Windows
     // is still opening the previous copy is one of the ways a launch disappears with
     // no trace at all, which is what a batch item stuck at "starting" means.
     VB._launchSeq = (VB._launchSeq || 0) + 1;
     var attempt = String(VB._launchSeq);
     var cmdPath = p.work + "/agent-" + launchKey + "-" + attempt + ".cmd";
-    var vbsPath = p.work + "/agent-" + launchKey + "-" + attempt + ".vbs";
     var cmd = new File(cmdPath); cmd.encoding = "ASCII";
     if (!cmd.open("w")) return "error: cannot write " + cmdPath;
     cmd.writeln("@echo off"); cmd.writeln("cd /d " + VB.quote(p.agent));
@@ -181,14 +238,8 @@ VB.agentStart = function (mode, pngPath, extra) {
     cmd.close();
     var cmdCheck = new File(cmdPath);
     if (!cmdCheck.exists || cmdCheck.length < 10) return "error: launcher not written: " + cmdPath;
-    var vbs = new File(vbsPath); vbs.encoding = "ASCII";
-    if (!vbs.open("w")) return "error: cannot write " + vbsPath;
-    // VBScript: double quotes inside a string literal are escaped by doubling them.
-    // Use: cmd /c "<path>"  (avoid extra wrapping quotes that can break parsing).
-    var runLine = 'cmd /c "' + String(cmdPath).replace(/\//g, "\\") + '"';
-    vbs.writeln('Dim sh'); vbs.writeln('Set sh = CreateObject("WScript.Shell")');
-    vbs.writeln('sh.Run "' + runLine.replace(/"/g, '""') + '", 0, False');
-    vbs.close(); vbs.execute();
+    var started = VB._psLaunch(p, launchKey, VB._startHiddenCmd(cmdPath));
+    if (started !== "ok") return started;
     if (mode === "run") { try { $.sleep(300); } catch (eSleep) {} }
 
     VB.log("agentStart " + mode + (customStatus ? (" job=" + launchKey) : "") + " (node=" + node + ")");
@@ -233,12 +284,9 @@ VB._agentStopPath = function (statusPath) {
     }
     var key = VB._statusKey(sp);
     if (pids.length > 0) {
-      var vbsPath = p.work + "/agent-stop-" + key + ".vbs"; var vbs = new File(vbsPath); vbs.encoding = "ASCII";
-      if (vbs.open("w")) {
-        vbs.writeln('Dim sh'); vbs.writeln('Set sh = CreateObject("WScript.Shell")');
-        for (var i = 0; i < pids.length; i++) vbs.writeln('sh.Run "taskkill /PID ' + pids[i] + ' /T /F", 0, False');
-        vbs.close(); vbs.execute();
-      }
+      var killLines = [];
+      for (var i = 0; i < pids.length; i++) killLines.push("& taskkill.exe /PID " + pids[i] + " /T /F 2>&1 | Out-Null");
+      VB._psLaunch(p, "stop-" + key, killLines.join("\r\n"));
       try { var sf = new File(sp); sf.encoding = "UTF-8"; if (sf.open("w")) { sf.write('{"time":' + (new Date().getTime()) + ',"state":"cancelled"}'); sf.close(); } } catch (eC) {}
       VB.log("agentStop: taskkill /PID " + pids.join(" /PID") + " key=" + key);
       return "ok";
@@ -246,14 +294,10 @@ VB._agentStopPath = function (statusPath) {
     if (status.state === "starting" || status.state === "launching") {
       var profileNeedle = String(p.profile).replace(/\\/g, "/").toLowerCase();
       var statusNeedle = String(sp).replace(/\\/g, "/").toLowerCase();
-      var psPath = p.work + "/agent-stop-" + key + ".ps1"; var ps = new File(psPath); ps.encoding = "UTF-8";
-      if (ps.open("w")) {
-        ps.writeln("$profileNeedle = '" + profileNeedle.replace(/'/g, "''") + "'");
-        ps.writeln("$statusNeedle = '" + statusNeedle.replace(/'/g, "''") + "'");
-        ps.writeln("Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $c = [string]$_.CommandLine; $cl = $c.ToLower(); ($cl -like '*agent*run.js*' -or $cl -like '*agent/run.js*') -and ($cl -like ('*' + $profileNeedle + '*') -or $cl -like ('*' + $statusNeedle + '*')) } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch {} }");
-        ps.close();
-        var v2 = new File(p.work + "/agent-stop-" + key + ".vbs"); v2.encoding = "ASCII";
-        if (v2.open("w")) { var psCmd = 'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""' + String(psPath).replace(/\//g, "\\") + '""'; v2.writeln('Dim sh'); v2.writeln('Set sh = CreateObject("WScript.Shell")'); v2.writeln('sh.Run "' + psCmd.replace(/"/g, '""') + '", 0, False'); v2.close(); v2.execute(); }
+      var psBody = "$profileNeedle = '" + profileNeedle.replace(/'/g, "''") + "'\r\n" +
+        "$statusNeedle = '" + statusNeedle.replace(/'/g, "''") + "'\r\n" +
+        "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $c = [string]$_.CommandLine; $cl = $c.ToLower(); ($cl -like '*agent*run.js*' -or $cl -like '*agent/run.js*') -and ($cl -like ('*' + $profileNeedle + '*') -or $cl -like ('*' + $statusNeedle + '*')) } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch {} }";
+      if (VB._psLaunch(p, "stop-" + key, psBody) === "ok") {
         VB.log("agentStop: targeted kill for early starting state key=" + key);
       }
       try { var sf2 = new File(sp); sf2.encoding = "UTF-8"; if (sf2.open("w")) { sf2.write('{"time":' + (new Date().getTime()) + ',"state":"cancelled"}'); sf2.close(); } } catch (eC2) {}
@@ -316,7 +360,6 @@ VB.startUpdate = function (action) {
     VB.ensureFolder(p.work);
     var node = VB.getNodeExe();
     var cmdPath = p.work + "/agent-update.cmd";
-    var vbsPath = p.work + "/agent-update.vbs";
     var updateArgs = [
       VB.quote(u.script),
       "--action " + a,
@@ -330,16 +373,10 @@ VB.startUpdate = function (action) {
     cmd.writeln("cd /d " + VB.quote(p.agent));
     cmd.writeln(VB.quote(node) + " " + updateArgs + " >> " + VB.quote(p.log) + " 2>&1");
     cmd.close();
-    var vbs = new File(vbsPath); vbs.encoding = "ASCII";
-    if (!vbs.open("w")) return "error: cannot write " + vbsPath;
-    var runLine = 'cmd /c "' + String(cmdPath).replace(/\//g, "\\") + '"';
-    vbs.writeln('Dim sh');
-    vbs.writeln('Set sh = CreateObject("WScript.Shell")');
-    vbs.writeln('sh.Run "' + runLine.replace(/"/g, '""') + '", 0, False');
-    vbs.close();
-    var vbsCheck = new File(vbsPath);
-    if (!vbsCheck.exists || vbsCheck.length < 10) return "error: launcher not written: " + vbsPath;
-    vbs.execute();
+    var cmdCheck = new File(cmdPath);
+    if (!cmdCheck.exists || cmdCheck.length < 10) return "error: launcher not written: " + cmdPath;
+    var launched = VB._psLaunch(p, "update", VB._startHiddenCmd(cmdPath));
+    if (launched !== "ok") return launched;
     VB.log("update " + a + " started");
     return "started";
   } catch (e) { VB.log("startUpdate error: " + e); return "error: " + e; }

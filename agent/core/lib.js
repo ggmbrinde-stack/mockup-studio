@@ -4,7 +4,27 @@
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
-const puppeteer = require('puppeteer-core');
+
+/* puppeteer-core is loaded on demand, not at require time. A top-level require meant a
+   missing agent dependency killed the process before it could write a status file, so
+   the panel waited for a state that never arrived and showed a sign-in timeout instead
+   of the real cause. Now the failure is an ordinary error the caller reports. */
+let puppeteer = null;
+function requirePuppeteer() {
+  if (puppeteer) return puppeteer;
+  try {
+    puppeteer = require('puppeteer-core');
+  } catch (e) {
+    const agentDir = path.resolve(__dirname, '..');
+    // Keep the panel line short: the raw MODULE_NOT_FOUND message carries a whole require stack.
+    const reason = e && e.code === 'MODULE_NOT_FOUND'
+      ? 'puppeteer-core is not installed'
+      : (e && e.message ? String(e.message).split('\n')[0] : e);
+    throw new Error('Agent dependencies are missing: ' + reason +
+      '. Run Install-Mockup-Studio.cmd again, or "npm install --omit=dev" in ' + agentDir + '.');
+  }
+  return puppeteer;
+}
 
 const SITE = 'https://vectorizer.ai/';
 
@@ -143,7 +163,7 @@ async function launch({ profile, headless }) {
   ]);
   if (headless) args.push('--window-position=-32000,-32000');
 
-  return puppeteer.launch({
+  return requirePuppeteer().launch({
     executablePath,
     headless: headless ? 'new' : false,
     userDataDir: profile,
@@ -174,6 +194,7 @@ function signInArgs({ profile, appWindow }) {
 module.exports = {
   SITE,
   UA,
+  requirePuppeteer,
   findBrowser,
   clearStaleBrowserLock,
   writeStatus,

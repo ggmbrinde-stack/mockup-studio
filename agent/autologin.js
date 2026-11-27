@@ -17,8 +17,9 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
-const puppeteer = require('puppeteer-core');
-const { writeStatus, fail, parseArgs, findBrowser, sanitizeProfile } = require('./lib');
+/* puppeteer-core is loaded on first use (see core/lib.js), so a missing dependency is
+   reported as a status error instead of a crash before any status is written. */
+const { writeStatus, fail, parseArgs, findBrowser, sanitizeProfile, requirePuppeteer } = require('./lib');
 
 const SITE = 'https://vectorizer.ai/';
 const PAGE_TIMEOUT_MS = 45000;
@@ -120,7 +121,7 @@ async function main() {
   try { fs.mkdirSync(profile, { recursive: true }); } catch (e) { }
   writeStatus(statusPath, { state: 'autoSignIn' });
 
-  const browser = await puppeteer.launch({
+  const browser = await requirePuppeteer().launch({
     executablePath,
     headless: 'new',
     userDataDir: profile,
