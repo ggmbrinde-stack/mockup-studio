@@ -1,8 +1,8 @@
-# Mockup Studio architecture (v3.0.2)
+# Mockup Studio architecture (v3.0.4)
 
 ## Status
 - **Panel UI is React (3.0.0+); host and agent layers are unchanged.** UI work does not alter `host/*.jsx` or `agent/*` contracts, batch/placement semantics or the runtime flow. Keep source and the installed CEP copy in sync on every change.
-- Current release **3.0.2** adds parallel PNG export (3-4× batch speedup) on top of 3.0.1's proactive update banner, two-step update confirmation, and opt-in What's New tour, all on the React panel shipped in 3.0.0.
+- Current release **3.0.4** replaces the download-based installer with `Install-Mockup-Studio.cmd`, one double-clickable file that carries the whole build plus a setup menu (install or update, clean install, remove, open my files), on top of 3.0.2's parallel PNG export (3-4× batch speedup), 3.0.1's update banner and 3.0.0's React panel.
 
 ## Runtime layers
 

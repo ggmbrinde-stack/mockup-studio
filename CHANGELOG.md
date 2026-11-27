@@ -1,5 +1,20 @@
 # Changelog — Mockup Studio
 
+## 3.0.4 — 2026-11-27
+
+### Added
+- **One-file offline installer (`Install-Mockup-Studio.cmd`).** The panel, `install.ps1`, `uninstall.ps1` and the setup menu are embedded in a single double-clickable `.cmd` as a base64 zip. It unpacks to `%TEMP%\MockupStudioSetup`, installs from there, and deletes the temp copy when it exits — no repository, no release download, no SHA-256 or Node.js bootstrap step.
+- **Arrow-key setup menu.** *Install or update*, *Clean install*, *Remove from this computer*, *Open my files* and *Quit*, with the installed version in the header, a confirmation before the destructive entries and a numbered fallback when the console is redirected (`VB_NO_UI=1`, logs).
+- **`tools/build-installer-cmd.ps1`.** Rebuilds the `.cmd` from the repository after any change under `dist/`, `host/`, `js/`, `agent/`, `CSXS/` or the installers, and fails with the missing file names instead of shipping an incomplete payload.
+
+### Changed
+- **`install.ps1` mirrors runtime files only.** It copies the panel runtime (including `dist/`) into the extension folder, prunes the docs, installers and stale assets that older installers left inside it, and verifies version, file count and required files before reporting success.
+- **`install-online.ps1` is retired** and archived to `docs/archive/install-online.ps1`; `README.md`, `INSTALL.md` and `AGENTS.md` now document the single file.
+- **Version bumped to 3.0.4** across `CSXS/manifest.xml`, `modern-ui/package.json`, `README.md`, `ARCHITECTURE.md`, `AGENTS.md` and `CHANGELOG.md`.
+
+### Fixed
+- **Clean install completes.** Uninstalling and then installing again — the menu's *Clean install* path — exits 0 and verifies with `all required present`: leftovers from the previous copy are pruned instead of being merged into the fresh install.
+
 ## 3.0.2 — 2026-11-25
 
 ### Added
