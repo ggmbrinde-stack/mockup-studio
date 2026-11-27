@@ -2,68 +2,51 @@
 
 ## Instalação no Windows
 
-### Uma linha (recomendado)
+### Um ficheiro (recomendado)
 
-No PowerShell **ou** no cmd.exe, cole:
+`Install-Mockup-Studio.cmd` — na raiz do repositório ou na pasta partilhada. Não precisa de git,
+de PowerShell manual nem de administrador.
 
-```
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((irm 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1') -join [Environment]::NewLine)"
-```
+1. Duplo clique em `Install-Mockup-Studio.cmd`. Abre-se um menu: **Install or update**,
+   **Clean install** (remove a cópia antiga e instala de novo), **Remove from this computer**,
+   **Open my files**, **Quit**. O cabeçalho mostra a versão já instalada, se existir. Tudo corre
+   offline a partir do ficheiro; remover e a limpeza usam o `uninstall.ps1` e mantêm
+   `Documents\VectorizerBridge`.
+2. Fechar e reabrir o Adobe Illustrator.
+3. Abrir **Window > Extensions > Mockup Studio**.
+4. Extensão do Chrome (opcional, para o Google Flow), só uma vez:
+   `chrome://extensions` > ativar "Modo de programador" > "Carregar sem compactação" >
+   `%LOCALAPPDATA%\MockupStudio\flow-bridge`.
+5. Iniciar sessão no vectorizer.ai uma vez (perfil em
+   `Documents\VectorizerBridge\vectorizer-profile`).
 
-O `-join [Environment]::NewLine` é necessário: jogar o `irm` direto no `iex` quebra o script em linhas e o
-comentário de cabeçalho falha no Windows PowerShell 5.1.
+O `.cmd` tem a versão atual embutida: não precisa do repositório nem de downloads. Descompacta
+para `%TEMP%`, copia os ficheiros de runtime, instala as dependências do agente quando faltam,
+ativa o `PlayerDebugMode` para CSXS 9-16, verifica o resultado e apaga a cópia temporária.
 
-O instalador baixa o release mais recente do GitHub, confere o **SHA-256**, valida o conteúdo do
-arquivo **antes** de mexer na instalação, garante o Node.js, faz backup da versão instalada, para
-o daemon, copia os arquivos, instala as dependências do agente quando faltam, ativa o
-`PlayerDebugMode` para CSXS 9-16 e verifica o resultado. Se algo falhar depois da cópia, ele
-**restaura o backup sozinho**.
-
-O que ele escreve (e nada além disso):
+O que escreve (e nada além disso):
 
 - `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge` — a extensão
-- `%LOCALAPPDATA%\VectorizerBridge\install-backups` — cópias para rollback (mantém 2)
-- `%LOCALAPPDATA%\Programs\nodejs` — Node.js LTS, **só** quando o computador não tem Node
-- `HKCU\Software\Adobe\CSXS.9-16` → `PlayerDebugMode = 1`
+- `%LOCALAPPDATA%\MockupStudio\flow-bridge` — ficheiros da extensão do Chrome
+- `HKCU\Software\Adobe\CSXS.9-16` -> `PlayerDebugMode = 1`
 
-Ele **nunca** escreve, move ou apaga nada em `%USERPROFILE%\Documents\VectorizerBridge`, nunca
-apaga a pasta da extensão, não pede administrador, não altera PATH e não toca em outras chaves do
-registro.
+Nunca escreve, move ou apaga nada em `%USERPROFILE%\Documents\VectorizerBridge`. Também recusa
+correr de dentro da pasta instalada, para não copiar a extensão sobre si própria.
 
-Se o computador não tem Node.js, ele baixa o build oficial LTS para Windows, confere o hash no
-`SHASUMS256.txt` do nodejs.org e descompacta em `%LOCALAPPDATA%\Programs\nodejs` — sem
-administrador e sem mexer no PATH. Um Node.js já instalado é usado e **nunca** alterado.
+Requisitos: Windows 10/11, Illustrator 2025 (29.x) ou mais recente, Node.js 22.12+ no PATH (o
+agente corre `npm install --omit=dev`) e Chrome ou Edge.
 
-Ele **aborta sem alterar nada** quando: o download do release falha; o SHA-256 não bate; o zip
-não tem `CSXS/manifest.xml`; o download do Node.js não pode ser verificado; ou o destino não é a
-pasta de extensões do CEP.
+### Reconstruir o instalador
 
-Pré-requisitos: Windows 10/11, Illustrator 2025/2026+ e Chrome ou Edge. O Node.js LTS é
-instalado automaticamente quando falta.
+Depois de alterar o painel (`dist/`, `host/`, `js/`, `agent/` ou `CSXS/`):
 
-### Manual, a partir do repositório
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build-installer-cmd.ps1
+```
 
-1. Clone o repositório:
-
-   ```powershell
-   git clone https://github.com/ggmbrinde-stack/mockup-studio.git
-   cd mockup-studio
-   ```
-
-2. Rode o instalador na raiz do repositório. Ele copia apenas os arquivos de runtime para
-   `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\`, instala as
-   dependências do agente (`npm install --omit=dev`), ativa o `PlayerDebugMode` para CSXS 9-16 e
-   verifica a versão instalada no final:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\install.ps1
-   ```
-
-   Com o Illustrator aberto o instalador **aborta** (ele guarda scripts em cache): feche o app ou
-   use `-Force` e reinicie o Illustrator depois. Rodar o script de dentro da pasta instalada
-   também é recusado, porque origem e destino seriam a mesma pasta.
-
-3. Reinicie o Adobe Illustrator e abra **Window > Extensions > Vectorizer Bridge**.
+O script empacota os ficheiros de runtime, o `install.ps1` e os ficheiros do Chrome em
+`tools\installer-header.txt` + payload e reescreve `Install-Mockup-Studio.cmd`. Falha antes de
+gerar o ficheiro se faltar algum ficheiro obrigatório.
 
 ### Desinstalar
 
@@ -72,7 +55,14 @@ powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
 Ela para o daemon antes de apagar; acrescente `-RemoveDebugMode` para também limpar o
-`PlayerDebugMode` de CSXS 9-16. Os dados do usuário em
-`%USERPROFILE%\Documents\VectorizerBridge` nunca são tocados. O Node.js privado em
-`%LOCALAPPDATA%\Programs\nodejs` também fica, porque pode estar a ser usado por outras
-ferramentas; apague essa pasta à mão se não precisar dele.
+`PlayerDebugMode` de CSXS 9-16. Os dados do utilizador em
+`%USERPROFILE%\Documents\VectorizerBridge` nunca são tocados.
+
+### Notas
+
+- Para desenvolvimento também pode correr `powershell -ExecutionPolicy Bypass -File .\install.ps1`
+  diretamente. É o mesmo instalador que o `.cmd` executa, com a mesma interface de passos; recusa
+  correr com o Illustrator aberto a menos que use `-Force`.
+- O antigo `install-online.ps1` (instalação a partir de um release do GitHub) foi retirado do
+  fluxo e está arquivado em `docs/archive/install-online.ps1`. Existe um único caminho suportado:
+  o `Install-Mockup-Studio.cmd`.

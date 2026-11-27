@@ -268,6 +268,9 @@ a design uses shadcn-style components (translate to native HTML/CSS/JS). Update 
 - Host: `host/{json,core,batch,export,place,agent,common,import}.jsx`
 - Agent: `agent/{run,login,update,lib,job,daemon,daemon-ctl}.js`,
   `agent/{core/lib.js,vectorizer/job.js,daemon/server.js,daemon/ctl.js}`, `agent/package.json`
-- Install: `install.ps1`, `install-online.ps1`, `uninstall.ps1`
+- Install: `Install-Mockup-Studio.cmd` (single file; embeds the runtime files, `install.ps1`,
+  `uninstall.ps1` and `tools/setup-menu.ps1` — the menu it shows after unpacking — rebuilt by
+  `tools/build-installer-cmd.ps1`), `install.ps1`, `uninstall.ps1`
+  (`install-online.ps1` is retired and archived under `docs/archive/`)
 - Docs: `AGENTS.md`, `DESIGN.md`, `SKILLS.md`, `HANDOFF.md`, `README.md`, `ARCHITECTURE.md`,
   `CHANGELOG.md`, `INSTALL.md`, `UPDATE.md`

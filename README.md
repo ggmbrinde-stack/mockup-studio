@@ -13,31 +13,25 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 
 ## Requirements
 - Windows 10/11, Illustrator 2025 (29.x) or 2026 (30.x)+
-- Node.js 22.12+ and Chrome or Edge (setup installs Node.js LTS for you if it is missing)
+- Node.js 22.12+ on PATH (the agent runs `npm install --omit=dev` on the first install)
+- Chrome or Edge (Chrome for the optional Google Flow bridge)
 - vectorizer.ai account with downloads enabled (sign in once in-panel)
-- `agent/node_modules` dependencies installed (`npm install` in `agent/` if missing; not shipped in source packages)
 
 ## Install
-One line, PowerShell or cmd.exe, no git and no admin:
+One file, no git, no admin, nothing to download: **`Install-Mockup-Studio.cmd`** (repo root).
 
-```
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((irm 'https://raw.githubusercontent.com/ggmbrinde-stack/mockup-studio/main/install-online.ps1') -join [Environment]::NewLine)"
-```
-
-(`-join` matters: piping `irm` straight into `iex` splits the script into lines and breaks its header comment on Windows PowerShell 5.1.)
-
-It downloads the latest GitHub release, verifies its SHA-256 digest, validates the archive before touching anything, makes sure Node.js is available, backs up the installed copy, stops the warm daemon, copies the files, installs missing agent dependencies, sets `PlayerDebugMode` for CSXS 9-16 and verifies the result. A failure after the copy restores the backup automatically.
-
-- Writes only to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge`, `%LOCALAPPDATA%\VectorizerBridge\install-backups`, `%LOCALAPPDATA%\Programs\nodejs` (only when Node.js is missing) and `HKCU\Software\Adobe\CSXS.9-16`.
-- Never touches `%USERPROFILE%\Documents\VectorizerBridge` (the folder is never deleted either).
-- If Node.js is missing, installs the official Node.js LTS Windows build into `%LOCALAPPDATA%\Programs\nodejs`, verified against nodejs.org's `SHASUMS256.txt`. No admin rights, no PATH change; an existing Node.js is preferred and never touched.
-- Aborts before changing anything if the release download, its SHA-256 or the archive check fails, or if the Node.js download cannot be verified.
-- Chrome or Edge is needed for the agent.
-
-Manual/offline alternative from a clone: `powershell -ExecutionPolicy Bypass -File .\install.ps1` (refuses to run while Illustrator is open unless you pass `-Force`).
-
-3. Start Illustrator → **Window > Extensions > Vectorizer Bridge**.
+1. Double-click `Install-Mockup-Studio.cmd`. Its menu offers **Install or update**, **Clean install** (removes the old copy first), **Remove from this computer**, **Open my files** and **Quit**; the header shows the version already installed, if any.
+2. Restart Illustrator → **Window > Extensions > Mockup Studio**.
+3. Load the Chrome bridge once (optional, for Google Flow): `chrome://extensions` → Developer mode → Load unpacked → `%LOCALAPPDATA%\MockupStudio\flow-bridge`.
 4. **Sign in to vectorizer.ai** once (profile stored in `Documents\VectorizerBridge\vectorizer-profile`).
+
+The current build is embedded in the `.cmd`, inside a base64 zip. It unpacks to `%TEMP%`, mirrors the runtime files, installs missing agent dependencies, sets `PlayerDebugMode` for CSXS 9-16, verifies the result and deletes the temp copy.
+
+- Writes only to `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge`, `HKCU\Software\Adobe\CSXS.9-16` and `%LOCALAPPDATA%\MockupStudio\flow-bridge`.
+- Never touches `%USERPROFILE%\Documents\VectorizerBridge` (the folder is never deleted either).
+- Refuses to run from inside the installed folder.
+- Everything runs offline from the embedded payload; the menu's Remove action runs the same `uninstall.ps1` (user data in `Documents\VectorizerBridge` is kept).
+- After changing the panel, rebuild it: `powershell -ExecutionPolicy Bypass -File tools\build-installer-cmd.ps1`.
 
 **Apply changes:** panel JS/HTML on panel reload; **`host/*.jsx` requires full Illustrator quit/reopen or full extension reload** (ExtendScript cache); `agent/*` changes require stopping/restarting the warm daemon if running. Shortcut changes take effect on panel reload.
 

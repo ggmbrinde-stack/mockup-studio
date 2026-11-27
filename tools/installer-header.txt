@@ -1,0 +1,93 @@
+@echo off
+setlocal EnableExtensions
+title Mockup Studio
+color 0F
+
+rem ===================================================================
+rem  Mockup Studio CEP - single-file installer and setup menu
+rem  The complete payload is embedded at the end of this file: the panel, install.ps1,
+rem  uninstall.ps1 and setup-menu.ps1. Nothing to download and no repository needed.
+rem  Internet is only used for the agent npm dependencies.
+rem  Extension ID : com.bestofgifts.vectorizerbridge
+rem  Target       : Adobe Illustrator 2025 / 2026 / 2027 on Windows
+rem ===================================================================
+
+set "MS_SELF=%~f0"
+set "MS_DIR=%TEMP%\MockupStudioSetup"
+set "MS_ZIP=%TEMP%\MockupStudioSetup.zip"
+set "BRIDGE_DIR=%LOCALAPPDATA%\MockupStudio\flow-bridge"
+
+rem ---------------------------------------------------------------
+rem  1. Windows PowerShell 5.1 or newer must exist
+rem ---------------------------------------------------------------
+where powershell >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Windows PowerShell was not found on this computer.
+    echo         Windows PowerShell 5.1 or newer is required.
+    echo         Windows 10 and 11 include it by default - ask IT if missing.
+    goto :fail
+)
+
+set "PS_MAJOR="
+for /f "usebackq delims=" %%V in (`powershell -NoProfile -Command "$PSVersionTable.PSVersion.Major" 2^>nul`) do set "PS_MAJOR=%%V"
+if not defined PS_MAJOR (
+    echo [ERROR] Windows PowerShell is installed but could not be started.
+    goto :fail
+)
+if %PS_MAJOR% LSS 5 (
+    echo [ERROR] Windows PowerShell %PS_MAJOR% detected - version 5.1 or newer is required.
+    goto :fail
+)
+
+rem ---------------------------------------------------------------
+rem  2. Unpack the embedded payload
+rem ---------------------------------------------------------------
+echo [..] Unpacking bundled files...
+if exist "%MS_DIR%" rd /s /q "%MS_DIR%" >nul 2>&1
+if exist "%MS_ZIP%" del /f /q "%MS_ZIP%" >nul 2>&1
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $m='-----BEGIN-' + 'PAYLOAD-----'; $l=[IO.File]::ReadAllLines($env:MS_SELF); $i=[Array]::IndexOf($l,$m); if ($i -lt 0) { exit 2 }; $b=($l[($i+1)..($l.Length-1)] -join ''); [IO.File]::WriteAllBytes($env:MS_ZIP,[Convert]::FromBase64String($b)); Expand-Archive -LiteralPath $env:MS_ZIP -DestinationPath $env:MS_DIR -Force; exit 0"
+if errorlevel 1 (
+    echo [ERROR] Could not unpack the bundled files.
+    echo         The file may be incomplete - copy it again, or ask for a new copy.
+    goto :fail
+)
+if not exist "%MS_DIR%\setup-menu.ps1" (
+    echo [ERROR] The unpacked payload is incomplete.
+    goto :fail
+)
+
+rem ---------------------------------------------------------------
+rem  3. Chrome bridge files (for Google Flow)
+rem ---------------------------------------------------------------
+if exist "%MS_DIR%\bridge\manifest.json" (
+    xcopy "%MS_DIR%\bridge\*" "%BRIDGE_DIR%" /I /Y /Q >nul 2>&1
+)
+rd /s /q "%MS_DIR%\bridge" >nul 2>&1
+
+rem ---------------------------------------------------------------
+rem  4. The menu: install or update, clean install, remove, open my files, quit
+rem ---------------------------------------------------------------
+powershell -NoProfile -ExecutionPolicy Bypass -File "%MS_DIR%\setup-menu.ps1"
+set "RC=%ERRORLEVEL%"
+
+rem The payload is disposable once the menu closes: the panel is installed by then and a
+rem retry happens inside the menu, not from these temp files.
+rd /s /q "%MS_DIR%" >nul 2>&1
+del /f /q "%MS_ZIP%" >nul 2>&1
+
+if not "%RC%"=="0" (
+    echo.
+    echo The setup menu exited with error code %RC%.
+    echo.
+    pause
+)
+exit /b %RC%
+
+:fail
+set "RC=1"
+echo.
+echo Setup did not start. Nothing was changed on this computer.
+echo.
+pause >nul
+exit /b %RC%
