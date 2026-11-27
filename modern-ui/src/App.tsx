@@ -13,8 +13,10 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import { LogPanel } from "@/components/LogPanel";
 import { UpdatesPanel } from "@/components/UpdatesPanel";
 import { UpdateBanner } from "@/components/UpdateBanner";
-import { AiImageSection } from "@/components/AiImageSection";
-import { FlowSection } from "@/components/FlowSection";
+// Gemini Image Editor and Google Flow are disabled.
+// Components preserved in source for future re-enablement:
+//   modern-ui/src/components/AiImageSection.tsx
+//   modern-ui/src/components/FlowSection.tsx
 import { WhatsNewCard } from "@/components/WhatsNewCard";
 import { SetupWizard } from "@/components/SetupWizard";
 
@@ -150,8 +152,6 @@ function Panel() {
       <Actions />
       <div id="lastExport" className="hint"></div>
       <SettingsAccordion />
-      <AiImageSection />
-      <FlowSection />
       <HistoryPanel />
       <LogPanel />
       <UpdatesPanel />

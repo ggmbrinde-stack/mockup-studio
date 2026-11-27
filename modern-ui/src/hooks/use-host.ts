@@ -133,7 +133,9 @@ export const loadHost = (callback: (result: string) => void): void => {
     ext + "/host/export.jsx",
     ext + "/host/place.jsx",
     ext + "/host/import.jsx",
-    ext + "/host/ai.jsx",
+    // Gemini Image Editor host code is disabled (Magnific will replace it).
+    // Preserved on disk at host/ai.jsx for future re-enablement.
+    // ext + "/host/ai.jsx",
     ext + "/host/agent.jsx",
     ext + "/host/watch.jsx",
   ];
