@@ -1,5 +1,35 @@
 # Changelog — Mockup Studio
 
+## 3.0.7 — 2026-11-27
+
+### Fixed
+- **Setup no longer opens Notepad instead of installing.** Node.js ships `npm`, `npm.cmd` and `npm.ps1` in one folder, and PowerShell resolves the bare name `npm` to `npm.ps1`. Step 2 then asked `cmd.exe` to run that path for `npm --version`; cmd cannot run a `.ps1`, so Windows handed it to the `.ps1` file association — Notepad opened the npm script and the install stalled there. `install.ps1` now resolves `npm.cmd` (or `npm.exe`, or the launcher next to the `node.exe` it found) and uses that exact path for the version check and for `npm install`.
+
+### Changed
+- **Version bumped to 3.0.7** across `CSXS/manifest.xml`, `modern-ui/package.json`, `README.md`, `ARCHITECTURE.md`, `AGENTS.md` and `CHANGELOG.md`.
+
+## 3.0.6 — 2026-11-27
+
+### Added
+- **Setup installs Node.js itself again.** A PC without Node.js for 3.0.5 got a correct but dead-end "Node.js was not found" message. Setup now fetches the official Node.js LTS Windows build, checks it against nodejs.org's `SHASUMS256.txt`, and unpacks it into `%LOCALAPPDATA%\Programs\nodejs` — the same folder `host/agent.jsx` already searches — so no admin rights and no PATH change are involved. An existing Node.js (on `PATH` or a private copy left by an earlier setup) is preferred and never touched; the download only happens when neither is usable, and it cleans up its temp zip/folder afterwards.
+- **The setup menu explains the download instead of refusing.** A missing Node is announced before *Install or update* and before *Clean install* removes the old panel, including the fact that it needs internet and that a failed clean install leaves the panel removed.
+
+### Changed
+- **Version bumped to 3.0.6** across `CSXS/manifest.xml`, `modern-ui/package.json`, `README.md`, `ARCHITECTURE.md`, `AGENTS.md` and `CHANGELOG.md`.
+
+### Notes
+- Offline PCs are still first-class: when the download cannot reach nodejs.org, setup fails with one clear message naming both fallbacks (go online, or install Node.js LTS yourself) before copying anything.
+
+## 3.0.5 — 2026-11-27
+
+### Fixed
+- **The installer no longer reports success when it cannot finish.** A PC without Node.js used to get a yellow warning that scrolled past, an `all required present` success and exit 0 — then a panel that failed at the first sign-in. `install.ps1` now throws before copying anything, and the setup menu checks Node before *Install or update* and before *Clean install* removes the existing panel, so a missing Node leaves the machine exactly as it was.
+- **The panel shows the real error instead of a sign-in timeout.** `puppeteer-core` is loaded on first use rather than at require time, so a missing dependency is written to the status file as an `error` with the reason, naming the `npm install --omit=dev` command that fixes it, instead of the process dying before it could write anything.
+- **Agent launches use a PowerShell launcher instead of `.vbs`.** Windows 11 ships without VBScript and managed PCs block `.vbs`, which made every start vanish silently and left the panel waiting for a status that never came. Launchers are `.ps1` files started hidden through a one-line `.cmd` trampoline. The host also refuses to start when `node.exe` cannot be found (it now also searches `PATH`) and says so in the panel.
+
+### Changed
+- **Version bumped to 3.0.5** across `CSXS/manifest.xml`, `modern-ui/package.json`, `README.md`, `ARCHITECTURE.md`, `AGENTS.md` and `CHANGELOG.md`.
+
 ## 3.0.4 — 2026-11-27
 
 ### Added

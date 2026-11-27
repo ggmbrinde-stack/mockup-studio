@@ -1,4 +1,4 @@
-# Mockup Studio — Adobe Illustrator panel (v3.0.4)
+# Mockup Studio — Adobe Illustrator panel (v3.0.7)
 
 > **Development frozen for UI/UX work.** Behavior/flow/contracts are stable; UI/UX changes only. Keep source and `%APPDATA%\Adobe\CEP\extensions\com.bestofgifts.vectorizerbridge\` in sync.
 
@@ -13,7 +13,7 @@ vectorizer.ai cannot be embedded (`X-Frame-Options`); the agent drives a hidden 
 
 ## Requirements
 - Windows 10/11, Illustrator 2025 (29.x) or 2026 (30.x)+
-- Node.js 22.12+ on PATH (the agent runs `npm install --omit=dev` on the first install)
+- Node.js 22.12+ (the agent runs `npm install --omit=dev` on the first install). If none is found, setup downloads a checksum-verified Node.js LTS into `%LOCALAPPDATA%\Programs\nodejs` — no admin, no PATH change, so that first install needs internet.
 - Chrome or Edge (Chrome for the optional Google Flow bridge)
 - vectorizer.ai account with downloads enabled (sign in once in-panel)
 
@@ -66,7 +66,7 @@ See `ARCHITECTURE.md` for details and `AGENTS.md` for AI-agent contracts/invaria
 ## Docs
 - `AGENTS.md` — AI agent context, contracts, invariants, freeze rules
 - `ARCHITECTURE.md` — layers, modules, interfaces
-- `CHANGELOG.md` — release notes (current: 3.0.4)
-- `HANDOFF.md`, `ARCHITECTURE.md` — current state and layers (3.0.4)
+- `CHANGELOG.md` — release notes (current: 3.0.7)
+- `HANDOFF.md`, `ARCHITECTURE.md` — current state and layers (3.0.7)
 - `docs/archive/` — superseded 2.2.0–2.3.x snapshots, the unimplemented multi-tool plan and the old
   2.3.1 release runbook; history only

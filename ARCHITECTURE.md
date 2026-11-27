@@ -1,8 +1,8 @@
-# Mockup Studio architecture (v3.0.4)
+# Mockup Studio architecture (v3.0.7)
 
 ## Status
 - **Panel UI is React (3.0.0+); host and agent layers are unchanged.** UI work does not alter `host/*.jsx` or `agent/*` contracts, batch/placement semantics or the runtime flow. Keep source and the installed CEP copy in sync on every change.
-- Current release **3.0.4** replaces the download-based installer with `Install-Mockup-Studio.cmd`, one double-clickable file that carries the whole build plus a setup menu (install or update, clean install, remove, open my files), on top of 3.0.2's parallel PNG export (3-4× batch speedup), 3.0.1's update banner and 3.0.0's React panel.
+- Current release **3.0.7** fixes how setup finds npm: PowerShell resolved the bare name `npm` to `npm.ps1`, and `cmd.exe` handed that file to the `.ps1` association, so Notepad opened the script and the install stalled; `install.ps1` now uses the `npm.cmd`/`npm.exe` launcher by explicit path. 3.0.6 brought back the Node.js bootstrap: when no Node.js is found, `install.ps1` downloads the official LTS build, verifies it against nodejs.org's `SHASUMS256.txt` and unpacks it into `%LOCALAPPDATA%\Programs\nodejs` (no admin, no PATH change, a folder `host/agent.jsx` already searches), so a fresh PC installs without a manual prerequisite; 3.0.5 made the installer fail loudly when Node.js is missing and starts the agent from a PowerShell launcher instead of `.vbs`; 3.0.4 replaced the download-based installer with `Install-Mockup-Studio.cmd`, one double-clickable file that carries the whole build plus a setup menu (install or update, clean install, remove, open my files), on top of 3.0.2's parallel PNG export (3-4× batch speedup), 3.0.1's update banner and 3.0.0's React panel.
 
 ## Runtime layers
 
