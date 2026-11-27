@@ -230,6 +230,33 @@ function Invoke-LocalScript([string]$Name, [string[]]$ExtraArgs = @()) {
   return ($LASTEXITCODE -eq 0)
 }
 
+# The vectorizer agent is a Node.js program and install.ps1 installs its npm dependencies.
+# install.ps1 now fetches the official Node.js LTS into %LOCALAPPDATA%\Programs\nodejs when
+# the PC has none, so a missing Node is no longer a reason to refuse - it is only worth
+# announcing, because that download needs an internet connection.
+function Get-NodeProblem {
+  $node = Get-Command node -ErrorAction SilentlyContinue
+  if ($node) {
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npm) { return '' }
+    return 'Node.js is on PATH, but npm was not found next to it.'
+  }
+  if (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'Programs\nodejs\node.exe')) { return '' }
+  return 'Node.js was not found on this PC.'
+}
+
+function Show-NodeWillInstall([string]$Problem, [switch]$CleanInstall) {
+  Out-Line ('  ' + $script:C.warn + $Problem + $script:C.reset)
+  Out-Line ('  ' + $script:C.text + 'Setup will download the official Node.js LTS build (about 30 MB, checksum-' + $script:C.reset)
+  Out-Line ('  ' + $script:C.text + 'verified) into your own AppData folder. No admin rights, no PATH change.' + $script:C.reset)
+  Out-Line ('  ' + $script:C.dim + 'The agent needs it to run; an existing Node.js is used instead and never touched.' + $script:C.reset)
+  Out-Line ('  ' + $script:C.dim + 'This download needs an internet connection.' + $script:C.reset)
+  if ($CleanInstall) {
+    Out-Line ('  ' + $script:C.dim + 'If it fails, the panel stays removed: get online and pick option 1 to put it back.' + $script:C.reset)
+  }
+  Out-Line ''
+}
+
 function Open-DataFolder {
   $target = $script:RuntimeData
   if (-not (Test-Path -LiteralPath $target)) {
@@ -273,6 +300,8 @@ function Invoke-Action([int]$Index) {
   if ($Index -eq 0) {
     $firstInstall = -not (Get-InstalledVersion)
     Write-ActionHeader 'Install or update'
+    $nodeProblem = Get-NodeProblem
+    if ($nodeProblem) { Show-NodeWillInstall $nodeProblem }
     $ask = Get-IllustratorArgs 'Illustrator is open. Install anyway? You must restart it afterwards.'
     if (-not $ask.Ok) {
       Out-Line ('  ' + $script:C.dim + 'Cancelled. Close Illustrator and try again.' + $script:C.reset)
@@ -306,6 +335,9 @@ function Invoke-Action([int]$Index) {
       Start-Sleep -Milliseconds 500
       return
     }
+    # Say it before removing anything, so the download is not a surprise after the panel is gone.
+    $nodeProblem = Get-NodeProblem
+    if ($nodeProblem) { Show-NodeWillInstall $nodeProblem -CleanInstall }
     # Ask about Illustrator before removing anything, so a cancel leaves the old copy intact.
     $ask = Get-IllustratorArgs 'Illustrator is open. Continue anyway? You must restart it afterwards.'
     if (-not $ask.Ok) {

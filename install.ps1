@@ -8,6 +8,11 @@
   Development files (docs, .gitignore, installers) are not copied and stale copies are pruned.
   Never touches %USERPROFILE%\Documents\VectorizerBridge (user runtime data).
 
+  The agent needs Node.js. When the PC has none, setup downloads the official Node.js LTS
+  Windows build, checks it against nodejs.org's SHASUMS256.txt and unpacks it into
+  %LOCALAPPDATA%\Programs\nodejs - a folder the panel already searches - so no admin rights
+  and no PATH change are needed. An existing Node.js is preferred and never touched.
+
   Uses a compact step UI: one line per finished step and a live progress row while a step
   runs. When the output is redirected (logs, CI, the .cmd piping) or VB_NO_UI=1 is set, it
   degrades to plain appended lines.
@@ -139,6 +144,19 @@ function Step-Skip([string]$Detail) { Complete-UiStep 'skip' $Detail 'DarkGray' 
 function Step-Fail([string]$Detail) { Complete-UiStep 'fail' $Detail 'Red' }
 function Note([string]$Message, [string]$Color = 'DarkGray') { Write-Host ('  ' + $Message) -ForegroundColor $Color }
 
+# ------------------------------------------------------------------ https helpers
+# Windows PowerShell 5.1 negotiates TLS 1.0 by default on older builds, which nodejs.org
+# rejects; asking for TLS 1.2 explicitly keeps the Node.js bootstrap working there.
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
+function Get-HttpsText([string]$Url) {
+  $headers = @{ 'User-Agent' = 'MockupStudio-Installer' }
+  return (Invoke-WebRequest -Uri $Url -UseBasicParsing -Headers $headers -TimeoutSec 60).Content
+}
+function Save-HttpsFile([string]$Url, [string]$OutFile) {
+  $headers = @{ 'User-Agent' = 'MockupStudio-Installer' }
+  Invoke-WebRequest -Uri $Url -UseBasicParsing -Headers $headers -OutFile $OutFile -TimeoutSec 300
+}
+
 Initialize-Ui
 Head 'Mockup Studio - installing for the current user'
 Note "source: $Source"
@@ -233,22 +251,119 @@ try {
   }
 
   # ---------------------------------------------------------------- 2. Node.js
-  Start-Step 2 6 'Checking Node.js'
-  # The agent needs Node.js; report it here instead of failing silently at first vectorize.
-  $node = Get-Command node -ErrorAction SilentlyContinue
-  $npm = Get-Command npm -ErrorAction SilentlyContinue
+  Start-Step 2 6 'Preparing Node.js'
+  # The agent is a Node.js program and its dependencies are installed with npm, so a PC
+  # without them cannot work at all. Instead of refusing and sending the user to nodejs.org,
+  # setup makes Node.js available itself before anything is copied: an existing install is
+  # preferred and never touched, a private copy left by an earlier setup is reused, and only
+  # when both are missing does it fetch the official LTS build into the user's AppData.
+  $nodeExe = $null
+  $npmExe = $null
+  $nodeFrom = ''
+  $privateNodeDir = Join-Path $env:LOCALAPPDATA 'Programs\nodejs'
+  $privateNode = Join-Path $privateNodeDir 'node.exe'
+  $privateNpm = Join-Path $privateNodeDir 'npm.cmd'
+
+  $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+  if ($nodeCmd) { $nodeExe = [string]$nodeCmd.Source }
+  # Node ships npm as three files in one folder: npm, npm.cmd and npm.ps1. PowerShell resolves
+  # the bare name to npm.ps1, and cmd.exe cannot run a .ps1: Windows hands it to the .ps1 file
+  # association, which opens Notepad instead of running npm. Only cmd/exe launchers are used.
+  $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+  if (-not $npmCmd) { $npmCmd = Get-Command npm.exe -ErrorAction SilentlyContinue }
+  if ($npmCmd) { $npmExe = [string]$npmCmd.Source }
+  if ($nodeExe -and -not $npmExe) {
+    $nodeFolder = Split-Path -Parent $nodeExe
+    foreach ($candidate in @('npm.cmd', 'npm.exe')) {
+      $npmSibling = Join-Path $nodeFolder $candidate
+      if (Test-Path -LiteralPath $npmSibling) { $npmExe = $npmSibling; break }
+    }
+  }
+  if ($nodeExe -and $npmExe) {
+    $nodeFrom = 'PATH'
+  } else {
+    # An earlier online setup may already have put a private copy in AppData.
+    if (-not $nodeExe -and (Test-Path -LiteralPath $privateNode)) {
+      $nodeExe = $privateNode
+      $nodeFrom = 'private'
+    }
+    if (-not $npmExe -and (Test-Path -LiteralPath $privateNpm)) { $npmExe = $privateNpm }
+  }
+
+  if ($nodeExe -and $npmExe) {
+    Say 'using the Node.js already on this computer'
+  } else {
+    # Ask for the current LTS, verify the published SHA-256, then unpack into AppData.
+    Say 'not found, downloading the official Node.js LTS build (about 30 MB)'
+    $zip = $null
+    $stage = $null
+    try {
+      Add-Type -AssemblyName System.IO.Compression.FileSystem
+      $arch = 'x64'
+      try { if ([string]$env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { $arch = 'arm64' } } catch { }
+      $releases = (Get-HttpsText 'https://nodejs.org/dist/index.json') | ConvertFrom-Json
+      $lts = @($releases | Where-Object { $_.lts }) | Select-Object -First 1
+      if (-not $lts -or -not $lts.version) { throw 'nodejs.org did not report a Node.js LTS release.' }
+      $nodeVer = [string]$lts.version
+      $zipName = "node-$nodeVer-win-$arch.zip"
+      $sums = Get-HttpsText ("https://nodejs.org/dist/$nodeVer/SHASUMS256.txt")
+      $sumLine = @(($sums -split "`n") | Where-Object { $_ -match [regex]::Escape($zipName) }) | Select-Object -First 1
+      if (-not $sumLine -or $sumLine -notmatch '^([0-9a-fA-F]{64})') {
+        throw "nodejs.org published no SHA-256 for $zipName, so the download was not trusted."
+      }
+      $expectedSha = $Matches[1].ToLowerInvariant()
+      $zip = Join-Path $env:TEMP $zipName
+      Say ("downloading Node.js $nodeVer")
+      Save-HttpsFile ("https://nodejs.org/dist/$nodeVer/$zipName") $zip
+      $actualSha = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+      if ($actualSha -ne $expectedSha) { throw 'The Node.js download did not match its published SHA-256.' }
+      $stage = Join-Path $env:TEMP ("vb-node-" + [guid]::NewGuid().ToString('N'))
+      [IO.Compression.ZipFile]::ExtractToDirectory($zip, $stage)
+      $inner = @(Get-ChildItem -LiteralPath $stage -Directory) | Select-Object -First 1
+      if (-not $inner -or -not (Test-Path -LiteralPath (Join-Path $inner.FullName 'node.exe'))) {
+        throw 'The Node.js package did not contain node.exe.'
+      }
+      Say 'unpacking it into your AppData (no admin, no PATH change)'
+      New-Item -ItemType Directory -Force -Path $privateNodeDir | Out-Null
+      & robocopy $inner.FullName $privateNodeDir /E /R:1 /W:1 /NFL /NDL /NP | Out-Null
+      $rc = $LASTEXITCODE
+      if ($rc -ge 8) { throw "Copying Node.js into $privateNodeDir failed (robocopy exit code $rc)." }
+      if (-not (Test-Path -LiteralPath $privateNode)) { throw "Node.js was copied to $privateNodeDir but node.exe is missing." }
+      $nodeExe = $privateNode
+      $nodeFrom = 'private'
+      if (Test-Path -LiteralPath $privateNpm) { $npmExe = $privateNpm } else { $npmExe = $null }
+    } catch {
+      throw @"
+Node.js is required, and setup could not install it automatically: $($_.Exception.Message)
+Connect this PC to the internet and run the installer again, or install Node.js LTS from
+https://nodejs.org (choose the "Current user" option, no admin needed) and re-run it.
+Nothing was copied into the extension folder.
+"@
+    } finally {
+      if ($zip) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
+      if ($stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+  }
+
   $nodeLabel = ''
   $npmLabel = ''
-  if ($node) { try { $nodeLabel = [string](& node --version) } catch { $nodeLabel = '' } }
-  if ($npm) { try { $npmLabel = [string](& npm --version) } catch { $npmLabel = '' } }
-  if ($node -and $npm) {
-    Step-Ok ("Node.js $nodeLabel, npm $npmLabel")
-  } elseif ($node) {
-    Step-Skip 'npm missing'
-    Note "WARNING: npm not found on PATH. Agent dependencies must be installed manually." 'Yellow'
+  if ($nodeExe) { try { $nodeLabel = [string](& $nodeExe --version) } catch { $nodeLabel = '' } }
+  if ($npmExe) { try { $npmLabel = [string](& cmd.exe /c ('"' + $npmExe + '" --version')) } catch { $npmLabel = '' } }
+  if (-not $nodeExe -or -not $nodeLabel) {
+    throw "Node.js could not be started from '$nodeExe'. Nothing was copied into the extension folder."
+  }
+  if (-not $npmExe) {
+    throw @"
+Node.js $nodeLabel is available, but npm was not found next to it, so the agent dependencies
+the extension cannot be installed and nothing was copied.
+Reinstall Node.js LTS from https://nodejs.org so that npm comes with it, then run the
+installer again.
+"@
+  }
+  if ($nodeFrom -eq 'private') {
+    Step-Ok ("Node.js $nodeLabel (private copy), npm $npmLabel")
   } else {
-    Step-Skip 'Node.js not found'
-    Note 'WARNING: node not found on PATH. The vectorizer agent requires Node.js.' 'Yellow'
+    Step-Ok ("Node.js $nodeLabel, npm $npmLabel")
   }
 
   # ---------------------------------------------------------------- 3. Copy the panel
@@ -331,17 +446,19 @@ try {
     Note 'WARNING: agent\package.json missing in the destination; the vectorizer agent will not start.' 'Yellow'
   } elseif (Test-Path $puppeteer) {
     Step-Skip 'already present'
-  } elseif (-not $npm) {
-    Step-Skip 'npm not found'
-    Note "WARNING: run 'npm install --omit=dev' in $agentDir or the agent will not start." 'Yellow'
+  } elseif (-not $npmExe) {
+    throw 'npm was not found, so the agent dependencies cannot be installed. Reinstall Node.js LTS from https://nodejs.org (npm comes with it), then run the installer again.'
   } else {
     $npmLog = Join-Path $env:TEMP ("vb-npm-" + [guid]::NewGuid().ToString('N') + ".log")
+    # A private Node.js copy is not on PATH; adding its folder for this process only lets
+    # npm.cmd (and anything it spawns) find node.exe without editing the user's PATH.
+    if ($nodeFrom -eq 'private') { $env:PATH = (Split-Path -Parent $npmExe) + ';' + $env:PATH }
     Say 'running npm install --omit=dev'
     # cmd /c keeps npm output in a file: PowerShell 5.1 turns native stderr into terminating
     # errors under ErrorActionPreference=Stop, and $LASTEXITCODE is what actually matters here.
     Push-Location $agentDir
     try {
-      & cmd.exe /c "npm install --omit=dev --no-audit --no-fund > `"$npmLog`" 2>&1"
+      & cmd.exe /c ('"' + $npmExe + '" install --omit=dev --no-audit --no-fund > "' + $npmLog + '" 2>&1')
       $npmExit = $LASTEXITCODE
     } finally {
       Pop-Location
